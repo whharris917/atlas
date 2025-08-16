@@ -1,0 +1,21 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+
+# Conda environment files
+.conda/
+conda-meta/
+
+# Virtual environment
+venv/
+.venv/
+ENV/
+env/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp 
+
+# (other ignored files...)
+.ipynb_checkpoints/
