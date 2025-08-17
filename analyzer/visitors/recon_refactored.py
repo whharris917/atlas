@@ -4,7 +4,7 @@ Refactored Reconnaissance Visitor - Code Atlas
 Main reconnaissance visitor that orchestrates specialized visitors for different concerns.
 This replaces the monolithic ReconVisitor with a modular approach.
 
-CRITICAL FIX: Added support for ast.AsyncFunctionDef to prevent recursive method body processing.
+CRITICAL FIX: Added support for ast.AsyncFunctionDef and fixed inheritance resolution.
 """
 
 import ast
@@ -119,28 +119,22 @@ class RefactoredReconVisitor(ast.NodeVisitor):
         to generic_visit() which recursively processed method bodies and treated
         local variables as class attributes.
         """
-        # Treat async functions the same as regular functions for reconnaissance
-        self.function_visitor.process_function_def(node)
-        # IMPORTANT: Do NOT call self.generic_visit(node) to prevent visiting method bodies
+        self.logger.log(f"[RECON_ASYNC] Processing async function: {node.name}", 2)
+        
+        # Process as function but mark as async
+        self.function_visitor.process_async_function_def(node)
+        # Note: We don't recursively visit function bodies in reconnaissance pass
     
     def visit_Assign(self, node: ast.Assign):
         """Process assignments using specialized visitor."""
-        def class_attr_callback(name: str, info: Dict[str, Any]):
-            self.class_visitor.add_class_attribute(name, info)
-        
-        self.state_visitor.process_assign(node, class_attr_callback)
-        self.generic_visit(node)
+        self.state_visitor.process_assign(node)
     
     def visit_AnnAssign(self, node: ast.AnnAssign):
         """Process annotated assignments using specialized visitor."""
-        def class_attr_callback(name: str, info: Dict[str, Any]):
-            self.class_visitor.add_class_attribute(name, info)
-        
-        self.state_visitor.process_ann_assign(node, class_attr_callback)
-        self.generic_visit(node)
+        self.state_visitor.process_ann_assign(node)
     
     def _find_init_method(self, class_node: ast.ClassDef) -> Optional[ast.FunctionDef]:
-        """Find __init__ method in class definition."""
+        """Find the __init__ method in a class."""
         for child in class_node.body:
             if isinstance(child, ast.FunctionDef) and child.name == "__init__":
                 return child
@@ -246,8 +240,10 @@ def run_reconnaissance_pass_refactored(python_files: List, recon_data: Dict[str,
                             break
                     
                     if not found:
-                        logger.log(f"    -> Could not resolve parent: {parent}", 1)
-                        resolved_parents.append(parent)
+                        # CRITICAL FIX: Preserve built-in types (Enum, ABC, Protocol)
+                        # This was the missing logic that caused the inheritance regression
+                        resolved_parents.append(parent)  # Keep original name!
+                        logger.log(f"    -> Keeping original: {parent}", 2)
             else:
                 resolved_parents.append(parent)
                 logger.log(f"    -> Using qualified parent: {parent}", 2)

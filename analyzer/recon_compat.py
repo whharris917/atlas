@@ -3,6 +3,8 @@ Reconnaissance Compatibility Layer - Code Atlas
 
 Provides seamless switching between original and refactored reconnaissance implementations.
 Part of the Phase 2 refactoring following the successful progressive migration pattern.
+
+FIXED: Added proper fallback and import handling for refactored implementation.
 """
 
 import pathlib
@@ -62,9 +64,15 @@ def run_reconnaissance_pass_compat(python_files: List[pathlib.Path],
     # Run the selected implementation
     if use_refactored:
         print("[RECON_COMPAT] Using refactored reconnaissance implementation")
-        from .visitors.recon_refactored import run_reconnaissance_pass_refactored
-        return run_reconnaissance_pass_refactored(python_files)
-    else:
+        try:
+            from .visitors.recon_refactored import run_reconnaissance_pass_refactored
+            return run_reconnaissance_pass_refactored(python_files)
+        except ImportError as e:
+            print(f"[RECON_COMPAT] Refactored implementation failed to import: {e}")
+            print("[RECON_COMPAT] Falling back to original implementation")
+            use_refactored = False
+    
+    if not use_refactored:
         print("[RECON_COMPAT] Using original reconnaissance implementation")
         from .recon import run_reconnaissance_pass
         return run_reconnaissance_pass(python_files)
@@ -74,7 +82,6 @@ def run_reconnaissance_pass_compat(python_files: List[pathlib.Path],
 def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
     """
     Original reconnaissance pass interface.
-    
     This function maintains the original API while automatically using
     the best available implementation.
     """

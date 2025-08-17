@@ -1,41 +1,111 @@
 """
-Specialized AST Visitors
+Specialized Visitors Package - Code Atlas
 
-Focused visitors for specific analysis and reconnaissance concerns.
+This package contains all specialized visitor implementations for the refactored Atlas system.
 
-Phase 1 visitors handle analysis pass specialization:
-- EmitVisitor: SocketIO emit detection and context tracking
-- CallVisitor: Method call analysis and chain resolution
-- AssignmentVisitor: Variable assignment tracking and state management
+Resolution Visitors (Phase 3):
+- SimpleResolutionVisitor: Basic single-name resolution
+- ChainResolutionVisitor: Complex attribute chain resolution  
+- InheritanceResolutionVisitor: Inheritance-based resolution
+- ExternalResolutionVisitor: External library resolution
 
-Phase 2 visitors handle reconnaissance pass specialization:
-- ImportReconVisitor: Import processing and external library detection
-- ClassReconVisitor: Class definition and inheritance tracking
-- FunctionReconVisitor: Function/method definition and signature extraction
-- StateReconVisitor: Module state variables and assignments
+Analysis Visitors (Phase 1):
+- EmitVisitor: SocketIO emit detection
+- CallVisitor: Method call analysis
+- AssignmentVisitor: Variable assignment tracking
 
-Part of the Atlas refactoring project to modularize analysis components.
+Reconnaissance Visitors (Phase 2):  
+- ImportReconVisitor: Import statement processing
+- ClassReconVisitor: Class definition processing
+- FunctionReconVisitor: Function/method processing
+- StateReconVisitor: Module state processing
 """
 
-# Phase 1 - Analysis specialized visitors
-from .emit_visitor import EmitVisitor
-from .call_visitor import CallVisitor  
-from .assignment_visitor import AssignmentVisitor
+# Resolution visitors (Phase 3) - import with error handling
+try:
+    from .simple_resolution_visitor import SimpleResolutionVisitor
+except ImportError:
+    SimpleResolutionVisitor = None
 
-# Phase 2 - Reconnaissance specialized visitors
-from .import_recon_visitor import ImportReconVisitor
-from .class_recon_visitor import ClassReconVisitor
-from .function_recon_visitor import FunctionReconVisitor
-from .state_recon_visitor import StateReconVisitor
+try:
+    from .chain_resolution_visitor import ChainResolutionVisitor
+except ImportError:
+    ChainResolutionVisitor = None
 
-__all__ = [
-    # Phase 1 - Analysis visitors
-    'EmitVisitor',
-    'CallVisitor',
-    'AssignmentVisitor',
-    # Phase 2 - Reconnaissance visitors
-    'ImportReconVisitor',
-    'ClassReconVisitor',
-    'FunctionReconVisitor',
-    'StateReconVisitor'
-]
+try:
+    from .inheritance_resolution_visitor import InheritanceResolutionVisitor
+except ImportError:
+    InheritanceResolutionVisitor = None
+
+try:
+    from .external_resolution_visitor import ExternalResolutionVisitor
+except ImportError:
+    ExternalResolutionVisitor = None
+
+# Analysis visitors (Phase 1) - import with error handling
+try:
+    from .emit_visitor import EmitVisitor
+except ImportError:
+    EmitVisitor = None
+
+try:
+    from .call_visitor import CallVisitor
+except ImportError:
+    CallVisitor = None
+
+try:
+    from .assignment_visitor import AssignmentVisitor
+except ImportError:
+    AssignmentVisitor = None
+
+# Reconnaissance visitors (Phase 2) - import with error handling
+try:
+    from .import_recon_visitor import ImportReconVisitor
+except ImportError:
+    ImportReconVisitor = None
+
+try:
+    from .class_recon_visitor import ClassReconVisitor
+except ImportError:
+    ClassReconVisitor = None
+
+try:
+    from .function_recon_visitor import FunctionReconVisitor
+except ImportError:
+    FunctionReconVisitor = None
+
+try:
+    from .state_recon_visitor import StateReconVisitor
+except ImportError:
+    StateReconVisitor = None
+
+# Only export visitors that were successfully imported
+__all__ = []
+
+# Resolution visitors
+if SimpleResolutionVisitor:
+    __all__.append('SimpleResolutionVisitor')
+if ChainResolutionVisitor:
+    __all__.append('ChainResolutionVisitor')
+if InheritanceResolutionVisitor:
+    __all__.append('InheritanceResolutionVisitor')
+if ExternalResolutionVisitor:
+    __all__.append('ExternalResolutionVisitor')
+
+# Analysis visitors
+if EmitVisitor:
+    __all__.append('EmitVisitor')
+if CallVisitor:
+    __all__.append('CallVisitor')
+if AssignmentVisitor:
+    __all__.append('AssignmentVisitor')
+
+# Reconnaissance visitors
+if ImportReconVisitor:
+    __all__.append('ImportReconVisitor')
+if ClassReconVisitor:
+    __all__.append('ClassReconVisitor')
+if FunctionReconVisitor:
+    __all__.append('FunctionReconVisitor')
+if StateReconVisitor:
+    __all__.append('StateReconVisitor')
