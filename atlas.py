@@ -16,7 +16,8 @@ from analyzer.utils import (
     validate_python_version,
     generate_json_report
 )
-from analyzer.recon import run_reconnaissance_pass
+# FIX: Import both compatibility layers
+from analyzer.recon_compat import run_reconnaissance_pass_compat, get_recon_info
 from analyzer.analysis_compat import run_analysis_pass_compat, get_atlas_info
 
 def main() -> None:
@@ -45,14 +46,22 @@ def main() -> None:
     
     # Handle --info flag
     if args.info:
-        info = get_atlas_info()
+        atlas_info = get_atlas_info()
+        recon_info = get_recon_info()
+        
         print("=== Atlas Information ===")
-        print(f"Version: {info['version']}")
-        print(f"Refactored implementation available: {'Yes' if info['refactored_available'] else 'No'}")
-        if info['refactored_available']:
-            print(f"Log level: {info.get('log_level', 'Unknown')}")
-            print(f"Emit detection: {'Enabled' if info.get('emit_detection_enabled', True) else 'Disabled'}")
-            print(f"External libraries: {info.get('external_libraries_count', 'Unknown')} configured")
+        print(f"Version: {atlas_info['version']}")
+        print(f"Analysis refactored implementation: {'Yes' if atlas_info['refactored_available'] else 'No'}")
+        print(f"Reconnaissance refactored implementation: {'Yes' if recon_info['refactored_available'] else 'No'}")
+        
+        if atlas_info['refactored_available']:
+            print(f"Log level: {atlas_info.get('log_level', 'Unknown')}")
+            print(f"Emit detection: {'Enabled' if atlas_info.get('emit_detection_enabled', True) else 'Disabled'}")
+            print(f"External libraries: {atlas_info.get('external_libraries_count', 'Unknown')} configured")
+        
+        print(f"Recommended configuration:")
+        print(f"  - Analysis: {atlas_info.get('recommended', 'refactored' if atlas_info['refactored_available'] else 'original')}")
+        print(f"  - Reconnaissance: {recon_info.get('recommended', 'refactored' if recon_info['refactored_available'] else 'original')}")
         return
     
     # Determine verbosity
@@ -68,32 +77,67 @@ def main() -> None:
         print("=" * 115)
     
     # Show implementation info (unless quiet)
-    info = get_atlas_info()
+    atlas_info = get_atlas_info()
+    recon_info = get_recon_info()
+    
     if not args.quiet:
         print(f"Available implementations:")
-        print(f"  - Original: Always available")
-        print(f"  - Refactored: {'Yes' if info['refactored_available'] else 'No'} {'' if info['refactored_available'] else 'Not available'}")
+        print(f"  - Analysis Original: Always available")
+        print(f"  - Analysis Refactored: {'Yes' if atlas_info['refactored_available'] else 'No'}")
+        print(f"  - Reconnaissance Original: Always available")
+        print(f"  - Reconnaissance Refactored: {'Yes' if recon_info['refactored_available'] else 'No'}")
     
-    # Determine which implementation to use
+    # FIX: Properly handle dual implementation selection
     if args.implementation == 'auto':
-        use_refactored = info['refactored_available']
-        impl_name = "refactored" if use_refactored else "original"
+        use_refactored_analysis = atlas_info['refactored_available']
+        use_refactored_recon = recon_info['refactored_available']
+        
+        impl_name = []
+        if use_refactored_recon:
+            impl_name.append("recon:refactored")
+        else:
+            impl_name.append("recon:original")
+            
+        if use_refactored_analysis:
+            impl_name.append("analysis:refactored")
+        else:
+            impl_name.append("analysis:original")
+            
+        impl_display = " + ".join(impl_name)
+        
         if not args.quiet:
-            print(f"Auto-selected: {impl_name} implementation")
+            print(f"Auto-selected: {impl_display}")
+            
     elif args.implementation == 'refactored':
-        if not info['refactored_available']:
-            print("  ERROR: Refactored implementation requested but not available!")
+        if not atlas_info['refactored_available'] and not recon_info['refactored_available']:
+            print("  ERROR: Refactored implementations requested but neither available!")
             print("   Use --implementation auto or --implementation original")
             sys.exit(1)
-        use_refactored = True
-        impl_name = "refactored"
+        
+        use_refactored_analysis = atlas_info['refactored_available']
+        use_refactored_recon = recon_info['refactored_available']
+        
+        # Show what we're actually using
+        impl_parts = []
+        if use_refactored_recon:
+            impl_parts.append("recon:refactored")
+        else:
+            impl_parts.append("recon:original")
+        if use_refactored_analysis:
+            impl_parts.append("analysis:refactored")
+        else:
+            impl_parts.append("analysis:original")
+        impl_display = " + ".join(impl_parts)
+        
         if not args.quiet:
-            print(f"Using: {impl_name} implementation (explicitly requested)")
-    else:  # original
-        use_refactored = False
-        impl_name = "original"
+            print(f"Using: {impl_display} (best available refactored)")
+            
+    else:  # original - FIX: Force BOTH to use original
+        use_refactored_analysis = False
+        use_refactored_recon = False
+        impl_display = "recon:original + analysis:original"
         if not args.quiet:
-            print(f"Using: {impl_name} implementation (explicitly requested)")
+            print(f"Using: {impl_display} (explicitly requested)")
     
     if not args.quiet:
         print()
@@ -114,18 +158,22 @@ def main() -> None:
     try:
         # Two-pass architecture with intelligent implementation selection
         if verbose:
-            print("=== PHASE 1: RECONNAISSANCE ===")
+            recon_impl = "REFACTORED" if use_refactored_recon else "ORIGINAL"
+            print(f"=== PHASE 1: RECONNAISSANCE ({recon_impl}) ===")
         elif not args.quiet:
             print("Running reconnaissance pass...")
         
-        recon_data = run_reconnaissance_pass(python_files)
+        # FIX: Use reconnaissance compatibility layer with proper flag
+        recon_data = run_reconnaissance_pass_compat(python_files, use_refactored=use_refactored_recon)
         
         if verbose:
-            print(f"=== PHASE 2: ANALYSIS ({'REFACTORED' if use_refactored else 'ORIGINAL'}) ===")
+            analysis_impl = "REFACTORED" if use_refactored_analysis else "ORIGINAL"
+            print(f"=== PHASE 2: ANALYSIS ({analysis_impl}) ===")
         elif not args.quiet:
-            print(f"Running analysis pass ({impl_name})...")
+            analysis_impl_name = "refactored" if use_refactored_analysis else "original"
+            print(f"Running analysis pass ({analysis_impl_name})...")
         
-        atlas = run_analysis_pass_compat(python_files, recon_data, use_refactored=use_refactored)
+        atlas = run_analysis_pass_compat(python_files, recon_data, use_refactored=use_refactored_analysis)
         
         if verbose:
             print("=== GENERATING REPORT ===")
@@ -136,7 +184,7 @@ def main() -> None:
 
         if not args.quiet:
             print("=== CODE ATLAS GENERATION COMPLETE ===")
-            print(f"Analysis successful using {impl_name} implementation!")
+            print(f"Analysis successful using {impl_display}!")
             print("Check 'code_atlas_report.json' for results.")
 
     except KeyboardInterrupt:

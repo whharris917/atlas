@@ -117,7 +117,8 @@ def get_atlas_info() -> Dict[str, Any]:
     """Get information about the current Atlas configuration."""
     info = {
         "refactored_available": REFACTORED_AVAILABLE,
-        "version": "refactored" if REFACTORED_AVAILABLE else "original"
+        "version": "refactored" if REFACTORED_AVAILABLE else "original",
+        "recommended": "refactored" if REFACTORED_AVAILABLE else "original"
     }
     
     if REFACTORED_AVAILABLE:
