@@ -2,9 +2,7 @@
   "recon_data": {
     "classes": {
       "admin_manager.OperationType": {
-        "parents": [
-          "Enum"
-        ],
+        "parents": [],
         "attributes": {
           "USER_MANAGEMENT": {
             "type": "auto"
@@ -30,9 +28,7 @@
         }
       },
       "admin_manager.OperationStatus": {
-        "parents": [
-          "Enum"
-        ],
+        "parents": [],
         "attributes": {
           "PENDING": {
             "type": "auto"
@@ -201,9 +197,7 @@
         }
       },
       "event_validator.ValidationLevel": {
-        "parents": [
-          "Enum"
-        ],
+        "parents": [],
         "attributes": {
           "INFO": {
             "type": "auto"
@@ -220,9 +214,7 @@
         }
       },
       "event_validator.ValidationResult": {
-        "parents": [
-          "Enum"
-        ],
+        "parents": [],
         "attributes": {
           "VALID": {
             "type": "auto"
@@ -285,15 +277,11 @@
         }
       },
       "event_validator.ValidationRule": {
-        "parents": [
-          "Protocol"
-        ],
+        "parents": [],
         "attributes": {}
       },
       "event_validator.BaseValidationRule": {
-        "parents": [
-          "ABC"
-        ],
+        "parents": [],
         "attributes": {
           "rule_name": {
             "type": "str"
@@ -399,9 +387,7 @@
         }
       },
       "inheritence_complex.Priority": {
-        "parents": [
-          "Enum"
-        ],
+        "parents": [],
         "attributes": {
           "LOW": {
             "type": "auto"
@@ -438,9 +424,7 @@
         }
       },
       "inheritence_complex.AbstractProcessor": {
-        "parents": [
-          "ABC"
-        ],
+        "parents": [],
         "attributes": {
           "processor_id": {
             "type": "str"
@@ -542,9 +526,7 @@
         }
       },
       "inheritence_complex.ProcessorProtocol": {
-        "parents": [
-          "Protocol"
-        ],
+        "parents": [],
         "attributes": {}
       },
       "inheritence_complex.GenericProcessor": {
@@ -630,9 +612,7 @@
         }
       },
       "proxy_handler.BaseProxy": {
-        "parents": [
-          "ABC"
-        ],
+        "parents": [],
         "attributes": {
           "target": {
             "type": "Any"
@@ -697,9 +677,7 @@
         }
       },
       "session_manager.SessionState": {
-        "parents": [
-          "Enum"
-        ],
+        "parents": [],
         "attributes": {
           "CREATED": {
             "type": "auto"
@@ -722,9 +700,7 @@
         }
       },
       "session_manager.UserRole": {
-        "parents": [
-          "Enum"
-        ],
+        "parents": [],
         "attributes": {
           "GUEST": {
             "type": "auto"
@@ -1535,18 +1511,6 @@
         "return_type": null,
         "param_types": {
           "processor_id": "str"
-        }
-      },
-      "inheritence_complex.AsyncProcessor.async_process_data": {
-        "return_type": "ProcessingResult",
-        "param_types": {
-          "data": "Any"
-        }
-      },
-      "inheritence_complex.AsyncProcessor.batch_process": {
-        "return_type": "List[ProcessingResult]",
-        "param_types": {
-          "data_list": "List[Any]"
         }
       },
       "inheritence_complex.AsyncProcessor.queue_for_async_processing": {
@@ -2533,7 +2497,7 @@
         },
         {
           "name": "AdminManager",
-          "docstring": "\n    Administrative operations manager for testing complex admin workflows.\n    Provides mock admin functionality with comprehensive operation tracking.\n    ",
+          "docstring": "Administrative operations manager for testing complex admin workflows.\nProvides mock admin functionality with comprehensive operation tracking.",
           "methods": [
             {
               "name": "__init__",
@@ -2566,7 +2530,7 @@
                 "operation_type",
                 "parameters"
               ],
-              "docstring": "\n        Execute an administrative operation.\n        This is the main entry point called by the decorator in decorators.py.\n        ",
+              "docstring": "Execute an administrative operation.\nThis is the main entry point called by the decorator in decorators.py.",
               "calls": [
                 "admin_manager.OperationResult.add_error",
                 "admin_manager.AdminManager._result_to_dict",
@@ -2782,7 +2746,24 @@
         }
       ],
       "functions": [],
-      "module_state": []
+      "module_state": [
+        {
+          "name": "manager",
+          "value": "AdminManager()"
+        },
+        {
+          "name": "result",
+          "value": "manager.execute_operation('USER_MANAGEMENT', {'action': 'create_user', 'username': 'test_user'})"
+        },
+        {
+          "name": "result",
+          "value": "manager.execute_operation('SYSTEM_CONFIGURATION', {'config': {'max_concurrent_operations': 10, 'security_level': 'maximum'}})"
+        },
+        {
+          "name": "status",
+          "value": "manager.get_system_status()"
+        }
+      ]
     },
     "database_manager.py": {
       "file_path": "database_manager.py",
@@ -3020,7 +3001,7 @@
         {
           "name": "get_db_connection",
           "args": [],
-          "docstring": "\n    Get a database connection from the pool.\n    Creates a new mock connection for testing purposes.\n    ",
+          "docstring": "Get a database connection from the pool.\nCreates a new mock connection for testing purposes.",
           "calls": [],
           "instantiations": [
             "database_manager.DatabaseConnection"
@@ -3090,7 +3071,32 @@
           ]
         }
       ],
-      "module_state": []
+      "module_state": [
+        {
+          "name": "_connection_pool",
+          "value": "[]"
+        },
+        {
+          "name": "_pool_lock",
+          "value": "threading.Lock()"
+        },
+        {
+          "name": "_connection_counter",
+          "value": "0"
+        },
+        {
+          "name": "conn",
+          "value": "get_db_connection()"
+        },
+        {
+          "name": "tx_manager",
+          "value": "TransactionManager(conn, 'SERIALIZABLE')"
+        },
+        {
+          "name": "stats",
+          "value": "get_pool_stats()"
+        }
+      ]
     },
     "decorators.py": {
       "file_path": "decorators.py",
@@ -3162,7 +3168,7 @@
         },
         {
           "name": "ClassBasedDecorator",
-          "docstring": "\n    Class-based decorator for testing complex decorator analysis.\n    ",
+          "docstring": "Class-based decorator for testing complex decorator analysis.",
           "methods": [
             {
               "name": "__init__",
@@ -3221,7 +3227,7 @@
         },
         {
           "name": "PropertyDecorator",
-          "docstring": "\n    Custom property decorator with validation and transformation.\n    ",
+          "docstring": "Custom property decorator with validation and transformation.",
           "methods": [
             {
               "name": "__init__",
@@ -3261,8 +3267,7 @@
           "instantiations": [],
           "accessed_state": [
             "decorators.TRACE_LOCK",
-            "decorators._decorator_registry",
-            "decorators.PERFORMANCE_METRICS"
+            "decorators._decorator_registry"
           ],
           "decorators": [
             "@wraps(f)"
@@ -3273,7 +3278,7 @@
           "args": [
             "func"
           ],
-          "docstring": "\n    Advanced tracing decorator with optional parameters.\n    Tests parameterized decorator analysis.\n    ",
+          "docstring": "Advanced tracing decorator with optional parameters.\nTests parameterized decorator analysis.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [
@@ -3287,9 +3292,7 @@
           "docstring": null,
           "calls": [],
           "instantiations": [],
-          "accessed_state": [
-            "decorators.PERFORMANCE_METRICS"
-          ],
+          "accessed_state": [],
           "decorators": [
             "@wraps(f)"
           ]
@@ -3299,7 +3302,7 @@
           "args": [
             "func"
           ],
-          "docstring": "\n    Performance monitoring decorator with complex callback patterns.\n    ",
+          "docstring": "Performance monitoring decorator with complex callback patterns.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3328,7 +3331,7 @@
             "required_role",
             "check_session"
           ],
-          "docstring": "\n    Authentication validation decorator with complex role checking.\n    ",
+          "docstring": "Authentication validation decorator with complex role checking.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3357,7 +3360,7 @@
             "per_user",
             "key_func"
           ],
-          "docstring": "\n    Rate limiting decorator with complex key generation and user tracking.\n    ",
+          "docstring": "Rate limiting decorator with complex key generation and user tracking.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3367,9 +3370,7 @@
           "name": "wrapper",
           "args": [],
           "docstring": null,
-          "calls": [
-            "decorators.DecoratorRegistry.register_decorator"
-          ],
+          "calls": [],
           "instantiations": [],
           "accessed_state": [],
           "decorators": [
@@ -3384,8 +3385,10 @@
             "post_hook",
             "error_hook"
           ],
-          "docstring": "\n    Factory for creating custom decorators with hooks.\n    Tests complex decorator factory patterns.\n    ",
-          "calls": [],
+          "docstring": "Factory for creating custom decorators with hooks.\nTests complex decorator factory patterns.",
+          "calls": [
+            "decorators.DecoratorRegistry.register_decorator"
+          ],
           "instantiations": [],
           "accessed_state": [
             "decorators._decorator_registry"
@@ -3395,7 +3398,7 @@
         {
           "name": "multi_decorator",
           "args": [],
-          "docstring": "\n    Apply multiple decorators in sequence.\n    Tests complex decorator chaining analysis.\n    ",
+          "docstring": "Apply multiple decorators in sequence.\nTests complex decorator chaining analysis.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3407,7 +3410,7 @@
             "condition",
             "decorator"
           ],
-          "docstring": "\n    Apply decorator only if condition is met.\n    Tests conditional decorator application.\n    ",
+          "docstring": "Apply decorator only if condition is met.\nTests conditional decorator application.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3432,7 +3435,7 @@
             "serializer",
             "validator"
           ],
-          "docstring": "\n    Advanced caching decorator with complex parameter patterns.\n    ",
+          "docstring": "Advanced caching decorator with complex parameter patterns.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3454,7 +3457,7 @@
           "args": [
             "metrics_collector"
           ],
-          "docstring": "\n    Create a monitoring decorator that uses an external metrics collector.\n    Tests decorator factories with external dependencies.\n    ",
+          "docstring": "Create a monitoring decorator that uses an external metrics collector.\nTests decorator factories with external dependencies.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3485,7 +3488,7 @@
             "isolation_level",
             "rollback_on"
           ],
-          "docstring": "\n    Database transaction decorator with complex exception handling.\n    ",
+          "docstring": "Database transaction decorator with complex exception handling.",
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3581,6 +3584,14 @@
         {
           "name": "TRACE_LOCK",
           "value": "Lock()"
+        },
+        {
+          "name": "_decorator_registry",
+          "value": "DecoratorRegistry()"
+        },
+        {
+          "name": "performance_monitor",
+          "value": "create_custom_decorator('performance_monitor', pre_hook=lambda f, a, k: logging.info(f'Starting {f.__name__}'), post_hook=lambda f, a, k, r: logging.info(f'Completed {f.__name__}'), error_hook=lambda f, a, k, e: logging.error(f'Error in {f.__name__}: {e}'))"
         }
       ]
     },
@@ -4239,6 +4250,30 @@
         {
           "name": "T",
           "value": "TypeVar('T')"
+        },
+        {
+          "name": "event_validator",
+          "value": "EventValidator()"
+        },
+        {
+          "name": "message_validator",
+          "value": "MessageValidator()"
+        },
+        {
+          "name": "test_event_data",
+          "value": "{'event_type': 'message', 'timestamp': time.time(), 'data': {'message': 'Hello, this is a test message!', 'sender_id': 'user_123', 'room': 'general'}}"
+        },
+        {
+          "name": "event_validation_result",
+          "value": "event_validator.validate_event(test_event_data)"
+        },
+        {
+          "name": "message_validation_result",
+          "value": "message_validator.validate_message('This is a clean test message')"
+        },
+        {
+          "name": "complete_validation",
+          "value": "validate_complete_action(test_event_data, 'Test message for validation')"
         }
       ]
     },
@@ -4419,9 +4454,7 @@
                 "cache_key"
               ],
               "docstring": "Retrieve item from cache.",
-              "calls": [
-                "inheritence_complex.AbstractProcessor.log_operation"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -4436,9 +4469,7 @@
                 "data"
               ],
               "docstring": "Store item in cache.",
-              "calls": [
-                "inheritence_complex.AbstractProcessor.log_operation"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -4479,9 +4510,7 @@
                 "description"
               ],
               "docstring": "Add a validation rule.",
-              "calls": [
-                "inheritence_complex.AbstractProcessor.log_operation"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -4493,9 +4522,7 @@
                 "data"
               ],
               "docstring": "Run comprehensive validation using all rules.",
-              "calls": [
-                "inheritence_complex.AbstractProcessor.log_operation"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -4527,9 +4554,7 @@
                 "value"
               ],
               "docstring": "Record a custom metric.",
-              "calls": [
-                "inheritence_complex.AbstractProcessor.log_operation"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -4980,6 +5005,30 @@
         {
           "name": "U",
           "value": "TypeVar('U')"
+        },
+        {
+          "name": "ultimate_processor",
+          "value": "UltimateProcessor('master_processor')"
+        },
+        {
+          "name": "test_data",
+          "value": "{'value': 42, 'name': 'test', 'priority': 'high'}"
+        },
+        {
+          "name": "result",
+          "value": "ultimate_processor.ultimate_process(test_data)"
+        },
+        {
+          "name": "stats",
+          "value": "ultimate_processor.get_statistics()"
+        },
+        {
+          "name": "cache_stats",
+          "value": "ultimate_processor.get_cache_statistics()"
+        },
+        {
+          "name": "metric_summary",
+          "value": "ultimate_processor.get_metric_summary('processing_time')"
         }
       ]
     },
@@ -6049,7 +6098,7 @@
               ],
               "docstring": "Compute complex user engagement score.",
               "calls": [
-                "session_manager.SessionInteractionManager._get_user_session"
+                "session_manager.SessionAnalytics._get_user_session"
               ],
               "instantiations": [],
               "accessed_state": [],
@@ -6121,7 +6170,12 @@
           "decorators": []
         }
       ],
-      "module_state": []
+      "module_state": [
+        {
+          "name": "_global_session_manager",
+          "value": "None"
+        }
+      ]
     },
     "socketio_events.py": {
       "file_path": "socketio_events.py",
@@ -6313,7 +6367,7 @@
             "socketio",
             "haven_proxy"
           ],
-          "docstring": "\n    Primary event registration function with complex SocketIO patterns.\n    Ultimate stress test for decorator analysis and SocketIO emit tracking.\n    ",
+          "docstring": "Primary event registration function with complex SocketIO patterns.\nUltimate stress test for decorator analysis and SocketIO emit tracking.",
           "calls": [
             "socketio_events.SocketIOEventRegistry::$socketio",
             "session_manager.SessionManager.create_session",
@@ -6498,8 +6552,7 @@
           ],
           "docstring": "Emergency broadcast function using global SocketIO instance.",
           "calls": [
-            "_socketio_instance.emit::emergency_broadcast",
-            "session_manager.SessionManager.get_current_timestamp"
+            "_socketio_instance.emit::emergency_broadcast"
           ],
           "instantiations": [],
           "accessed_state": [

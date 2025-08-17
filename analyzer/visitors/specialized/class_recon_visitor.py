@@ -3,6 +3,8 @@ Class Reconnaissance Visitor - Code Atlas
 
 Specialized visitor for processing class definitions with inheritance tracking.
 Part of the Phase 2 refactoring to break down the monolithic ReconVisitor.
+
+EMERGENCY FIX: Fixed class context management and attribute finalization to match original implementation.
 """
 
 import ast
@@ -22,6 +24,9 @@ class ClassReconVisitor:
         self.classes = []
         self.current_class = None
         self.current_class_attributes = {}
+        
+        # Context stack for nested classes
+        self.class_stack = []
     
     def process_class_def(self, node: ast.ClassDef) -> Dict[str, Any]:
         """Process class definitions with inheritance capture and attribute cataloging."""
@@ -31,30 +36,18 @@ class ClassReconVisitor:
         # Capture inheritance information
         parent_classes = self._extract_inheritance(node)
         
-        # Initialize attribute tracking for this class
-        old_class = self.current_class
-        old_attributes = self.current_class_attributes
-        self.current_class = class_fqn
-        self.current_class_attributes = {}
+        # FIXED: Don't initialize attributes here, let enter_class_context handle it
+        # The class body will be processed by other visitors
+        # We just return the structure here
+        class_info = {
+            "fqn": class_fqn,
+            "parents": parent_classes,
+            "attributes": {}  # Will be filled later
+        }
         
-        try:
-            # The class body will be processed by other visitors
-            # We just set up the structure here
-            pass
-        finally:
-            # Store class with inheritance info and attributes
-            class_info = {
-                "fqn": class_fqn,
-                "parents": parent_classes,
-                "attributes": self.current_class_attributes.copy()
-            }
-            
-            self.classes.append(class_info)
-            self.logger.log(f"[CLASS_RECON] Stored class: {class_fqn} with {len(parent_classes)} parents", 2)
-            
-            # Restore previous context
-            self.current_class = old_class
-            self.current_class_attributes = old_attributes
+        # FIXED: Store class reference for later finalization
+        self.classes.append(class_info)
+        self.logger.log(f"[CLASS_RECON] Stored class: {class_fqn} with {len(parent_classes)} parents", 2)
         
         return class_info
     
@@ -100,20 +93,43 @@ class ClassReconVisitor:
         """Add attribute to current class."""
         if self.current_class:
             self.current_class_attributes[name] = type_info
-            self.logger.log(f"[CLASS_ATTR] Added attribute {name} to {self.current_class}", 3)
+            self.logger.log(f"[CLASS_ATTR] Added attribute {name} to {self.current_class}: {type_info}", 3)
     
     def enter_class_context(self, class_fqn: str):
         """Enter class processing context."""
+        # FIXED: Push current context to stack for nested class support
+        self.class_stack.append((self.current_class, self.current_class_attributes))
+        
         self.current_class = class_fqn
         self.current_class_attributes = {}
         self.logger.log(f"[CLASS_CONTEXT] Entered class: {class_fqn}", 3)
     
     def exit_class_context(self):
-        """Exit class processing context."""
+        """Exit class processing context and finalize attributes."""
         if self.current_class:
-            self.logger.log(f"[CLASS_CONTEXT] Exited class: {self.current_class}", 3)
-        self.current_class = None
-        self.current_class_attributes = {}
+            self.logger.log(f"[CLASS_CONTEXT] Exiting class: {self.current_class}", 3)
+            
+            # FIXED: Finalize attributes for the current class
+            self._finalize_class_attributes()
+            
+            # FIXED: Restore previous context from stack
+            if self.class_stack:
+                self.current_class, self.current_class_attributes = self.class_stack.pop()
+            else:
+                self.current_class = None
+                self.current_class_attributes = {}
+    
+    def _finalize_class_attributes(self):
+        """Finalize attributes for the current class."""
+        if not self.current_class:
+            return
+        
+        # FIXED: Find the class info and update its attributes
+        for class_info in self.classes:
+            if class_info["fqn"] == self.current_class:
+                class_info["attributes"] = self.current_class_attributes.copy()
+                self.logger.log(f"[CLASS_FINALIZE] Updated {self.current_class} with {len(self.current_class_attributes)} attributes", 2)
+                break
     
     def get_classes_data(self) -> List[Dict[str, Any]]:
         """Get collected class data."""

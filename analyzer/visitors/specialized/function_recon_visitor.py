@@ -3,6 +3,8 @@ Function Reconnaissance Visitor - Code Atlas
 
 Specialized visitor for processing function definitions and method extraction.
 Part of the Phase 2 refactoring to break down the monolithic ReconVisitor.
+
+EMERGENCY FIX: Added missing __init__ attribute extraction logic to match original implementation.
 """
 
 import ast
@@ -89,78 +91,86 @@ class FunctionReconVisitor:
         return self.current_class and node.name == "__init__"
     
     def extract_init_attributes(self, init_node: ast.FunctionDef, type_inference_engine) -> Dict[str, Dict[str, Any]]:
-        """Extract class attribute assignments from __init__ method with parameter type inference."""
+        """
+        Extract class attribute assignments from __init__ method with parameter type inference.
+        
+        FIXED: This method was missing the core logic from the original implementation.
+        """
         attributes = {}
         
         if not self.is_init_method(init_node):
             return attributes
         
-        self.logger.log("[INIT_ATTRS] Extracting attributes from __init__", 3)
+        self.logger.log("[INIT_ATTRS] Extracting attributes from __init__", 2)
         
-        # Build parameter type mapping for inference
-        param_types = self._extract_parameter_types(init_node)
+        # FIXED: Build parameter type mapping for inference (from original)
+        param_types = {}
+        for arg in init_node.args.args:
+            if arg.arg != 'self' and arg.annotation:
+                try:
+                    param_type = ast.unparse(arg.annotation)
+                    param_types[arg.arg] = param_type
+                    self.logger.log(f"[INIT_PARAM] Parameter {arg.arg} has type hint: {param_type}", 3)
+                except Exception as e:
+                    self.logger.log(f"[INIT_PARAM] Failed to extract type for {arg.arg}: {e}", 1)
         
-        # Walk through __init__ body looking for self.attr assignments
+        self.logger.log(f"[INIT_ANALYSIS] Found {len(param_types)} parameter type hints", 2)
+        
+        # FIXED: Only look at direct statements in __init__ body, not nested statements
         for stmt in init_node.body:
             if isinstance(stmt, ast.Assign):
-                attrs = self._process_init_assignment(stmt, param_types, type_inference_engine)
-                attributes.update(attrs)
+                # Handle self.attr = value assignments
+                for target in stmt.targets:
+                    if (isinstance(target, ast.Attribute) and 
+                        isinstance(target.value, ast.Name) and 
+                        target.value.id == "self"):
+                        
+                        attr_name = target.attr
+                        resolved_type = None
+                        
+                        # Check if assignment is from a parameter with type hint
+                        if (isinstance(stmt.value, ast.Name) and 
+                            stmt.value.id in param_types):
+                            resolved_type = param_types[stmt.value.id]
+                            self.logger.log(f"[ATTR_FROM_PARAM] {attr_name} = {stmt.value.id} : {resolved_type}", 3)
+                        else:
+                            # Fallback to value-based inference
+                            resolved_type = self._infer_init_attribute_type(stmt.value)
+                            self.logger.log(f"[ATTR_FROM_VALUE] {attr_name} inferred as: {resolved_type}", 3)
+                        
+                        attributes[attr_name] = {
+                            "type": resolved_type or "Unknown"
+                        }
+            
             elif isinstance(stmt, ast.AnnAssign):
-                attrs = self._process_init_ann_assignment(stmt, param_types, type_inference_engine)
-                attributes.update(attrs)
+                # Handle self.attr: Type = value assignments
+                if (isinstance(stmt.target, ast.Attribute) and 
+                    isinstance(stmt.target.value, ast.Name) and 
+                    stmt.target.value.id == "self"):
+                    
+                    attr_name = stmt.target.attr
+                    type_annotation = None
+                    
+                    if stmt.annotation:
+                        try:
+                            type_annotation = ast.unparse(stmt.annotation)
+                            self.logger.log(f"[ATTR_ANNOT] {attr_name}: {type_annotation}", 3)
+                        except Exception as e:
+                            self.logger.log(f"[ATTR_ANNOT] Failed to extract annotation for {attr_name}: {e}", 1)
+                    
+                    attributes[attr_name] = {
+                        "type": type_annotation or "Unknown"
+                    }
         
         self.logger.log(f"[INIT_ATTRS] Found {len(attributes)} attributes", 2)
         return attributes
     
-    def _process_init_assignment(self, stmt: ast.Assign, param_types: Dict[str, str], type_inference_engine) -> Dict[str, Dict[str, Any]]:
-        """Process assignment statement in __init__ method."""
-        attributes = {}
+    def _infer_init_attribute_type(self, value_node: ast.AST) -> Optional[str]:
+        """
+        Infer attribute type from assignment value.
         
-        for target in stmt.targets:
-            if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "self":
-                attr_name = target.attr
-                inferred_type = self._infer_attribute_type(stmt.value, param_types, type_inference_engine)
-                
-                attributes[attr_name] = {
-                    "type": inferred_type or "Unknown",
-                    "source": "assignment"
-                }
-                
-                self.logger.log(f"[ATTR_ASSIGN] {attr_name}: {inferred_type}", 3)
-        
-        return attributes
-    
-    def _process_init_ann_assignment(self, stmt: ast.AnnAssign, param_types: Dict[str, str], type_inference_engine) -> Dict[str, Dict[str, Any]]:
-        """Process annotated assignment statement in __init__ method."""
-        attributes = {}
-        
-        if isinstance(stmt.target, ast.Attribute) and isinstance(stmt.target.value, ast.Name) and stmt.target.value.id == "self":
-            attr_name = stmt.target.attr
-            
-            # Use annotation if available, otherwise infer from value
-            if stmt.annotation:
-                try:
-                    attr_type = ast.unparse(stmt.annotation)
-                    attributes[attr_name] = {
-                        "type": attr_type,
-                        "source": "annotation"
-                    }
-                    self.logger.log(f"[ATTR_ANNOT] {attr_name}: {attr_type}", 3)
-                except Exception:
-                    pass
-            
-            # If no annotation or failed to parse, try to infer from value
-            if attr_name not in attributes and stmt.value:
-                inferred_type = self._infer_attribute_type(stmt.value, param_types, type_inference_engine)
-                attributes[attr_name] = {
-                    "type": inferred_type or "Unknown",
-                    "source": "inferred"
-                }
-        
-        return attributes
-    
-    def _infer_attribute_type(self, value_node: ast.AST, param_types: Dict[str, str], type_inference_engine) -> Optional[str]:
-        """Infer attribute type from assignment value."""
+        FIXED: This was missing from the refactored implementation.
+        """
         if isinstance(value_node, ast.Call):
             # Constructor call: self.attr = SomeClass()
             try:
@@ -180,10 +190,7 @@ class FunctionReconVisitor:
         
         elif isinstance(value_node, ast.Name):
             # Assignment from parameter: self.attr = param
-            param_name = value_node.id
-            if param_name in param_types:
-                return param_types[param_name]
-            return param_name
+            return value_node.id
         
         elif isinstance(value_node, ast.Constant):
             # Literal assignment: self.attr = "string" or self.attr = 42
@@ -207,11 +214,7 @@ class FunctionReconVisitor:
             except Exception:
                 pass
         
-        # Fallback to type inference engine
-        try:
-            return type_inference_engine.infer_from_assignment_value(value_node)
-        except Exception:
-            return None
+        return None
     
     def get_functions_data(self) -> Dict[str, Dict[str, Any]]:
         """Get collected function data."""

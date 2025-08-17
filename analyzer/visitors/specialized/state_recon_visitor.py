@@ -3,6 +3,8 @@ State Reconnaissance Visitor - Code Atlas
 
 Specialized visitor for processing module-level state variables and assignments.
 Part of the Phase 2 refactoring to break down the monolithic ReconVisitor.
+
+EMERGENCY FIX: Added missing extraction logic to match original implementation.
 """
 
 import ast
@@ -38,25 +40,41 @@ class StateReconVisitor:
             self.logger.log("[STATE_ASSIGN] Processing module-level assignment", 3)
             for target in node.targets:
                 if isinstance(target, ast.Name):
-                    state_info = self._process_module_state_assignment(target, node.value)
+                    # FIXED: Use the same logic as original implementation
+                    fqn = f"{self.module_name}.{target.id}"
+                    inferred_type = self.type_inference.infer_from_assignment_value(node.value)
+                    state_info = {
+                        "type": inferred_type,
+                        "inferred_from_value": bool(inferred_type)
+                    }
+                    self.state[fqn] = state_info
                     processed_items[target.id] = state_info
+                    self.logger.log(f"[MODULE_STATE] {target.id}: {inferred_type or 'Unknown'}", 2)
         else:
             # Class level assignments - class attributes
             self.logger.log(f"[CLASS_ASSIGN] Processing class-level assignment in {self.current_class}", 3)
             for target in node.targets:
                 if isinstance(target, ast.Name):
-                    # Simple assignment: attr = value
-                    attr_info = self._process_class_attribute_assignment(target.id, node.value)
+                    # FIXED: Simple assignment: attr = value (like enum values)
+                    inferred_type = self.type_inference.infer_from_assignment_value(node.value)
+                    attr_info = {
+                        "type": inferred_type or "Unknown"
+                    }
                     if class_attr_callback:
                         class_attr_callback(target.id, attr_info)
                     processed_items[target.id] = attr_info
+                    self.logger.log(f"[CLASS_ATTR] {target.id}: {inferred_type or 'Unknown'}", 3)
                     
                 elif isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "self":
-                    # Self assignment: self.attr = value
-                    attr_info = self._process_class_attribute_assignment(target.attr, node.value)
+                    # FIXED: Self assignment: self.attr = value
+                    inferred_type = self.type_inference.infer_from_assignment_value(node.value)
+                    attr_info = {
+                        "type": inferred_type or "Unknown"
+                    }
                     if class_attr_callback:
                         class_attr_callback(target.attr, attr_info)
                     processed_items[target.attr] = attr_info
+                    self.logger.log(f"[CLASS_SELF_ATTR] {target.attr}: {inferred_type or 'Unknown'}", 3)
         
         return processed_items
     
@@ -65,100 +83,60 @@ class StateReconVisitor:
         processed_items = {}
         
         if self.current_class is None and isinstance(node.target, ast.Name):
-            # Module level annotated assignment
-            self.logger.log("[STATE_ANN_ASSIGN] Processing module-level annotated assignment", 3)
-            state_info = self._process_module_ann_state_assignment(node)
-            processed_items[node.target.id] = state_info
+            # FIXED: Module level annotated assignment - exact original logic
+            fqn = f"{self.module_name}.{node.target.id}"
+            type_annotation = None
+            if node.annotation:
+                try:
+                    type_annotation = ast.unparse(node.annotation)
+                except Exception:
+                    pass
             
-        elif self.current_class and isinstance(node.target, ast.Attribute):
-            # Class level annotated assignment
-            if isinstance(node.target.value, ast.Name) and node.target.value.id == "self":
-                self.logger.log(f"[CLASS_ANN_ASSIGN] Processing class annotated assignment in {self.current_class}", 3)
-                attr_info = self._process_class_ann_attribute_assignment(node)
+            state_info = {
+                "type": type_annotation,
+                "inferred_from_value": False
+            }
+            self.state[fqn] = state_info
+            processed_items[node.target.id] = state_info
+            self.logger.log(f"[MODULE_ANN_STATE] {node.target.id}: {type_annotation or 'Unknown'}", 2)
+            
+        elif self.current_class is not None:
+            # FIXED: Class level annotated assignment - exact original logic
+            if isinstance(node.target, ast.Name):
+                # Direct assignment: attr: Type = value
+                type_annotation = None
+                if node.annotation:
+                    try:
+                        type_annotation = ast.unparse(node.annotation)
+                    except Exception:
+                        pass
+                
+                attr_info = {
+                    "type": type_annotation or "Unknown"
+                }
+                if class_attr_callback:
+                    class_attr_callback(node.target.id, attr_info)
+                processed_items[node.target.id] = attr_info
+                self.logger.log(f"[CLASS_ANN_ATTR] {node.target.id}: {type_annotation or 'Unknown'}", 3)
+                
+            elif isinstance(node.target, ast.Attribute) and isinstance(node.target.value, ast.Name) and node.target.value.id == "self":
+                # Self assignment: self.attr: Type = value
+                type_annotation = None
+                if node.annotation:
+                    try:
+                        type_annotation = ast.unparse(node.annotation)
+                    except Exception:
+                        pass
+                
+                attr_info = {
+                    "type": type_annotation or "Unknown"
+                }
                 if class_attr_callback:
                     class_attr_callback(node.target.attr, attr_info)
                 processed_items[node.target.attr] = attr_info
+                self.logger.log(f"[CLASS_SELF_ANN_ATTR] {node.target.attr}: {type_annotation or 'Unknown'}", 3)
         
         return processed_items
-    
-    def _process_module_state_assignment(self, target: ast.Name, value: ast.AST) -> Dict[str, Any]:
-        """Process module-level state variable assignment."""
-        fqn = generate_fqn(self.module_name, None, target.id)
-        inferred_type = self.type_inference.infer_from_assignment_value(value)
-        
-        state_info = {
-            "type": inferred_type,
-            "inferred_from_value": bool(inferred_type)
-        }
-        
-        self.state[fqn] = state_info
-        self.logger.log(f"[MODULE_STATE] {target.id}: {inferred_type or 'Unknown'}", 2)
-        
-        return state_info
-    
-    def _process_module_ann_state_assignment(self, node: ast.AnnAssign) -> Dict[str, Any]:
-        """Process module-level annotated state variable assignment."""
-        fqn = generate_fqn(self.module_name, None, node.target.id)
-        
-        # Try to get type from annotation first
-        annotation_type = None
-        if node.annotation:
-            try:
-                annotation_type = ast.unparse(node.annotation)
-            except Exception as e:
-                self.logger.log(f"[ANN_STATE] Error parsing annotation: {e}", 1)
-        
-        # Fallback to value inference if no annotation or parsing failed
-        inferred_type = annotation_type
-        if not inferred_type and node.value:
-            inferred_type = self.type_inference.infer_from_assignment_value(node.value)
-        
-        state_info = {
-            "type": inferred_type,
-            "annotated": bool(annotation_type),
-            "inferred_from_value": bool(not annotation_type and inferred_type)
-        }
-        
-        self.state[fqn] = state_info
-        self.logger.log(f"[MODULE_ANN_STATE] {node.target.id}: {inferred_type or 'Unknown'}", 2)
-        
-        return state_info
-    
-    def _process_class_attribute_assignment(self, attr_name: str, value: ast.AST) -> Dict[str, Any]:
-        """Process class attribute assignment."""
-        inferred_type = self.type_inference.infer_from_assignment_value(value)
-        
-        attr_info = {
-            "type": inferred_type or "Unknown",
-            "source": "assignment"
-        }
-        
-        self.logger.log(f"[CLASS_ATTR] {attr_name}: {inferred_type or 'Unknown'}", 3)
-        return attr_info
-    
-    def _process_class_ann_attribute_assignment(self, node: ast.AnnAssign) -> Dict[str, Any]:
-        """Process class annotated attribute assignment."""
-        # Try to get type from annotation first
-        annotation_type = None
-        if node.annotation:
-            try:
-                annotation_type = ast.unparse(node.annotation)
-            except Exception as e:
-                self.logger.log(f"[CLASS_ANN_ATTR] Error parsing annotation: {e}", 1)
-        
-        # Fallback to value inference if no annotation or parsing failed
-        inferred_type = annotation_type
-        if not inferred_type and node.value:
-            inferred_type = self.type_inference.infer_from_assignment_value(node.value)
-        
-        attr_info = {
-            "type": inferred_type or "Unknown",
-            "source": "annotation" if annotation_type else "inferred",
-            "annotated": bool(annotation_type)
-        }
-        
-        self.logger.log(f"[CLASS_ANN_ATTR] {node.target.attr}: {inferred_type or 'Unknown'}", 3)
-        return attr_info
     
     def get_state_data(self) -> Dict[str, Dict[str, Any]]:
         """Get collected state data."""

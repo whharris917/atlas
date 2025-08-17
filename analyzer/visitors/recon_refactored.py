@@ -3,6 +3,8 @@ Refactored Reconnaissance Visitor - Code Atlas
 
 Main reconnaissance visitor that orchestrates specialized visitors for different concerns.
 This replaces the monolithic ReconVisitor with a modular approach.
+
+CRITICAL FIX: Added support for ast.AsyncFunctionDef to prevent recursive method body processing.
 """
 
 import ast
@@ -80,6 +82,8 @@ class RefactoredReconVisitor(ast.NodeVisitor):
             for child in node.body:
                 if isinstance(child, ast.FunctionDef):
                     self.visit_FunctionDef(child)
+                elif isinstance(child, ast.AsyncFunctionDef):  # CRITICAL FIX: Handle async functions
+                    self.visit_AsyncFunctionDef(child)
                 elif isinstance(child, ast.Assign):
                     self.visit_Assign(child)
                 elif isinstance(child, ast.AnnAssign):
@@ -106,6 +110,18 @@ class RefactoredReconVisitor(ast.NodeVisitor):
         """Process function definitions using specialized visitor."""
         self.function_visitor.process_function_def(node)
         # Note: We don't recursively visit function bodies in reconnaissance pass
+    
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+        """
+        Process async function definitions using specialized visitor.
+        
+        CRITICAL FIX: This method was missing, causing async methods to fall through
+        to generic_visit() which recursively processed method bodies and treated
+        local variables as class attributes.
+        """
+        # Treat async functions the same as regular functions for reconnaissance
+        self.function_visitor.process_function_def(node)
+        # IMPORTANT: Do NOT call self.generic_visit(node) to prevent visiting method bodies
     
     def visit_Assign(self, node: ast.Assign):
         """Process assignments using specialized visitor."""
