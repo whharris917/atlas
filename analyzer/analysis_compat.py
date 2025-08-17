@@ -4,6 +4,8 @@ Backward Compatibility Layer - Code Atlas
 Provides backward compatibility for the existing Atlas codebase during refactoring.
 This allows us to gradually migrate to the new architecture while maintaining
 all existing functionality.
+
+REVERTED TO PHASE 2 WORKING VERSION with minimal resolver integration.
 """
 
 import pathlib
@@ -38,11 +40,25 @@ class CompatibilityAnalysisVisitor:
         if self.use_refactored:
             print(f"[COMPAT] Using REFACTORED visitor for {module_name}")
             self.visitor = RefactoredAnalysisVisitor(recon_data, module_name)
+            
+            # *** MINIMAL RESOLVER INTEGRATION - ONLY ADD THIS ***
+            self._integrate_refactored_resolver(recon_data)
+            
         else:
             print(f"[COMPAT] Using ORIGINAL visitor for {module_name}")
             # Import here to avoid circular imports
             from .analysis import AnalysisVisitor
             self.visitor = AnalysisVisitor(recon_data, module_name)
+    
+    def _integrate_refactored_resolver(self, recon_data):
+        """Integrate refactored resolver if available."""
+        try:
+            from .resolver_compat import create_name_resolver
+            old_resolver = self.visitor.name_resolver
+            self.visitor.name_resolver = create_name_resolver(recon_data, use_refactored=True)
+            print(f"    [RESOLVER] Integrated refactored resolver (was: {old_resolver.__class__.__name__})")
+        except ImportError:
+            print(f"    [RESOLVER] Refactored resolver not available, using original")
     
     def visit(self, tree):
         """Delegate to the underlying visitor."""
@@ -85,7 +101,11 @@ def run_analysis_pass_compat(python_files: List[pathlib.Path], recon_data: Dict[
             pass
         
         print("=== USING REFACTORED ANALYSIS PASS ===")
+        
+        # *** REVERT TO ORIGINAL WORKING CODE ***
+        # Use the existing working refactored_run_analysis_pass function
         return refactored_run_analysis_pass(python_files, recon_data)
+        
     else:
         print("=== USING ORIGINAL ANALYSIS PASS ===")
         from .analysis import run_analysis_pass as original_run_analysis_pass
