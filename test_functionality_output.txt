@@ -1,0 +1,802 @@
+=== Atlas Functionality Test ===
+
+1. Creating test file...
+   Created: C:\Users\wilha\AppData\Local\Temp\tmp6bh8hqa2.py
+
+2. Running original analysis...
+=== RECONNAISSANCE PASS START ===
+=== Analyzing tmp6bh8hqa2.py ===
+    [EXTERNAL_MODULE] Direct import: threading
+    [EXTERNAL_IMPORT] Processing from flask_socketio
+    [EXTERNAL_CLASS] Added: flask_socketio.SocketIO (alias: SocketIO)
+    [EXTERNAL_FUNCTION] Added: flask_socketio.emit (alias: emit)
+        [INIT_PARAM] Parameter data has type hint: dict
+        [INIT_ANALYSIS] Found 1 parameter type hints
+        [ATTR_FROM_PARAM] data = data : dict
+        [ATTR_FROM_VALUE] thread_pool inferred as: threading.ThreadPoolExecutor
+  Found 1 classes
+  Found 5 functions/methods
+  Found 2 state variables
+  Found 1 external classes
+  Found 1 external functions
+
+=== PROCESSING INHERITANCE RELATIONSHIPS ===
+Processing tmp6bh8hqa2.TestClass with parents: []
+=== RECONNAISSANCE PASS COMPLETE ===
+Total project inventory:
+  Classes: 1
+  Functions/Methods: 5
+  State Variables: 2
+  External Classes: 1
+  External Functions: 1
+
+=== RECONNAISSANCE CATALOG ===
+Classes with inheritance and attributes:
+  tmp6bh8hqa2.TestClass
+    Attributes:
+      data: dict
+      thread_pool: threading.ThreadPoolExecutor
+
+External Classes (from approved libraries):
+  flask_socketio.SocketIO (alias: SocketIO) from flask_socketio
+
+External Functions (from approved libraries):
+  flask_socketio.emit (alias: emit) from flask_socketio
+
+Functions/Methods with Parameter Types:
+  tmp6bh8hqa2.TestClass.__init__(data: dict) -> None
+  tmp6bh8hqa2.TestClass.emit_event(event_name: str, data: dict) -> None
+  tmp6bh8hqa2.TestClass.process_data(no typed params) -> dict
+  tmp6bh8hqa2.outer_function(no typed params) -> None
+  tmp6bh8hqa2.standalone_function(param: str) -> str
+
+State Variables:
+  tmp6bh8hqa2.SAMPLE_DATA : None (inferred: False)
+  tmp6bh8hqa2.socketio_instance : SocketIO (inferred: True)
+=== CATALOG END ===
+
+=== ANALYSIS PASS START (Enhanced SocketIO Detection) ===
+=== Analyzing tmp6bh8hqa2.py ===
+=== Starting Module Analysis ===
+    [IMPORT] threading -> threading
+    [FROM_IMPORT] SocketIO -> flask_socketio.SocketIO
+    [FROM_IMPORT] emit -> flask_socketio.emit
+    [MODULE_STATE] SAMPLE_DATA = {'key': 'value'}
+    [MODULE_STATE] socketio_instance = SocketIO()
+  [CLASS] Analyzing class: TestClass
+    [SYMBOL_TABLE] Entered class scope
+    [FUNCTION_ANALYSIS] Starting analysis of: tmp6bh8hqa2.TestClass.__init__
+    [SYMBOL_TABLE] Entered function scope
+      [ARG_PROCESSING] Processing 2 arguments
+        [ARG_PROCESSING] Found parameter types in recon data: {'data': 'dict'}
+        [ARG_TYPE] Processing type annotation for data: dict
+    [RESOLVE] Attempting to resolve: ['dict']
+      [RESOLVE_SIMPLE] Resolving base: dict
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable dict not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(dict): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(dict): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(dict): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(dict): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(dict): tmp6bh8hqa2.dict
+        [VALIDATION] Checking tmp6bh8hqa2.dict: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: dict
+    [RESOLVE] FAILED to resolve: dict
+        [ARG_TYPE] FAILED Could not resolve type annotation for data
+      [CODE_STANDARD_VIOLATION] UNRESOLVABLE_TYPE: Type annotation for parameter 'data' could not be resolved
+      [IMPACT] Method calls on this parameter may fail
+      [ACTION_REQUIRED] Add appropriate type annotation
+      [ATTRIBUTE] Found attribute access: self.data
+    [RESOLVE] Attempting to resolve: ['self', 'data']
+    [RESOLVE] Chain resolution needed for: ['self', 'data']
+      [CHAIN] Resolving base: self
+      [RESOLVE_SIMPLE] Resolving base: self
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable self not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(self): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(self): tmp6bh8hqa2.TestClass
+      [STRATEGY] SelfStrategy.resolve(self): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS SelfStrategy succeeded: self -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+      [CHAIN] Base resolved: self -> tmp6bh8hqa2.TestClass
+      [CHAIN] Step 1: Resolving tmp6bh8hqa2.TestClass.data
+        [ATTRIBUTE] Resolving attribute: tmp6bh8hqa2.TestClass.data
+        [ATTRIBUTE] Context is internal class, checking for method/attribute
+        [ATTRIBUTE] SUCCESS Found class attribute: data of type dict
+        [ATTRIBUTE] Attribute type resolved to: dict
+      [CHAIN] Step 1 resolved: dict
+    [RESOLVE] RESOLVED to: dict
+      -> Not module state
+      [NAME] Found name reference: self
+    [RESOLVE] Attempting to resolve: ['self']
+      [RESOLVE_SIMPLE] Resolving base: self
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable self not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(self): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(self): tmp6bh8hqa2.TestClass
+      [STRATEGY] SelfStrategy.resolve(self): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS SelfStrategy succeeded: self -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.TestClass
+      -> Not module state
+      [NAME] Found name reference: data
+    [RESOLVE] Attempting to resolve: ['data']
+      [RESOLVE_SIMPLE] Resolving base: data
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable data not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(data): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(data): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(data): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(data): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(data): tmp6bh8hqa2.data
+        [VALIDATION] Checking tmp6bh8hqa2.data: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: data
+    [RESOLVE] FAILED to resolve: data
+      -> Not module state
+      [ATTRIBUTE] Found attribute access: self.thread_pool
+    [RESOLVE] Attempting to resolve: ['self', 'thread_pool']
+    [RESOLVE] Chain resolution needed for: ['self', 'thread_pool']
+      [CHAIN] Resolving base: self
+      [RESOLVE_SIMPLE] Resolving base: self
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable self not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(self): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(self): tmp6bh8hqa2.TestClass
+      [STRATEGY] SelfStrategy.resolve(self): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS SelfStrategy succeeded: self -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+      [CHAIN] Base resolved: self -> tmp6bh8hqa2.TestClass
+      [CHAIN] Step 1: Resolving tmp6bh8hqa2.TestClass.thread_pool
+        [ATTRIBUTE] Resolving attribute: tmp6bh8hqa2.TestClass.thread_pool
+        [ATTRIBUTE] Context is internal class, checking for method/attribute
+        [ATTRIBUTE] SUCCESS Found class attribute: thread_pool of type threading.ThreadPoolExecutor
+        [ATTRIBUTE] Attribute type resolved to: threading.ThreadPoolExecutor
+      [CHAIN] Step 1 resolved: threading.ThreadPoolExecutor
+    [RESOLVE] RESOLVED to: threading.ThreadPoolExecutor
+      -> Not module state
+      [NAME] Found name reference: self
+    [CACHE] self -> tmp6bh8hqa2.TestClass (cached)
+      -> Not module state
+      [CALL] Found call: threading.ThreadPoolExecutor
+    [RESOLVE] Attempting to resolve: ['threading', 'ThreadPoolExecutor']
+    [RESOLVE] Chain resolution needed for: ['threading', 'ThreadPoolExecutor']
+      [CHAIN] Resolving base: threading
+      [RESOLVE_SIMPLE] Resolving base: threading
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable threading not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(threading): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(threading): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(threading): True (import: True, external: False)
+      [STRATEGY] ImportStrategy.resolve(threading): threading (from import map)
+        [VALIDATION] Checking threading: NOT_FOUND
+      [STRATEGY] FAIL ImportStrategy failed validation
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(threading): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(threading): tmp6bh8hqa2.threading
+        [VALIDATION] Checking tmp6bh8hqa2.threading: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: threading
+      [CHAIN] FAILED to resolve base: threading
+    [RESOLVE] FAILED to resolve chain: threading.ThreadPoolExecutor
+      -> REJECTED (could not resolve)
+      [ATTRIBUTE] Found attribute access: threading.ThreadPoolExecutor
+    [CACHE] threading.ThreadPoolExecutor -> None (cached)
+      -> Not module state
+      [NAME] Found name reference: threading
+    [RESOLVE] Attempting to resolve: ['threading']
+      [RESOLVE_SIMPLE] Resolving base: threading
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable threading not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(threading): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(threading): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(threading): True (import: True, external: False)
+      [STRATEGY] ImportStrategy.resolve(threading): threading (from import map)
+        [VALIDATION] Checking threading: NOT_FOUND
+      [STRATEGY] FAIL ImportStrategy failed validation
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(threading): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(threading): tmp6bh8hqa2.threading
+        [VALIDATION] Checking tmp6bh8hqa2.threading: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: threading
+    [RESOLVE] FAILED to resolve: threading
+      -> Not module state
+    [FUNCTION_ANALYSIS] Completed analysis of: tmp6bh8hqa2.TestClass.__init__
+        Calls: 0
+        Instantiations: 0
+        State Access: 0
+    [FUNCTION_ANALYSIS] Starting analysis of: tmp6bh8hqa2.TestClass.emit_event
+    [SYMBOL_TABLE] Entered function scope
+      [ARG_PROCESSING] Processing 3 arguments
+        [ARG_PROCESSING] Found parameter types in recon data: {'event_name': 'str', 'data': 'dict'}
+        [ARG_TYPE] Processing type annotation for event_name: str
+    [RESOLVE] Attempting to resolve: ['str']
+      [RESOLVE_SIMPLE] Resolving base: str
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable str not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(str): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(str): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(str): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(str): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(str): tmp6bh8hqa2.str
+        [VALIDATION] Checking tmp6bh8hqa2.str: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: str
+    [RESOLVE] FAILED to resolve: str
+        [ARG_TYPE] FAILED Could not resolve type annotation for event_name
+      [CODE_STANDARD_VIOLATION] UNRESOLVABLE_TYPE: Type annotation for parameter 'event_name' could not be resolved
+      [IMPACT] Method calls on this parameter may fail
+      [ACTION_REQUIRED] Add appropriate type annotation
+        [ARG_TYPE] Processing type annotation for data: dict
+    [RESOLVE] Attempting to resolve: ['dict']
+      [RESOLVE_SIMPLE] Resolving base: dict
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable dict not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(dict): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(dict): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(dict): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(dict): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(dict): tmp6bh8hqa2.dict
+        [VALIDATION] Checking tmp6bh8hqa2.dict: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: dict
+    [RESOLVE] FAILED to resolve: dict
+        [ARG_TYPE] FAILED Could not resolve type annotation for data
+      [CODE_STANDARD_VIOLATION] UNRESOLVABLE_TYPE: Type annotation for parameter 'data' could not be resolved
+      [IMPACT] Method calls on this parameter may fail
+      [ACTION_REQUIRED] Add appropriate type annotation
+      [CALL] Found call: socketio_instance.emit
+    [RESOLVE] Attempting to resolve: ['socketio_instance', 'emit']
+    [RESOLVE] Chain resolution needed for: ['socketio_instance', 'emit']
+      [CHAIN] Resolving base: socketio_instance
+      [RESOLVE_SIMPLE] Resolving base: socketio_instance
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable socketio_instance not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(socketio_instance): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(socketio_instance): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(socketio_instance): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(socketio_instance): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(socketio_instance): tmp6bh8hqa2.socketio_instance
+        [VALIDATION] Checking tmp6bh8hqa2.socketio_instance: EXISTS
+      [STRATEGY] SUCCESS ModuleStrategy succeeded: socketio_instance -> tmp6bh8hqa2.socketio_instance
+      [VALIDATION] PASS Resolution validated
+      [CHAIN] Base resolved: socketio_instance -> tmp6bh8hqa2.socketio_instance
+      [CHAIN] Step 1: Resolving tmp6bh8hqa2.socketio_instance.emit
+        [ATTRIBUTE] Resolving attribute: tmp6bh8hqa2.socketio_instance.emit
+        [ATTRIBUTE] Context is state variable, resolving through type
+        [ATTRIBUTE] State type resolved: SocketIO
+        [ATTRIBUTE] Resolving attribute: SocketIO.emit
+        [VALIDATION] Checking SocketIO.emit: NOT_FOUND
+        [ATTRIBUTE] FAILED All resolution attempts failed
+      [CHAIN] FAILED at step 1: .emit
+    [RESOLVE] FAILED to resolve chain: socketio_instance.emit
+        [EMIT_DETECTION] Pattern match: socketio_instance.emit
+      -> DETECTED and ADDED emit call: socketio_instance.emit::$event_name
+        [EMIT] Room parameter: admin
+        [FUNCTION_ARG] Checking argument: event_name
+    [RESOLVE] Attempting to resolve: ['event_name']
+      [RESOLVE_SIMPLE] Resolving base: event_name
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable event_name not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(event_name): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(event_name): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(event_name): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(event_name): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(event_name): tmp6bh8hqa2.event_name
+        [VALIDATION] Checking tmp6bh8hqa2.event_name: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: event_name
+    [RESOLVE] FAILED to resolve: event_name
+        [FUNCTION_ARG] Checking argument: data
+    [RESOLVE] Attempting to resolve: ['data']
+      [RESOLVE_SIMPLE] Resolving base: data
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable data not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(data): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(data): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(data): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(data): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(data): tmp6bh8hqa2.data
+        [VALIDATION] Checking tmp6bh8hqa2.data: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: data
+    [RESOLVE] FAILED to resolve: data
+      [ATTRIBUTE] Found attribute access: socketio_instance.emit
+    [CACHE] socketio_instance.emit -> None (cached)
+      -> Not module state
+      [NAME] Found name reference: socketio_instance
+    [RESOLVE] Attempting to resolve: ['socketio_instance']
+      [RESOLVE_SIMPLE] Resolving base: socketio_instance
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable socketio_instance not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(socketio_instance): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(socketio_instance): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(socketio_instance): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(socketio_instance): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(socketio_instance): tmp6bh8hqa2.socketio_instance
+        [VALIDATION] Checking tmp6bh8hqa2.socketio_instance: EXISTS
+      [STRATEGY] SUCCESS ModuleStrategy succeeded: socketio_instance -> tmp6bh8hqa2.socketio_instance
+      [VALIDATION] PASS Resolution validated
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.socketio_instance
+      -> Resolved to state: tmp6bh8hqa2.socketio_instance
+      [SYMBOL_LOOKUP] Variable socketio_instance not found in any scope
+      -> ADDED to accessed_state
+      [NAME] Found name reference: event_name
+    [RESOLVE] Attempting to resolve: ['event_name']
+      [RESOLVE_SIMPLE] Resolving base: event_name
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable event_name not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(event_name): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(event_name): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(event_name): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(event_name): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(event_name): tmp6bh8hqa2.event_name
+        [VALIDATION] Checking tmp6bh8hqa2.event_name: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: event_name
+    [RESOLVE] FAILED to resolve: event_name
+      -> Not module state
+      [NAME] Found name reference: data
+    [RESOLVE] Attempting to resolve: ['data']
+      [RESOLVE_SIMPLE] Resolving base: data
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable data not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(data): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(data): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(data): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(data): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(data): tmp6bh8hqa2.data
+        [VALIDATION] Checking tmp6bh8hqa2.data: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: data
+    [RESOLVE] FAILED to resolve: data
+      -> Not module state
+      [CALL] Found call: emit
+    [RESOLVE] Attempting to resolve: ['emit']
+      [RESOLVE_SIMPLE] Resolving base: emit
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable emit not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(emit): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(emit): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(emit): True (import: True, external: True)
+      [STRATEGY] ImportStrategy.resolve(emit): flask_socketio.emit (from import map)
+        [VALIDATION] Checking flask_socketio.emit: EXISTS
+      [STRATEGY] SUCCESS ImportStrategy succeeded: emit -> flask_socketio.emit
+      [VALIDATION] PASS Resolution validated
+    [RESOLVE] RESOLVED to: flask_socketio.emit
+        [EMIT_DETECTION] Direct FQN match: flask_socketio.emit
+      -> DETECTED and ADDED emit call: flask_socketio.emit::${event_name}_processed
+      [NAME] Found name reference: emit
+    [CACHE] emit -> flask_socketio.emit (cached)
+      -> Not module state
+      [NAME] Found name reference: event_name
+    [CACHE] event_name -> None (cached)
+      -> Not module state
+    [FUNCTION_ANALYSIS] Completed analysis of: tmp6bh8hqa2.TestClass.emit_event
+        Calls: 2
+        Instantiations: 0
+        State Access: 1
+        SocketIO Emits: 2
+    [FUNCTION_ANALYSIS] Starting analysis of: tmp6bh8hqa2.TestClass.process_data
+    [SYMBOL_TABLE] Entered function scope
+      [ARG_PROCESSING] Processing 1 arguments
+      [NAME] Found name reference: SAMPLE_DATA
+    [RESOLVE] Attempting to resolve: ['SAMPLE_DATA']
+      [RESOLVE_SIMPLE] Resolving base: SAMPLE_DATA
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable SAMPLE_DATA not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(SAMPLE_DATA): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(SAMPLE_DATA): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(SAMPLE_DATA): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(SAMPLE_DATA): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(SAMPLE_DATA): tmp6bh8hqa2.SAMPLE_DATA
+        [VALIDATION] Checking tmp6bh8hqa2.SAMPLE_DATA: EXISTS
+      [STRATEGY] SUCCESS ModuleStrategy succeeded: SAMPLE_DATA -> tmp6bh8hqa2.SAMPLE_DATA
+      [VALIDATION] PASS Resolution validated
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.SAMPLE_DATA
+      -> Resolved to state: tmp6bh8hqa2.SAMPLE_DATA
+      [SYMBOL_LOOKUP] Variable SAMPLE_DATA not found in any scope
+      -> ADDED to accessed_state
+    [FUNCTION_ANALYSIS] Completed analysis of: tmp6bh8hqa2.TestClass.process_data
+        Calls: 0
+        Instantiations: 0
+        State Access: 1
+    [SYMBOL_TABLE] Exited class scope
+  [FUNCTION] Analyzing function: standalone_function
+    [FUNCTION_ANALYSIS] Starting analysis of: tmp6bh8hqa2.standalone_function
+    [SYMBOL_TABLE] Entered function scope
+      [ARG_PROCESSING] Processing 1 arguments
+        [ARG_PROCESSING] Found parameter types in recon data: {'param': 'str'}
+        [ARG_TYPE] Processing type annotation for param: str
+    [RESOLVE] Attempting to resolve: ['str']
+      [RESOLVE_SIMPLE] Resolving base: str
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable str not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(str): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(str): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(str): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(str): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(str): tmp6bh8hqa2.str
+        [VALIDATION] Checking tmp6bh8hqa2.str: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: str
+    [RESOLVE] FAILED to resolve: str
+        [ARG_TYPE] FAILED Could not resolve type annotation for param
+      [CODE_STANDARD_VIOLATION] UNRESOLVABLE_TYPE: Type annotation for parameter 'param' could not be resolved
+      [IMPACT] Method calls on this parameter may fail
+      [ACTION_REQUIRED] Add appropriate type annotation
+      [ASSIGNMENT] Processing: result = ...
+        [ASSIGNMENT] Call assignment detected
+      [TYPE_INFERENCE] Attempting to infer type from call: TestClass
+    [RESOLVE] Attempting to resolve: ['TestClass']
+      [RESOLVE_SIMPLE] Resolving base: TestClass
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable TestClass not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(TestClass): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(TestClass): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(TestClass): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(TestClass): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(TestClass): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS ModuleStrategy succeeded: TestClass -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.TestClass
+      [TYPE_INFERENCE] Call resolved to: tmp6bh8hqa2.TestClass
+      [TYPE_INFERENCE] RESOLVED Inferred type: tmp6bh8hqa2.TestClass (class instantiation)
+      [SYMBOL_UPDATE] Function: result -> tmp6bh8hqa2.TestClass
+        [ASSIGNMENT] RESOLVED Updated symbol table: result = tmp6bh8hqa2.TestClass
+      [NAME] Found name reference: result
+    [RESOLVE] Attempting to resolve: ['result']
+      [RESOLVE_SIMPLE] Resolving base: result
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Found result in function scope: tmp6bh8hqa2.TestClass
+      [STRATEGY] LocalVariableStrategy.can_resolve(result): True
+      [SYMBOL_LOOKUP] Found result in function scope: tmp6bh8hqa2.TestClass
+      [STRATEGY] LocalVariableStrategy.resolve(result): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS LocalVariableStrategy succeeded: result -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.TestClass
+      -> Not module state
+      [CALL] Found call: TestClass
+    [RESOLVE] Attempting to resolve: ['TestClass']
+      [RESOLVE_SIMPLE] Resolving base: TestClass
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable TestClass not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(TestClass): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(TestClass): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(TestClass): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(TestClass): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(TestClass): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS ModuleStrategy succeeded: TestClass -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.TestClass
+      -> Resolved to: tmp6bh8hqa2.TestClass
+      -> ADDED to instantiations
+      [NAME] Found name reference: TestClass
+    [CACHE] TestClass -> tmp6bh8hqa2.TestClass (cached)
+      -> Not module state
+      [NAME] Found name reference: param
+    [RESOLVE] Attempting to resolve: ['param']
+      [RESOLVE_SIMPLE] Resolving base: param
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable param not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(param): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(param): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(param): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(param): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(param): tmp6bh8hqa2.param
+        [VALIDATION] Checking tmp6bh8hqa2.param: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: param
+    [RESOLVE] FAILED to resolve: param
+      -> Not module state
+      [CALL] Found call: result.emit_event
+    [RESOLVE] Attempting to resolve: ['result', 'emit_event']
+    [RESOLVE] Chain resolution needed for: ['result', 'emit_event']
+      [CHAIN] Resolving base: result
+      [RESOLVE_SIMPLE] Resolving base: result
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Found result in function scope: tmp6bh8hqa2.TestClass
+      [STRATEGY] LocalVariableStrategy.can_resolve(result): True
+      [SYMBOL_LOOKUP] Found result in function scope: tmp6bh8hqa2.TestClass
+      [STRATEGY] LocalVariableStrategy.resolve(result): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS LocalVariableStrategy succeeded: result -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+      [CHAIN] Base resolved: result -> tmp6bh8hqa2.TestClass
+      [CHAIN] Step 1: Resolving tmp6bh8hqa2.TestClass.emit_event
+        [ATTRIBUTE] Resolving attribute: tmp6bh8hqa2.TestClass.emit_event
+        [ATTRIBUTE] Context is internal class, checking for method/attribute
+        [ATTRIBUTE] SUCCESS Found direct method: tmp6bh8hqa2.TestClass.emit_event
+      [CHAIN] Step 1 resolved: tmp6bh8hqa2.TestClass.emit_event
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.TestClass.emit_event
+            [INTERMEDIATE] Tracking chain steps for: result.emit_event
+            [INTERMEDIATE] Step 1: result.emit_event
+        [EMIT_DETECTION] Pattern match: result.emit_event
+      -> DETECTED and ADDED emit call: tmp6bh8hqa2.TestClass.emit_event::test_event
+      [ATTRIBUTE] Found attribute access: result.emit_event
+    [CACHE] result.emit_event -> tmp6bh8hqa2.TestClass.emit_event (cached)
+      -> Not module state
+      [NAME] Found name reference: result
+    [CACHE] result -> tmp6bh8hqa2.TestClass (cached)
+      -> Not module state
+      [NAME] Found name reference: param
+    [CACHE] param -> None (cached)
+      -> Not module state
+      [CALL] Found call: result.process_data
+    [RESOLVE] Attempting to resolve: ['result', 'process_data']
+    [RESOLVE] Chain resolution needed for: ['result', 'process_data']
+      [CHAIN] Resolving base: result
+      [RESOLVE_SIMPLE] Resolving base: result
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Found result in function scope: tmp6bh8hqa2.TestClass
+      [STRATEGY] LocalVariableStrategy.can_resolve(result): True
+      [SYMBOL_LOOKUP] Found result in function scope: tmp6bh8hqa2.TestClass
+      [STRATEGY] LocalVariableStrategy.resolve(result): tmp6bh8hqa2.TestClass
+        [VALIDATION] Checking tmp6bh8hqa2.TestClass: EXISTS
+      [STRATEGY] SUCCESS LocalVariableStrategy succeeded: result -> tmp6bh8hqa2.TestClass
+      [VALIDATION] PASS Resolution validated
+      [CHAIN] Base resolved: result -> tmp6bh8hqa2.TestClass
+      [CHAIN] Step 1: Resolving tmp6bh8hqa2.TestClass.process_data
+        [ATTRIBUTE] Resolving attribute: tmp6bh8hqa2.TestClass.process_data
+        [ATTRIBUTE] Context is internal class, checking for method/attribute
+        [ATTRIBUTE] SUCCESS Found direct method: tmp6bh8hqa2.TestClass.process_data
+      [CHAIN] Step 1 resolved: tmp6bh8hqa2.TestClass.process_data
+    [RESOLVE] RESOLVED to: tmp6bh8hqa2.TestClass.process_data
+            [INTERMEDIATE] Tracking chain steps for: result.process_data
+            [INTERMEDIATE] Step 1: result.process_data
+      -> Resolved to: tmp6bh8hqa2.TestClass.process_data
+      -> ADDED to calls
+      [ATTRIBUTE] Found attribute access: result.process_data
+    [CACHE] result.process_data -> tmp6bh8hqa2.TestClass.process_data (cached)
+      -> Not module state
+      [NAME] Found name reference: result
+    [CACHE] result -> tmp6bh8hqa2.TestClass (cached)
+      -> Not module state
+    [FUNCTION_ANALYSIS] Completed analysis of: tmp6bh8hqa2.standalone_function
+        Calls: 2
+        Instantiations: 1
+        State Access: 0
+        SocketIO Emits: 1
+  [FUNCTION] Analyzing function: outer_function
+    [FUNCTION_ANALYSIS] Starting analysis of: tmp6bh8hqa2.outer_function
+      [CODE_STANDARD_VIOLATION] MISSING_RETURN_TYPE: Function tmp6bh8hqa2.outer_function
+      [IMPACT] Cannot infer return type - chained method calls may fail
+      [ACTION_REQUIRED] Add appropriate type annotation
+      [CODE_QUALITY] Found 1 violations in tmp6bh8hqa2.outer_function
+    [SYMBOL_TABLE] Entered function scope
+      [ARG_PROCESSING] Processing 0 arguments
+      [NESTED_FUNCTION] Analyzing nested function: inner_function
+      [SYMBOL_TABLE] Entered nested scope
+      [ARG_PROCESSING] Processing 0 arguments
+      [SYMBOL_TABLE] Exited nested scope
+      [CALL] Found call: inner_function
+    [RESOLVE] Attempting to resolve: ['inner_function']
+      [RESOLVE_SIMPLE] Resolving base: inner_function
+      [STRATEGY] Trying strategy 1: LocalVariableStrategy
+      [SYMBOL_LOOKUP] Variable inner_function not found in any scope
+      [STRATEGY] LocalVariableStrategy.can_resolve(inner_function): False
+      [STRATEGY] SKIP LocalVariableStrategy cannot resolve
+      [STRATEGY] Trying strategy 2: SelfStrategy
+      [STRATEGY] SelfStrategy.can_resolve(inner_function): False
+      [STRATEGY] SKIP SelfStrategy cannot resolve
+      [STRATEGY] Trying strategy 3: ImportStrategy
+      [STRATEGY] ImportStrategy.can_resolve(inner_function): False (import: False, external: False)
+      [STRATEGY] SKIP ImportStrategy cannot resolve
+      [STRATEGY] Trying strategy 4: ModuleStrategy
+      [STRATEGY] ModuleStrategy.can_resolve(inner_function): True (fallback)
+      [STRATEGY] ModuleStrategy.resolve(inner_function): tmp6bh8hqa2.inner_function
+        [VALIDATION] Checking tmp6bh8hqa2.inner_function: NOT_FOUND
+      [STRATEGY] FAIL ModuleStrategy failed validation
+      [RESOLVE_SIMPLE] FAILED All strategies failed for: inner_function
+    [RESOLVE] FAILED to resolve: inner_function
+      -> REJECTED (could not resolve)
+      [NAME] Found name reference: inner_function
+    [CACHE] inner_function -> None (cached)
+      -> Not module state
+    [FUNCTION_ANALYSIS] Completed analysis of: tmp6bh8hqa2.outer_function
+        Calls: 0
+        Instantiations: 0
+        State Access: 0
+=== Module Analysis Complete ===
+  Module analysis complete
+=== ANALYSIS PASS COMPLETE ===
+
+    Original analysis completed
+
+3. Running refactored analysis...
+=== RECONNAISSANCE PASS START ===
+=== Analyzing tmp6bh8hqa2.py ===
+    [EXTERNAL_MODULE] Direct import: threading
+    [EXTERNAL_IMPORT] Processing from flask_socketio
+    [EXTERNAL_CLASS] Added: flask_socketio.SocketIO (alias: SocketIO)
+    [EXTERNAL_FUNCTION] Added: flask_socketio.emit (alias: emit)
+        [INIT_PARAM] Parameter data has type hint: dict
+        [INIT_ANALYSIS] Found 1 parameter type hints
+        [ATTR_FROM_PARAM] data = data : dict
+        [ATTR_FROM_VALUE] thread_pool inferred as: threading.ThreadPoolExecutor
+  Found 1 classes
+  Found 5 functions/methods
+  Found 2 state variables
+  Found 1 external classes
+  Found 1 external functions
+
+=== PROCESSING INHERITANCE RELATIONSHIPS ===
+Processing tmp6bh8hqa2.TestClass with parents: []
+=== RECONNAISSANCE PASS COMPLETE ===
+Total project inventory:
+  Classes: 1
+  Functions/Methods: 5
+  State Variables: 2
+  External Classes: 1
+  External Functions: 1
+
+=== RECONNAISSANCE CATALOG ===
+Classes with inheritance and attributes:
+  tmp6bh8hqa2.TestClass
+    Attributes:
+      data: dict
+      thread_pool: threading.ThreadPoolExecutor
+
+External Classes (from approved libraries):
+  flask_socketio.SocketIO (alias: SocketIO) from flask_socketio
+
+External Functions (from approved libraries):
+  flask_socketio.emit (alias: emit) from flask_socketio
+
+Functions/Methods with Parameter Types:
+  tmp6bh8hqa2.TestClass.__init__(data: dict) -> None
+  tmp6bh8hqa2.TestClass.emit_event(event_name: str, data: dict) -> None
+  tmp6bh8hqa2.TestClass.process_data(no typed params) -> dict
+  tmp6bh8hqa2.outer_function(no typed params) -> None
+  tmp6bh8hqa2.standalone_function(param: str) -> str
+
+State Variables:
+  tmp6bh8hqa2.SAMPLE_DATA : None (inferred: False)
+  tmp6bh8hqa2.socketio_instance : SocketIO (inferred: True)
+=== CATALOG END ===
+
+Log level set to 3
+=== USING REFACTORED ANALYSIS PASS ===
+=== ANALYSIS PASS START (Refactored Architecture) ===
+=== Analyzing tmp6bh8hqa2.py ===
+=== Starting Module Analysis ===
+    [IMPORT] threading -> threading
+    [FROM_IMPORT] SocketIO -> flask_socketio.SocketIO
+    [FROM_IMPORT] emit -> flask_socketio.emit
+  ERROR: Failed to analyze tmp6bh8hqa2.py: 'NoneType' object has no attribute 'process_assign'
+=== ANALYSIS PASS COMPLETE ===
+
+   Refactored analysis completed
+
+4. Comparing results...
+     Results have differences:
+     - tmp6bh8hqa2.py.classes: 1 vs 0
+     - tmp6bh8hqa2.py.functions: 2 vs 0
+     - tmp6bh8hqa2.py.module_state: 2 vs 0
+     - tmp6bh8hqa2.py total calls: 4 vs 0
+     - tmp6bh8hqa2.py emit calls: 3 vs 0
+
+   tmp6bh8hqa2.py comparison:
+     Classes: 1 vs 0
+     Functions: 2 vs 0
+     State: 2 vs 0
+     Total calls: 4 vs 0
+     Emit calls: 3 vs 0
+
+   Cleaned up test file: C:\Users\wilha\AppData\Local\Temp\tmp6bh8hqa2.py

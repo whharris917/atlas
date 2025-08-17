@@ -1,9 +1,8 @@
 """
-Analysis Pass - Code Atlas
+Analysis Pass - Code Atlas - ENHANCED SOCKETIO EMIT DETECTION
 
-Contains the AnalysisVisitor and logic for the second pass of the analysis,
-which resolves relationships, tracks calls, and detects special patterns
-like SocketIO emits.
+This file contains the enhanced version of analysis.py with significantly improved
+SocketIO emit detection capabilities including f-strings, dynamic patterns, and nested emits.
 """
 
 import ast
@@ -18,7 +17,7 @@ from .utils import LOG_LEVEL, EXTERNAL_LIBRARY_ALLOWLIST, log_violation, Violati
 
 
 class AnalysisVisitor(ast.NodeVisitor):
-    """Clean analysis visitor focused on traversal and reporting with SocketIO emit detection, intermediate chain tracking, and external library support."""
+    """Enhanced analysis visitor with advanced SocketIO emit detection."""
     
     def __init__(self, recon_data: Dict[str, Any], module_name: str):
         self.recon_data = recon_data
@@ -81,6 +80,384 @@ class AnalysisVisitor(ast.NodeVisitor):
         """Add call to function report, ensuring no duplicates."""
         if call_fqn not in self.current_function_report["calls"]:
             self.current_function_report["calls"].append(call_fqn)
+    
+    # === ENHANCED SOCKETIO EMIT DETECTION ===
+    
+    def _is_emit_call_enhanced(self, resolved_fqn: str, name_parts: List[str], 
+                              raw_name: str, call_node: ast.Call) -> bool:
+        """ENHANCED: Comprehensive emit call detection with multiple strategies."""
+        
+        # Strategy 1: Direct FQN matching (existing)
+        if self._is_direct_emit_match(resolved_fqn):
+            self.log(f"[EMIT_DETECTION] Direct FQN match: {resolved_fqn}", 4)
+            return True
+            
+        # Strategy 2: Pattern-based matching (enhanced)
+        if self._is_pattern_emit_match(resolved_fqn, name_parts, raw_name):
+            self.log(f"[EMIT_DETECTION] Pattern match: {raw_name}", 4)
+            return True
+            
+        # Strategy 3: NEW - F-string emit detection
+        if self._is_fstring_emit_call(call_node):
+            self.log(f"[EMIT_DETECTION] F-string emit detected", 4)
+            return True
+            
+        # Strategy 4: NEW - Dynamic variable-based emit detection
+        if self._is_dynamic_emit_call(call_node, name_parts):
+            self.log(f"[EMIT_DETECTION] Dynamic emit detected", 4)
+            return True
+            
+        # Strategy 5: NEW - Instance method emit detection
+        if self._is_instance_emit_call(call_node):
+            self.log(f"[EMIT_DETECTION] Instance emit detected", 4)
+            return True
+            
+        return False
+    
+    def _is_direct_emit_match(self, resolved_fqn: str) -> bool:
+        """Check direct FQN matches."""
+        if not resolved_fqn:
+            return False
+            
+        return (resolved_fqn == 'flask_socketio.emit' or
+                resolved_fqn.endswith('.emit') or
+                'SocketIO' in resolved_fqn or
+                'socketio' in resolved_fqn.lower())
+    
+    def _is_pattern_emit_match(self, resolved_fqn: str, name_parts: List[str], raw_name: str) -> bool:
+        """Enhanced pattern matching."""
+        # Check if 'emit' is in name parts
+        if 'emit' in name_parts:
+            return True
+            
+        # Check raw name patterns
+        emit_patterns = ['.emit(', '.emit', 'socketio.emit', '_socketio_instance.emit']
+        if any(pattern in raw_name for pattern in emit_patterns):
+            return True
+            
+        # Check for common instance names with emit
+        socketio_instances = ['socketio', 'socket_io', 'sio', '_socketio_instance', 'app_socketio']
+        for instance in socketio_instances:
+            if instance in raw_name and 'emit' in raw_name:
+                return True
+                
+        return False
+    
+    def _is_fstring_emit_call(self, call_node: ast.Call) -> bool:
+        """NEW: Detect f-string based emit calls like socketio.emit(f'{event}_success', ...)"""
+        try:
+            if isinstance(call_node.func, ast.Attribute) and call_node.func.attr == 'emit':
+                # Check if the first argument contains dynamic content
+                if call_node.args and len(call_node.args) > 0:
+                    first_arg = call_node.args[0]
+                    
+                    # JoinedStr indicates f-string
+                    if isinstance(first_arg, ast.JoinedStr):
+                        return True
+                        
+                    # BinOp with Add might be string concatenation
+                    if isinstance(first_arg, ast.BinOp) and isinstance(first_arg.op, ast.Add):
+                        if self._involves_string_operations(first_arg):
+                            return True
+                            
+                    # Call to .format() method
+                    if isinstance(first_arg, ast.Call):
+                        if (isinstance(first_arg.func, ast.Attribute) and 
+                            first_arg.func.attr == 'format'):
+                            return True
+        except Exception:
+            pass
+        return False
+    
+    def _is_dynamic_emit_call(self, call_node: ast.Call, name_parts: List[str]) -> bool:
+        """NEW: Detect dynamic emit calls where the method or event name is computed."""
+        try:
+            if isinstance(call_node.func, ast.Attribute) and call_node.func.attr == 'emit':
+                # Check if the object being called looks like a socketio instance
+                obj_name = self._extract_object_name(call_node.func.value)
+                if obj_name:
+                    socketio_hints = ['socketio', 'socket', 'sio', 'emit', 'app']
+                    if any(hint in obj_name.lower() for hint in socketio_hints):
+                        return True
+        except Exception:
+            pass
+        return False
+    
+    def _is_instance_emit_call(self, call_node: ast.Call) -> bool:
+        """NEW: Detect emit calls on instances that might be SocketIO objects."""
+        try:
+            if isinstance(call_node.func, ast.Attribute) and call_node.func.attr == 'emit':
+                # Get the base object
+                obj_node = call_node.func.value
+                
+                # Check for global/module-level socketio instances
+                if isinstance(obj_node, ast.Name):
+                    obj_name = obj_node.id
+                    # Common global socketio variable names
+                    global_socketio_names = [
+                        'socketio', 'sio', 'app', 'socket_io', 
+                        '_socketio_instance', 'socketio_app'
+                    ]
+                    if obj_name in global_socketio_names:
+                        return True
+                        
+                # Check for attribute access like app.socketio.emit
+                elif isinstance(obj_node, ast.Attribute):
+                    full_name = self._extract_object_name(obj_node)
+                    if full_name and any(hint in full_name.lower() 
+                                       for hint in ['socketio', 'socket', 'sio']):
+                        return True
+        except Exception:
+            pass
+        return False
+    
+    def _involves_string_operations(self, node: ast.AST) -> bool:
+        """Check if an AST node involves string operations."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return True
+        if isinstance(node, ast.JoinedStr):  # f-string
+            return True
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            return (self._involves_string_operations(node.left) or 
+                   self._involves_string_operations(node.right))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            # Check for string methods like .format(), .join(), etc.
+            if node.func.attr in ['format', 'join', 'replace', 'strip', 'upper', 'lower']:
+                return True
+        return False
+    
+    def _extract_object_name(self, node: ast.AST) -> Optional[str]:
+        """Extract object name from AST node for analysis."""
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Attribute):
+            base = self._extract_object_name(node.value)
+            return f"{base}.{node.attr}" if base else node.attr
+        return None
+    
+    def _extract_dynamic_event_name(self, call_node: ast.Call) -> str:
+        """Extract event name from dynamic emit calls with enhanced f-string support."""
+        if not call_node.args:
+            return "unknown_event"
+            
+        first_arg = call_node.args[0]
+        
+        # Handle f-strings (JoinedStr)
+        if isinstance(first_arg, ast.JoinedStr):
+            return self._extract_fstring_pattern(first_arg)
+            
+        # Handle string concatenation (BinOp)
+        if isinstance(first_arg, ast.BinOp) and isinstance(first_arg.op, ast.Add):
+            return self._extract_binop_pattern(first_arg)
+            
+        # Handle .format() calls
+        if isinstance(first_arg, ast.Call):
+            if (isinstance(first_arg.func, ast.Attribute) and 
+                first_arg.func.attr == 'format'):
+                return self._extract_format_pattern(first_arg)
+                
+        # Handle variable references
+        if isinstance(first_arg, ast.Name):
+            return f"${first_arg.id}"
+            
+        # Handle constant strings
+        if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
+            return first_arg.value
+            
+        return "dynamic_event"
+    
+    def _extract_fstring_pattern(self, fstring_node: ast.JoinedStr) -> str:
+        """Extract pattern from f-string AST node."""
+        parts = []
+        for value in fstring_node.values:
+            if isinstance(value, ast.Constant):
+                parts.append(str(value.value))
+            elif isinstance(value, ast.FormattedValue):
+                if isinstance(value.value, ast.Name):
+                    parts.append(f"${{{value.value.id}}}")
+                elif isinstance(value.value, ast.Attribute):
+                    attr_name = self._extract_object_name(value.value)
+                    parts.append(f"${{{attr_name}}}")
+                else:
+                    parts.append("{expr}")
+        return "".join(parts)
+    
+    def _extract_binop_pattern(self, binop_node: ast.BinOp) -> str:
+        """Extract pattern from binary operation (string concatenation)."""
+        try:
+            left_part = self._extract_string_part(binop_node.left)
+            right_part = self._extract_string_part(binop_node.right)
+            return f"{left_part}{right_part}"
+        except:
+            return "concat_pattern"
+    
+    def _extract_format_pattern(self, call_node: ast.Call) -> str:
+        """Extract pattern from .format() method calls."""
+        try:
+            if isinstance(call_node.func.value, ast.Constant):
+                template = call_node.func.value.value
+                # Replace {} with placeholder indicators
+                import re
+                pattern = re.sub(r'\{[^}]*\}', '{var}', template)
+                return pattern
+        except:
+            pass
+        return "format_pattern"
+    
+    def _extract_string_part(self, node: ast.AST) -> str:
+        """Extract string representation from an AST node."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        elif isinstance(node, ast.Name):
+            return f"${node.id}"
+        elif isinstance(node, ast.Attribute):
+            return f"${self._extract_object_name(node)}"
+        else:
+            return "{expr}"
+    
+    def _extract_enhanced_emit_context(self, call_node: ast.Call, emit_target: str, event_name: str):
+        """Extract and store enhanced emit context information."""
+        emit_context = {}
+        
+        # Extract keyword arguments
+        for keyword in call_node.keywords:
+            if keyword.arg == 'room':
+                emit_context['room'] = self._extract_context_value(keyword.value)
+                self.log(f"[EMIT] Room parameter: {emit_context['room']}", 4)
+                
+            elif keyword.arg == 'broadcast':
+                emit_context['broadcast'] = self._extract_context_value(keyword.value)
+                self.log(f"[EMIT] Broadcast parameter: {emit_context['broadcast']}", 4)
+                
+            elif keyword.arg == 'include_self':
+                emit_context['include_self'] = self._extract_context_value(keyword.value)
+                
+            elif keyword.arg == 'namespace':
+                emit_context['namespace'] = self._extract_context_value(keyword.value)
+        
+        # Check for additional positional arguments (data payload)
+        if len(call_node.args) > 1:
+            emit_context['has_data'] = True
+            emit_context['data_args_count'] = len(call_node.args) - 1
+        
+        # Store emit context
+        if emit_context:
+            context_key = f"{emit_target}_context"
+            if "emit_contexts" not in self.current_function_report:
+                self.current_function_report["emit_contexts"] = {}
+            self.current_function_report["emit_contexts"][context_key] = emit_context
+    
+    def _extract_context_value(self, node: ast.AST) -> Any:
+        """Extract value from context parameter nodes."""
+        if isinstance(node, ast.Constant):
+            return node.value
+        elif isinstance(node, ast.Name):
+            return f"${node.id}"
+        elif isinstance(node, ast.JoinedStr):
+            return self._extract_fstring_pattern(node)
+        elif isinstance(node, ast.Attribute):
+            return f"${self._extract_object_name(node)}"
+        else:
+            return "dynamic_value"
+    
+    # === ENHANCED VISIT_CALL METHOD ===
+    
+    def visit_Call(self, node: ast.Call):
+        """ENHANCED: Process function calls with comprehensive SocketIO emit detection."""
+        if not self.current_function_report:
+            return
+        
+        try:
+            name_parts = self.name_resolver.extract_name_parts(node.func)
+            if not name_parts:
+                self.log(f"[CALL] Could not extract name parts from call", 3)
+                return
+            
+            raw_name = ".".join(name_parts)
+            self.log(f"[CALL] Found call: {raw_name}", 3)
+            
+            # Check if this is a built-in that should be ignored
+            if len(name_parts) == 1 and name_parts[0] in ['print', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple', 'range', 'enumerate', 'zip', 'all', 'any', 'max', 'min', 'sum', 'abs', 'round', 'sorted']:
+                self.log(f"-> IGNORED (built-in function)", 3)
+                self.generic_visit(node)
+                return
+            
+            context = self._get_context()
+            
+            # Always resolve the complete call first
+            resolved_fqn = self._cached_resolve_name(name_parts, context)
+            
+            # Track intermediate calls in method chains
+            if len(name_parts) > 1 and resolved_fqn:
+                self._track_intermediate_chain_calls(name_parts, context, resolved_fqn)
+            
+            # **ENHANCED EMIT DETECTION**
+            if self._is_emit_call_enhanced(resolved_fqn or "", name_parts, raw_name, node):
+                # Extract event name using enhanced methods
+                event_name = self._extract_dynamic_event_name(node)
+                
+                # Create emit entry with resolved or raw name
+                emit_target_base = resolved_fqn if resolved_fqn else raw_name
+                emit_target = f"{emit_target_base}::{event_name}"
+                
+                self._add_unique_call(emit_target)
+                self.log(f"-> DETECTED and ADDED emit call: {emit_target}", 3)
+                
+                # Extract enhanced emit context
+                self._extract_enhanced_emit_context(node, emit_target, event_name)
+                
+            elif resolved_fqn:
+                self.log(f"-> Resolved to: {resolved_fqn}", 3)
+                
+                # Handle instantiations
+                if resolved_fqn in self.recon_data["classes"]:
+                    if resolved_fqn not in self.current_function_report["instantiations"]:
+                        self.current_function_report["instantiations"].append(resolved_fqn)
+                    self.log(f"-> ADDED to instantiations", 3)
+                # Handle external class instantiations
+                elif resolved_fqn in self.recon_data.get("external_classes", {}):
+                    if resolved_fqn not in self.current_function_report["instantiations"]:
+                        self.current_function_report["instantiations"].append(resolved_fqn)
+                    self.log(f"-> ADDED to instantiations (external)", 3)
+                # Handle function calls
+                elif resolved_fqn in self.recon_data["functions"]:
+                    self._add_unique_call(resolved_fqn)
+                    self.log(f"-> ADDED to calls", 3)
+                # Handle external function calls
+                elif resolved_fqn in self.recon_data.get("external_functions", {}):
+                    self._add_unique_call(resolved_fqn)
+                    self.log(f"-> ADDED to calls (external)", 3)
+                # Handle external library calls
+                elif any(resolved_fqn.startswith(lib) for lib in EXTERNAL_LIBRARY_ALLOWLIST):
+                    self._add_unique_call(resolved_fqn)
+                    self.log(f"-> ADDED to calls (external library)", 3)
+                else:
+                    self.log(f"-> REJECTED (not in catalog or allowlist)", 3)
+            else:
+                self.log(f"-> REJECTED (could not resolve)", 3)
+                
+                # **FALLBACK EMIT DETECTION** for unresolved calls
+                if self._is_emit_call_enhanced("", name_parts, raw_name, node):
+                    event_name = self._extract_dynamic_event_name(node)
+                    emit_target = f"{raw_name}::{event_name}"
+                    
+                    self._add_unique_call(emit_target)
+                    self.log(f"-> ADDED unresolved emit call: {emit_target}", 3)
+                    
+                    # Extract context for unresolved emits too
+                    self._extract_enhanced_emit_context(node, emit_target, event_name)
+            
+            # Check for function arguments
+            self._process_function_arguments(node)
+        
+        except Exception as e:
+            self.log(f"-> ERROR: {e}", 3)
+        
+        self.generic_visit(node)
+    
+    # === REST OF THE CLASS METHODS (unchanged) ===
+    # Note: All other methods from the original AnalysisVisitor remain the same
+    # including visit_Module, visit_Import, visit_ClassDef, visit_FunctionDef, etc.
     
     def visit_Module(self, node: ast.Module):
         """Process module."""
@@ -227,7 +604,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             self.log(f"  SocketIO Emits: {emit_count}", 3)
         
         return function_report
-    
+
     def _populate_symbols_from_args(self, args: ast.arguments):
         """Populate symbol table from function arguments with violation checking and parameter type lookup."""
         context = self._get_context()
@@ -294,7 +671,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             else:
                 # Missing type hint and no recon data - already logged by code checker
                 self.log(f"[ARG_TYPE] No type hint or recon data for {arg.arg}", 4)
-    
+
     def _visit_with_nested_handling(self, node: ast.AST):
         """Handle nested functions properly."""
         if isinstance(node, ast.FunctionDef) and self.current_function_report:
@@ -308,168 +685,17 @@ class AnalysisVisitor(ast.NodeVisitor):
                 self.symbol_manager.exit_nested_scope()
         else:
             self.visit(node)
-    
-    def visit_Call(self, node: ast.Call):
-        """Process function calls with comprehensive logging - FIXED VERSION."""
-        if not self.current_function_report:
-            return
-        
-        try:
-            name_parts = self.name_resolver.extract_name_parts(node.func)
-            if not name_parts:
-                self.log(f"[CALL] Could not extract name parts from call", 3)
-                return
-            
-            raw_name = ".".join(name_parts)
-            self.log(f"[CALL] Found call: {raw_name}", 3)
-            
-            # Check if this is a built-in that should be ignored
-            if len(name_parts) == 1 and name_parts[0] in ['print', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple', 'range', 'enumerate', 'zip', 'all', 'any', 'max', 'min', 'sum', 'abs', 'round', 'sorted']:
-                self.log(f"-> IGNORED (built-in function)", 3)
-                self.generic_visit(node)
-                return
-            
-            context = self._get_context()
-            
-            # **FIXED: Always resolve the complete call first**
-            resolved_fqn = self._cached_resolve_name(name_parts, context)
-            
-            # **ENHANCED: Track intermediate calls in method chains**
-            if len(name_parts) > 1 and resolved_fqn:
-                self._track_intermediate_chain_calls(name_parts, context, resolved_fqn)
-            
-            if resolved_fqn:
-                self.log(f"-> Resolved to: {resolved_fqn}", 3)
-                
-                # **ENHANCED EMIT DETECTION**: Check for emit calls with comprehensive patterns
-                self.log(f"[EMIT_DEBUG] Checking if '{resolved_fqn}' is an emit call", 4)
-                self.log(f"[EMIT_DEBUG] Raw name: {raw_name}", 4)
-                self.log(f"[EMIT_DEBUG] Name parts: {name_parts}", 4)
-                
-                is_emit_call = self._is_emit_call(resolved_fqn, name_parts, raw_name)
-                
-                if is_emit_call:
-                    self._handle_emit_call(node, resolved_fqn)
-                    self.log(f"-> DETECTED and ADDED emit call: {resolved_fqn}", 3)
-                # Handle instantiations
-                elif resolved_fqn in self.recon_data["classes"]:
-                    if resolved_fqn not in self.current_function_report["instantiations"]:
-                        self.current_function_report["instantiations"].append(resolved_fqn)
-                    self.log(f"-> ADDED to instantiations", 3)
-                # Handle external class instantiations
-                elif resolved_fqn in self.recon_data.get("external_classes", {}):
-                    if resolved_fqn not in self.current_function_report["instantiations"]:
-                        self.current_function_report["instantiations"].append(resolved_fqn)
-                    self.log(f"-> ADDED to instantiations (external)", 3)
-                # Handle function calls
-                elif resolved_fqn in self.recon_data["functions"]:
-                    self._add_unique_call(resolved_fqn)
-                    self.log(f"-> ADDED to calls", 3)
-                # Handle external function calls
-                elif resolved_fqn in self.recon_data.get("external_functions", {}):
-                    self._add_unique_call(resolved_fqn)
-                    self.log(f"-> ADDED to calls (external)", 3)
-                # Handle external library calls from old allowlist (for backward compatibility)
-                elif any(resolved_fqn.startswith(lib) for lib in EXTERNAL_LIBRARY_ALLOWLIST):
-                    self._add_unique_call(resolved_fqn)
-                    self.log(f"-> ADDED to calls (external library)", 3)
-                else:
-                    self.log(f"-> REJECTED (not in catalog or allowlist)", 3)
-                    self.log(f"   Available classes: {len(self.recon_data['classes'])}", 4)
-                    self.log(f"   Available functions: {len(self.recon_data['functions'])}", 4)
-            else:
-                self.log(f"-> REJECTED (could not resolve)", 3)
-                
-                # **FALLBACK EMIT DETECTION**: Check for emit patterns even when resolution fails
-                self.log(f"[EMIT_FALLBACK] Checking unresolved call for emit patterns", 4)
-                if self._is_emit_call_fallback(name_parts, raw_name):
-                    self.log(f"[EMIT_FALLBACK] DETECTED unresolved emit call: {raw_name}", 3)
-                    self._handle_emit_call(node, raw_name)  # Use raw name if we can't resolve
-                    self.log(f"-> ADDED unresolved emit call: {raw_name}", 3)
-            
-            # Check for function arguments
-            self._process_function_arguments(node)
-        
-        except Exception as e:
-            self.log(f"-> ERROR: {e}", 3)
-        
-        self.generic_visit(node)
-    
-    def _is_emit_call(self, resolved_fqn: str, name_parts: List[str], raw_name: str) -> bool:
-        """Comprehensive emit call detection with multiple patterns including external libraries."""
-        
-        # Pattern 1: Direct flask_socketio.emit import
-        if resolved_fqn == 'flask_socketio.emit':
-            self.log(f"[EMIT_DETECTION] Match: flask_socketio.emit", 4)
-            return True
-        
-        # Pattern 2: Any method ending with .emit
-        if resolved_fqn.endswith('.emit'):
-            self.log(f"[EMIT_DETECTION] Match: ends with .emit", 4)
-            return True
-        
-        # Pattern 3: External SocketIO class emit method
-        if 'flask_socketio.SocketIO.emit' in resolved_fqn:
-            self.log(f"[EMIT_DETECTION] Match: SocketIO class emit method", 4)
-            return True
-        
-        # Pattern 4: Contains SocketIO
-        if 'SocketIO' in resolved_fqn:
-            self.log(f"[EMIT_DETECTION] Match: contains SocketIO", 4)
-            return True
-        
-        # Pattern 5: Contains socketio (case insensitive)
-        if 'socketio' in resolved_fqn.lower():
-            self.log(f"[EMIT_DETECTION] Match: contains socketio", 4)
-            return True
-        
-        # Pattern 6: Check if resolved to external emit function
-        if resolved_fqn in self.recon_data.get("external_functions", {}):
-            ext_func_info = self.recon_data["external_functions"][resolved_fqn]
-            if ext_func_info["name"] == "emit" and "socketio" in ext_func_info["module"]:
-                self.log(f"[EMIT_DETECTION] Match: external socketio emit function", 4)
-                return True
-        
-        # Pattern 7: Check if any part of the name is 'emit'
-        if 'emit' in name_parts:
-            self.log(f"[EMIT_DETECTION] Match: 'emit' in name parts", 4)
-            return True
-        
-        # Pattern 8: Check raw name patterns
-        if '.emit(' in raw_name or raw_name.endswith('.emit'):
-            self.log(f"[EMIT_DETECTION] Match: raw name contains emit pattern", 4)
-            return True
-        
-        # Log what we're NOT matching
-        self.log(f"[EMIT_DETECTION] No match for: resolved='{resolved_fqn}', parts={name_parts}, raw='{raw_name}'", 4)
-        return False
-    
-    def _is_emit_call_fallback(self, name_parts: List[str], raw_name: str) -> bool:
-        """Fallback emit detection for unresolved calls."""
-        
-        # Check if 'emit' is the last part of the call
-        if name_parts and name_parts[-1] == 'emit':
-            self.log(f"[EMIT_FALLBACK] Match: last part is 'emit'", 4)
-            return True
-        
-        # Check for common SocketIO patterns in the raw name
-        if any(pattern in raw_name.lower() for pattern in ['socketio.emit', '.emit']):
-            self.log(f"[EMIT_FALLBACK] Match: contains socketio emit pattern", 4)
-            return True
-        
-        self.log(f"[EMIT_FALLBACK] No match for unresolved call: {raw_name}", 4)
-        return False
-    
+
     def _track_intermediate_chain_calls(self, name_parts: List[str], context: Dict[str, Any], final_resolved_fqn: str):
-        """Track intermediate method calls in complex chains - FIXED VERSION."""
+        """Track intermediate method calls in complex chains."""
         self.log(f"    [INTERMEDIATE] Tracking chain steps for: {'.'.join(name_parts)}", 4)
         
         # Only track intermediate calls if we have a multi-part chain
         if len(name_parts) <= 1:
             return
         
-        # Track each progressive step in the chain (excluding the final call which is handled separately)
-        for i in range(1, len(name_parts)):  # Skip the final step since it's handled by main resolution
+        # Track each progressive step in the chain (excluding the final call)
+        for i in range(1, len(name_parts)):
             partial_chain = name_parts[:i+1]
             partial_name = ".".join(partial_chain)
             
@@ -494,11 +720,11 @@ class AnalysisVisitor(ast.NodeVisitor):
                         self.log(f"    [INTERMEDIATE] ADDED intermediate call: {partial_resolved}", 4)
                 
                 # Update context for next step using return type if available
-                if i < len(name_parts) - 1:  # Don't update for the last step
+                if i < len(name_parts) - 1:
                     self._update_chain_context(partial_resolved, name_parts[0], context)
             else:
                 self.log(f"    [INTERMEDIATE] Step {i} could not be resolved or same as final", 4)
-    
+
     def _update_chain_context(self, resolved_fqn: str, base_name: str, context: Dict[str, Any]):
         """Update resolution context based on intermediate call return type."""
         if resolved_fqn in self.recon_data["functions"]:
@@ -513,51 +739,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                         # Update symbol table for next resolution step
                         self.symbol_manager.update_variable_type(base_name, resolved_type_fqn)
                         self.log(f"    [INTERMEDIATE] Updated context: {base_name} -> {resolved_type_fqn}", 4)
-    
-    def _handle_emit_call(self, node: ast.Call, resolved_fqn: str):
-        """Handle special emit methods for event name extraction."""
-        self.log(f"[EMIT] Processing SocketIO emit call: {resolved_fqn}", 3)
-        
-        # Extract event name from first argument
-        event_name = None
-        if node.args and len(node.args) > 0:
-            first_arg = node.args[0]
-            if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
-                event_name = first_arg.value
-                self.log(f"[EMIT] Extracted event name: '{event_name}'", 4)
-            elif isinstance(first_arg, ast.Name):
-                # Variable reference - try to resolve if it's a string constant
-                event_name = f"${first_arg.id}"  # Mark as variable reference
-                self.log(f"[EMIT] Event name from variable: {first_arg.id}", 4)
-        
-        # Create special emit entry
-        emit_target = f"{resolved_fqn}::{event_name or 'unknown_event'}"
-        self._add_unique_call(emit_target)
-        self.log(f"-> ADDED emit call: {emit_target}", 3)
-        
-        # Extract additional emit parameters for context
-        emit_context = {}
-        
-        # Check for room parameter
-        for keyword in node.keywords:
-            if keyword.arg == 'room':
-                if isinstance(keyword.value, ast.Constant):
-                    emit_context['room'] = keyword.value.value
-                elif isinstance(keyword.value, ast.Name):
-                    emit_context['room'] = f"${keyword.value.id}"
-                self.log(f"[EMIT] Room parameter: {emit_context.get('room')}", 4)
-            elif keyword.arg == 'broadcast':
-                if isinstance(keyword.value, ast.Constant):
-                    emit_context['broadcast'] = keyword.value.value
-                self.log(f"[EMIT] Broadcast parameter: {emit_context.get('broadcast')}", 4)
-        
-        # Store emit context if we have any
-        if emit_context:
-            context_key = f"{emit_target}_context"
-            if "emit_contexts" not in self.current_function_report:
-                self.current_function_report["emit_contexts"] = {}
-            self.current_function_report["emit_contexts"][context_key] = emit_context
-    
+
     def _process_function_arguments(self, node: ast.Call):
         """Process function arguments for function references."""
         context = self._get_context()
@@ -567,10 +749,10 @@ class AnalysisVisitor(ast.NodeVisitor):
                 self.log(f"[FUNCTION_ARG] Checking argument: {arg.id}", 4)
                 arg_fqn = self.name_resolver.resolve_name([arg.id], context)
                 if (arg_fqn and (arg_fqn in self.recon_data["functions"] or
-                               arg_fqn in self.recon_data.get("external_functions", {}))):
+                            arg_fqn in self.recon_data.get("external_functions", {}))):
                     self._add_unique_call(arg_fqn)
                     self.log(f"-> ADDED to calls (function as argument): {arg_fqn}", 4)
-    
+
     def visit_Name(self, node: ast.Name):
         """Process name references for state access."""
         if not self.current_function_report:
@@ -599,7 +781,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             self.log(f"-> ERROR: {e}", 3)
         
         self.generic_visit(node)
-    
+
     def visit_Attribute(self, node: ast.Attribute):
         """Process attribute access for state variables."""
         if not self.current_function_report:
@@ -636,7 +818,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             self.log(f"-> ERROR: {e}", 3)
         
         self.generic_visit(node)
-    
+
     def visit_Assign(self, node: ast.Assign):
         """Process assignments for both module state and local variables."""
         if not self.current_class and not self.current_function_report:
@@ -675,7 +857,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                         self.log(f"[ASSIGNMENT] ERROR: {e}", 4)
         
         self.generic_visit(node)
-    
+
     def visit_AnnAssign(self, node: ast.AnnAssign):
         """Process annotated assignments."""
         if (not self.current_class and not self.current_function_report and
@@ -709,8 +891,8 @@ class AnalysisVisitor(ast.NodeVisitor):
 
 
 def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute analysis pass with clean architecture and external library support."""
-    print("=== ANALYSIS PASS START ===")
+    """Execute analysis pass with enhanced SocketIO emit detection."""
+    print("=== ANALYSIS PASS START (Enhanced SocketIO Detection) ===")
     
     atlas = {}
     
