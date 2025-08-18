@@ -21,7 +21,7 @@ from ..utils.naming import generate_function_fqn, generate_class_fqn
 from ..core.configuration import get_config
 
 # Import existing components (to be refactored later)
-from ..resolver import NameResolver
+from ..resolver_compat import create_name_resolver
 from ..type_inference import TypeInferenceEngine
 from ..symbol_table import SymbolTableManager
 from ..code_checker import CodeStandardChecker
@@ -43,8 +43,14 @@ class RefactoredAnalysisVisitor(BaseVisitor):
         # Initialize base visitor
         super().__init__(recon_data, module_name, logger)
         
-        # Core analysis components
-        self.name_resolver = NameResolver(recon_data)
+        # Core analysis components - FORCE refactored resolver
+        self.name_resolver = create_name_resolver(recon_data, use_refactored=True)
+        
+        # Debug: Verify we're using refactored
+        if hasattr(self.name_resolver, 'get_implementation_info'):
+            impl_info = self.name_resolver.get_implementation_info()
+            self.logger.log(f"[RESOLVER] Using implementation: {impl_info['implementation']}", 1)
+        
         self.type_inference = TypeInferenceEngine(recon_data)
         self.symbol_manager = SymbolTableManager()
         self.code_checker = CodeStandardChecker()
@@ -90,10 +96,32 @@ class RefactoredAnalysisVisitor(BaseVisitor):
     
     def _update_specialized_visitors_context(self):
         """Update specialized visitors with current function context."""
-        # Update the function report references in all visitors
-        self.emit_visitor.current_function_report = self.current_function_report
-        self.call_visitor.current_function_report = self.current_function_report
-        self.assignment_visitor.current_function_report = self.current_function_report
+        # Create new visitor instances with current context
+        # This ensures they have the correct function_report reference
+        
+        self.emit_visitor = EmitVisitor(
+            self.name_resolver,
+            self.current_function_report,  # Pass current function report
+            self.logger
+        )
+        
+        self.call_visitor = CallVisitor(
+            self.name_resolver,
+            self.recon_data,
+            self.current_function_report,  # Pass current function report
+            self.resolution_cache,
+            self.emit_visitor,
+            self.logger
+        )
+        
+        self.assignment_visitor = AssignmentVisitor(
+            self.name_resolver,
+            self.type_inference,
+            self.symbol_manager,
+            self.current_function_report,  # Pass current function report
+            self.module_report,
+            self.logger
+        )
     
     def visit_Module(self, node: ast.Module):
         """Process module and extract docstring."""

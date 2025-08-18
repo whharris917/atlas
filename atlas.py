@@ -19,6 +19,7 @@ from analyzer.utils import (
 # FIX: Import both compatibility layers
 from analyzer.recon_compat import run_reconnaissance_pass_compat, get_recon_info
 from analyzer.analysis_compat import run_analysis_pass_compat, get_atlas_info
+from analyzer.resolver_compat import get_resolver_info
 
 def main() -> None:
     """Main execution with intelligent implementation selection."""
@@ -53,6 +54,8 @@ def main() -> None:
         print(f"Version: {atlas_info['version']}")
         print(f"Analysis refactored implementation: {'Yes' if atlas_info['refactored_available'] else 'No'}")
         print(f"Reconnaissance refactored implementation: {'Yes' if recon_info['refactored_available'] else 'No'}")
+        resolver_info = get_resolver_info()
+        print(f"Resolver refactored implementation: {'Yes' if resolver_info['refactored_available'] else 'No'}")
         
         if atlas_info['refactored_available']:
             print(f"Log level: {atlas_info.get('log_level', 'Unknown')}")

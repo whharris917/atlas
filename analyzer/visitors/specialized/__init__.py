@@ -14,6 +14,12 @@ Phase 2 visitors handle reconnaissance pass specialization:
 - FunctionReconVisitor: Function/method definition and signature extraction
 - StateReconVisitor: Module state variables and assignments
 
+Phase 3 visitors handle resolver specialization:
+- LocalVariableResolverVisitor: Local variable symbol table resolution
+- SelfResolverVisitor: 'self' reference resolution to current class
+- ImportResolverVisitor: Import aliases and external library resolution
+- ModuleResolverVisitor: Module-level fallback resolution
+
 Part of the Atlas refactoring project to modularize analysis components.
 """
 
@@ -28,6 +34,12 @@ from .class_recon_visitor import ClassReconVisitor
 from .function_recon_visitor import FunctionReconVisitor
 from .state_recon_visitor import StateReconVisitor
 
+# Phase 3 - Resolver specialized visitors
+from .local_resolver_visitor import LocalVariableResolverVisitor
+from .self_resolver_visitor import SelfResolverVisitor
+from .import_resolver_visitor import ImportResolverVisitor
+from .module_resolver_visitor import ModuleResolverVisitor
+
 __all__ = [
     # Phase 1 - Analysis visitors
     'EmitVisitor',
@@ -37,5 +49,10 @@ __all__ = [
     'ImportReconVisitor',
     'ClassReconVisitor',
     'FunctionReconVisitor',
-    'StateReconVisitor'
+    'StateReconVisitor',
+    # Phase 3 - Resolver visitors
+    'LocalVariableResolverVisitor',
+    'SelfResolverVisitor',
+    'ImportResolverVisitor',
+    'ModuleResolverVisitor'
 ]
