@@ -2,13 +2,15 @@
 Enhanced Name Resolver Compatibility Layer - Code Atlas
 
 UPDATED: Adds support for testing resolver_reorganized.py safely alongside
-the existing original and refactored implementations.
+the existing original and refactored implementations. Now supports environment
+variable control from atlas.py --resolver flag.
 
 This maintains the existing NameResolver import interface while internally
 routing to the best available implementation, now including the reorganized
 proof-of-concept implementation for testing.
 """
 
+import os
 from typing import Dict, List, Any, Optional
 
 
@@ -64,6 +66,8 @@ class NameResolver:
     
     Now supports testing the reorganized implementation alongside original
     and refactored versions. Maintains identical API contract.
+    
+    Supports environment variable control from atlas.py --resolver flag.
     """
     
     def __init__(self, recon_data: Dict[str, Any]):
@@ -77,16 +81,22 @@ class NameResolver:
             recon_data: Reconnaissance data from previous pass
         """
         self.recon_data = recon_data
-        info = get_resolver_info()
         
-        # Auto-detect best available implementation
-        # Priority: reorganized > refactored > original
-        if info["reorganized_available"]:
-            implementation_choice = "reorganized"
-        elif info["refactored_available"]:
-            implementation_choice = "refactored"
+        # Check for environment variable from atlas.py --resolver flag
+        requested_implementation = os.environ.get('ATLAS_RESOLVER_IMPLEMENTATION', 'auto')
+        
+        if requested_implementation == 'auto':
+            # Use normal auto-detection
+            info = get_resolver_info()
+            if info["reorganized_available"]:
+                implementation_choice = "reorganized"
+            elif info["refactored_available"]:
+                implementation_choice = "refactored"
+            else:
+                implementation_choice = "original"
         else:
-            implementation_choice = "original"
+            # Use explicitly requested implementation
+            implementation_choice = requested_implementation
         
         self._implementation = self._initialize_implementation(implementation_choice)
     
@@ -98,6 +108,7 @@ class NameResolver:
             try:
                 from .resolver_reorganized import NameResolver as ReorganizedNameResolver
                 self._resolver = ReorganizedNameResolver(self.recon_data)
+                print(f"[RESOLVER_COMPAT] Using reorganized resolver implementation")
                 return "reorganized"
             except (ImportError, Exception) as e:
                 print(f"[RESOLVER_COMPAT] Warning: Reorganized implementation failed ({e}), falling back")
@@ -108,6 +119,7 @@ class NameResolver:
             try:
                 from .resolver_refactored import RefactoredNameResolver
                 self._resolver = RefactoredNameResolver(self.recon_data)
+                print(f"[RESOLVER_COMPAT] Using refactored resolver implementation")
                 return "refactored"
             except (ImportError, NotImplementedError) as e:
                 print(f"[RESOLVER_COMPAT] Warning: Refactored implementation failed ({e}), falling back to original")
@@ -117,6 +129,7 @@ class NameResolver:
         else:
             from .resolver_original import NameResolver as OriginalNameResolver
             self._resolver = OriginalNameResolver(self.recon_data)
+            print(f"[RESOLVER_COMPAT] Using original resolver implementation")
             return "original"
     
     def resolve_name(self, name_parts: List[str], context: Dict[str, Any]) -> Optional[str]:
@@ -165,13 +178,20 @@ def create_name_resolver(recon_data: Dict[str, Any], use_implementation: Optiona
             - "original": Force original implementation  
             - None: Auto-detect best available implementation
     """
-    resolver = NameResolver(recon_data)
-    
-    # If specific implementation requested, override the auto-detection
+    # Temporarily set environment variable if specific implementation requested
+    old_env = os.environ.get('ATLAS_RESOLVER_IMPLEMENTATION')
     if use_implementation is not None:
-        resolver._implementation = resolver._initialize_implementation(use_implementation)
+        os.environ['ATLAS_RESOLVER_IMPLEMENTATION'] = use_implementation
     
-    return resolver
+    try:
+        resolver = NameResolver(recon_data)
+        return resolver
+    finally:
+        # Restore original environment variable
+        if old_env is not None:
+            os.environ['ATLAS_RESOLVER_IMPLEMENTATION'] = old_env
+        elif 'ATLAS_RESOLVER_IMPLEMENTATION' in os.environ:
+            del os.environ['ATLAS_RESOLVER_IMPLEMENTATION']
 
 
 # Export the compatibility class as the main interface
