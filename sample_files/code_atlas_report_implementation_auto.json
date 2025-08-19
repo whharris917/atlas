@@ -1,0 +1,2527 @@
+{
+  "recon_data": {
+    "classes": {
+      "admin_manager.OperationType": {
+        "parents": [
+          "Enum"
+        ],
+        "attributes": {
+          "USER_MANAGEMENT": {
+            "type": "auto"
+          },
+          "SYSTEM_CONFIGURATION": {
+            "type": "auto"
+          },
+          "DATA_MIGRATION": {
+            "type": "auto"
+          },
+          "SECURITY_AUDIT": {
+            "type": "auto"
+          },
+          "PERFORMANCE_TUNING": {
+            "type": "auto"
+          },
+          "BACKUP_RESTORE": {
+            "type": "auto"
+          },
+          "MONITORING_SETUP": {
+            "type": "auto"
+          }
+        }
+      },
+      "admin_manager.OperationStatus": {
+        "parents": [
+          "Enum"
+        ],
+        "attributes": {
+          "PENDING": {
+            "type": "auto"
+          },
+          "IN_PROGRESS": {
+            "type": "auto"
+          },
+          "COMPLETED": {
+            "type": "auto"
+          },
+          "FAILED": {
+            "type": "auto"
+          },
+          "CANCELLED": {
+            "type": "auto"
+          }
+        }
+      },
+      "admin_manager.OperationResult": {
+        "parents": [],
+        "attributes": {
+          "operation_id": {
+            "type": "str"
+          },
+          "operation_type": {
+            "type": "OperationType"
+          },
+          "status": {
+            "type": "OperationStatus"
+          },
+          "start_time": {
+            "type": "datetime"
+          },
+          "end_time": {
+            "type": "Optional[datetime]"
+          },
+          "success": {
+            "type": "bool"
+          },
+          "message": {
+            "type": "str"
+          },
+          "data": {
+            "type": "Dict[str, Any]"
+          },
+          "errors": {
+            "type": "List[str]"
+          },
+          "warnings": {
+            "type": "List[str]"
+          }
+        }
+      },
+      "admin_manager.AdminManager": {
+        "parents": [],
+        "attributes": {
+          "operations_history": {
+            "type": "Dict[str, OperationResult]"
+          },
+          "active_operations": {
+            "type": "Set[str]"
+          },
+          "operation_lock": {
+            "type": "threading.RLock"
+          },
+          "admin_permissions": {
+            "type": "Dict[str, Set[OperationType]]"
+          },
+          "system_config": {
+            "type": "Dict[str, Any]"
+          },
+          "audit_log": {
+            "type": "List[Dict[str, Any]]"
+          }
+        }
+      },
+      "database_manager.DatabaseConnection": {
+        "parents": [],
+        "attributes": {
+          "connection_id": {
+            "type": "str"
+          },
+          "is_open": {
+            "type": "int"
+          },
+          "in_transaction": {
+            "type": "int"
+          },
+          "isolation_level": {
+            "type": "str"
+          },
+          "query_count": {
+            "type": "int"
+          },
+          "last_query_time": {
+            "type": "time.time"
+          },
+          "lock": {
+            "type": "threading.RLock"
+          }
+        }
+      },
+      "database_manager.TransactionManager": {
+        "parents": [],
+        "attributes": {
+          "connection": {
+            "type": "DatabaseConnection"
+          },
+          "isolation_level": {
+            "type": "str"
+          },
+          "transaction_started": {
+            "type": "int"
+          },
+          "start_time": {
+            "type": "Optional[float]"
+          },
+          "operations_count": {
+            "type": "int"
+          }
+        }
+      },
+      "decorators.DecoratorRegistry": {
+        "parents": [],
+        "attributes": {
+          "registered_decorators": {
+            "type": "Dict[str, Callable]"
+          },
+          "decorator_chains": {
+            "type": "Dict[str, List[str]]"
+          },
+          "active_traces": {
+            "type": "List[str]"
+          }
+        }
+      },
+      "decorators.ClassBasedDecorator": {
+        "parents": [],
+        "attributes": {
+          "config": {
+            "type": "Dict[str, Any]"
+          },
+          "call_count": {
+            "type": "int"
+          },
+          "last_call_time": {
+            "type": "int"
+          }
+        }
+      },
+      "decorators.PropertyDecorator": {
+        "parents": [],
+        "attributes": {
+          "validator": {
+            "type": "Optional[Callable]"
+          },
+          "transformer": {
+            "type": "Optional[Callable]"
+          },
+          "cache": {
+            "type": "bool"
+          },
+          "_cache_storage": {
+            "type": "Dict[int, Any]"
+          }
+        }
+      },
+      "event_validator.ValidationLevel": {
+        "parents": [
+          "Enum"
+        ],
+        "attributes": {
+          "INFO": {
+            "type": "auto"
+          },
+          "WARNING": {
+            "type": "auto"
+          },
+          "ERROR": {
+            "type": "auto"
+          },
+          "CRITICAL": {
+            "type": "auto"
+          }
+        }
+      },
+      "event_validator.ValidationResult": {
+        "parents": [
+          "Enum"
+        ],
+        "attributes": {
+          "VALID": {
+            "type": "auto"
+          },
+          "INVALID": {
+            "type": "auto"
+          },
+          "REQUIRES_REVIEW": {
+            "type": "auto"
+          },
+          "CONDITIONALLY_VALID": {
+            "type": "auto"
+          }
+        }
+      },
+      "event_validator.ValidationError": {
+        "parents": [],
+        "attributes": {
+          "field": {
+            "type": "str"
+          },
+          "message": {
+            "type": "str"
+          },
+          "level": {
+            "type": "ValidationLevel"
+          },
+          "code": {
+            "type": "str"
+          },
+          "context": {
+            "type": "Dict[str, Any]"
+          },
+          "suggestions": {
+            "type": "List[str]"
+          }
+        }
+      },
+      "event_validator.ValidationReport": {
+        "parents": [],
+        "attributes": {
+          "result": {
+            "type": "ValidationResult"
+          },
+          "errors": {
+            "type": "List[ValidationError]"
+          },
+          "warnings": {
+            "type": "List[ValidationError]"
+          },
+          "metadata": {
+            "type": "Dict[str, Any]"
+          },
+          "validation_time": {
+            "type": "float"
+          },
+          "rules_applied": {
+            "type": "List[str]"
+          }
+        }
+      },
+      "event_validator.ValidationRule": {
+        "parents": [
+          "Protocol"
+        ],
+        "attributes": {}
+      },
+      "event_validator.BaseValidationRule": {
+        "parents": [
+          "ABC"
+        ],
+        "attributes": {
+          "rule_name": {
+            "type": "str"
+          },
+          "description": {
+            "type": "str"
+          },
+          "enabled": {
+            "type": "int"
+          },
+          "priority": {
+            "type": "int"
+          },
+          "dependencies": {
+            "type": "List[str]"
+          }
+        }
+      },
+      "event_validator.RequiredFieldRule": {
+        "parents": [
+          "event_validator.BaseValidationRule"
+        ],
+        "attributes": {
+          "required_fields": {
+            "type": "List[str]"
+          }
+        }
+      },
+      "event_validator.DataTypeRule": {
+        "parents": [
+          "event_validator.BaseValidationRule"
+        ],
+        "attributes": {
+          "field_types": {
+            "type": "Dict[str, Union[type, List[type]]]"
+          }
+        }
+      },
+      "event_validator.RegexValidationRule": {
+        "parents": [
+          "event_validator.BaseValidationRule"
+        ],
+        "attributes": {
+          "field_patterns": {
+            "type": "Dict[str, str]"
+          },
+          "compiled_patterns": {
+            "type": "Unknown"
+          }
+        }
+      },
+      "event_validator.ValidationEngine": {
+        "parents": [],
+        "attributes": {
+          "rules": {
+            "type": "List[BaseValidationRule]"
+          },
+          "global_context": {
+            "type": "Dict[str, Any]"
+          },
+          "validation_cache": {
+            "type": "Dict[str, ValidationReport]"
+          },
+          "cache_enabled": {
+            "type": "int"
+          }
+        }
+      },
+      "event_validator.ValidationRuleBuilder": {
+        "parents": [],
+        "attributes": {
+          "engine": {
+            "type": "ValidationEngine"
+          },
+          "current_rules": {
+            "type": "List[BaseValidationRule]"
+          }
+        }
+      },
+      "event_validator.EventValidator": {
+        "parents": [],
+        "attributes": {
+          "validation_engine": {
+            "type": "ValidationEngine"
+          },
+          "event_schemas": {
+            "type": "Dict[str, ValidationEngine]"
+          }
+        }
+      },
+      "event_validator.MessageValidator": {
+        "parents": [],
+        "attributes": {
+          "content_filters": {
+            "type": "List[Callable[[str], bool]]"
+          },
+          "banned_patterns": {
+            "type": "List[re.Pattern]"
+          },
+          "validation_cache": {
+            "type": "Dict[str, bool]"
+          }
+        }
+      },
+      "inheritence_complex.Priority": {
+        "parents": [
+          "Enum"
+        ],
+        "attributes": {
+          "LOW": {
+            "type": "auto"
+          },
+          "MEDIUM": {
+            "type": "auto"
+          },
+          "HIGH": {
+            "type": "auto"
+          },
+          "CRITICAL": {
+            "type": "auto"
+          }
+        }
+      },
+      "inheritence_complex.ProcessingResult": {
+        "parents": [],
+        "attributes": {
+          "success": {
+            "type": "bool"
+          },
+          "data": {
+            "type": "Any"
+          },
+          "errors": {
+            "type": "List[str]"
+          },
+          "metrics": {
+            "type": "Dict[str, float]"
+          },
+          "timestamp": {
+            "type": "float"
+          }
+        }
+      },
+      "inheritence_complex.AbstractProcessor": {
+        "parents": [
+          "ABC"
+        ],
+        "attributes": {
+          "processor_id": {
+            "type": "str"
+          },
+          "processed_count": {
+            "type": "int"
+          },
+          "error_count": {
+            "type": "int"
+          }
+        }
+      },
+      "inheritence_complex.AsyncProcessor": {
+        "parents": [
+          "inheritence_complex.AbstractProcessor"
+        ],
+        "attributes": {
+          "async_queue": {
+            "type": "List[Any]"
+          },
+          "batch_size": {
+            "type": "int"
+          }
+        }
+      },
+      "inheritence_complex.CacheableMixin": {
+        "parents": [],
+        "attributes": {
+          "_cache": {
+            "type": "Dict[str, Any]"
+          },
+          "_cache_hits": {
+            "type": "int"
+          },
+          "_cache_misses": {
+            "type": "int"
+          }
+        }
+      },
+      "inheritence_complex.ValidatedMixin": {
+        "parents": [],
+        "attributes": {
+          "validation_rules": {
+            "type": "List[callable]"
+          },
+          "validation_errors": {
+            "type": "List[str]"
+          }
+        }
+      },
+      "inheritence_complex.MetricsMixin": {
+        "parents": [],
+        "attributes": {
+          "custom_metrics": {
+            "type": "Dict[str, List[float]]"
+          },
+          "metric_callbacks": {
+            "type": "Dict[str, List[callable]]"
+          }
+        }
+      },
+      "inheritence_complex.BasicDataProcessor": {
+        "parents": [
+          "inheritence_complex.AsyncProcessor",
+          "inheritence_complex.CacheableMixin",
+          "inheritence_complex.ValidatedMixin"
+        ],
+        "attributes": {
+          "enable_cache": {
+            "type": "bool"
+          }
+        }
+      },
+      "inheritence_complex.AdvancedProcessor": {
+        "parents": [
+          "inheritence_complex.BasicDataProcessor",
+          "inheritence_complex.MetricsMixin"
+        ],
+        "attributes": {
+          "priority": {
+            "type": "Priority"
+          },
+          "processing_strategy": {
+            "type": "str"
+          }
+        }
+      },
+      "inheritence_complex.SpecializedProcessor": {
+        "parents": [
+          "inheritence_complex.AdvancedProcessor"
+        ],
+        "attributes": {
+          "specialization": {
+            "type": "str"
+          },
+          "specialist_cache": {
+            "type": "Dict[str, Any]"
+          }
+        }
+      },
+      "inheritence_complex.ProcessorProtocol": {
+        "parents": [
+          "Protocol"
+        ],
+        "attributes": {}
+      },
+      "inheritence_complex.GenericProcessor": {
+        "parents": [],
+        "attributes": {
+          "input_type": {
+            "type": "type"
+          },
+          "output_type": {
+            "type": "type"
+          },
+          "type_conversion_cache": {
+            "type": "Dict[str, Any]"
+          }
+        }
+      },
+      "inheritence_complex.UltimateProcessor": {
+        "parents": [
+          "inheritence_complex.SpecializedProcessor"
+        ],
+        "attributes": {
+          "ultimate_features_enabled": {
+            "type": "int"
+          },
+          "cross_references": {
+            "type": "Dict[str, Any]"
+          }
+        }
+      },
+      "proxy_handler.ProxyConfig": {
+        "parents": [],
+        "attributes": {
+          "cache_enabled": {
+            "type": "bool"
+          },
+          "logging_enabled": {
+            "type": "bool"
+          },
+          "metrics_enabled": {
+            "type": "bool"
+          },
+          "timeout_seconds": {
+            "type": "float"
+          },
+          "retry_attempts": {
+            "type": "int"
+          },
+          "circuit_breaker_enabled": {
+            "type": "bool"
+          }
+        }
+      },
+      "proxy_handler.ProxyMetrics": {
+        "parents": [],
+        "attributes": {
+          "call_count": {
+            "type": "int"
+          },
+          "success_count": {
+            "type": "int"
+          },
+          "error_count": {
+            "type": "int"
+          },
+          "cache_hits": {
+            "type": "int"
+          },
+          "cache_misses": {
+            "type": "int"
+          },
+          "total_execution_time": {
+            "type": "float"
+          },
+          "average_execution_time": {
+            "type": "float"
+          },
+          "last_error_time": {
+            "type": "Optional[float]"
+          },
+          "last_success_time": {
+            "type": "Optional[float]"
+          }
+        }
+      },
+      "proxy_handler.BaseProxy": {
+        "parents": [
+          "ABC"
+        ],
+        "attributes": {
+          "target": {
+            "type": "Any"
+          },
+          "config": {
+            "type": "Unknown"
+          },
+          "metrics": {
+            "type": "ProxyMetrics"
+          },
+          "cache": {
+            "type": "Dict[str, Any]"
+          },
+          "lock": {
+            "type": "threading.RLock"
+          },
+          "circuit_breaker_open": {
+            "type": "int"
+          },
+          "circuit_breaker_failures": {
+            "type": "int"
+          },
+          "circuit_breaker_last_failure": {
+            "type": "float"
+          }
+        }
+      },
+      "proxy_handler.DataProxy": {
+        "parents": [
+          "proxy_handler.BaseProxy"
+        ],
+        "attributes": {
+          "data_validators": {
+            "type": "Dict[str, List[Callable]]"
+          },
+          "data_transformers": {
+            "type": "Dict[str, List[Callable]]"
+          }
+        }
+      },
+      "proxy_handler.HavenProxy": {
+        "parents": [
+          "proxy_handler.BaseProxy"
+        ],
+        "attributes": {
+          "user_cache": {
+            "type": "Dict[str, Any]"
+          },
+          "room_permissions": {
+            "type": "Dict[str, Set[str]]"
+          }
+        }
+      },
+      "proxy_handler.UserProxy": {
+        "parents": [
+          "proxy_handler.BaseProxy"
+        ],
+        "attributes": {
+          "user_data": {
+            "type": "Dict[str, Any]"
+          }
+        }
+      },
+      "session_manager.SessionState": {
+        "parents": [
+          "Enum"
+        ],
+        "attributes": {
+          "CREATED": {
+            "type": "auto"
+          },
+          "ACTIVE": {
+            "type": "auto"
+          },
+          "IDLE": {
+            "type": "auto"
+          },
+          "SUSPENDED": {
+            "type": "auto"
+          },
+          "EXPIRED": {
+            "type": "auto"
+          },
+          "TERMINATED": {
+            "type": "auto"
+          }
+        }
+      },
+      "session_manager.UserRole": {
+        "parents": [
+          "Enum"
+        ],
+        "attributes": {
+          "GUEST": {
+            "type": "auto"
+          },
+          "USER": {
+            "type": "auto"
+          },
+          "MODERATOR": {
+            "type": "auto"
+          },
+          "ADMIN": {
+            "type": "auto"
+          },
+          "SYSTEM": {
+            "type": "auto"
+          }
+        }
+      },
+      "session_manager.SessionMetrics": {
+        "parents": [],
+        "attributes": {
+          "login_time": {
+            "type": "datetime"
+          },
+          "last_activity": {
+            "type": "datetime"
+          },
+          "activity_count": {
+            "type": "int"
+          },
+          "data_transferred": {
+            "type": "int"
+          },
+          "errors_encountered": {
+            "type": "int"
+          },
+          "warnings_issued": {
+            "type": "int"
+          },
+          "rooms_joined": {
+            "type": "Set[str]"
+          },
+          "events_emitted": {
+            "type": "int"
+          },
+          "events_received": {
+            "type": "int"
+          }
+        }
+      },
+      "session_manager.UserSession": {
+        "parents": [],
+        "attributes": {
+          "session_id": {
+            "type": "str"
+          },
+          "user_id": {
+            "type": "str"
+          },
+          "user_role": {
+            "type": "UserRole"
+          },
+          "state": {
+            "type": "SessionState"
+          },
+          "created_at": {
+            "type": "datetime"
+          },
+          "expires_at": {
+            "type": "datetime"
+          },
+          "last_activity": {
+            "type": "datetime"
+          },
+          "ip_address": {
+            "type": "str"
+          },
+          "user_agent": {
+            "type": "str"
+          },
+          "permissions": {
+            "type": "Set[str]"
+          },
+          "preferences": {
+            "type": "Dict[str, Any]"
+          },
+          "metrics": {
+            "type": "SessionMetrics"
+          },
+          "context_data": {
+            "type": "Dict[str, Any]"
+          }
+        }
+      },
+      "session_manager.SessionManager": {
+        "parents": [],
+        "attributes": {
+          "haven_proxy": {
+            "type": "HavenProxy"
+          },
+          "active_sessions": {
+            "type": "Dict[str, UserSession]"
+          },
+          "user_sessions": {
+            "type": "Dict[str, List[str]]"
+          },
+          "session_lock": {
+            "type": "threading.RLock"
+          },
+          "current_session_id": {
+            "type": "Optional[str]"
+          },
+          "session_callbacks": {
+            "type": "Dict[str, List[Callable]]"
+          },
+          "cleanup_interval": {
+            "type": "int"
+          },
+          "max_sessions_per_user": {
+            "type": "int"
+          },
+          "event_handlers": {
+            "type": "Dict[str, List[Callable]]"
+          }
+        }
+      },
+      "session_manager.SessionInteractionManager": {
+        "parents": [],
+        "attributes": {
+          "session_manager": {
+            "type": "SessionManager"
+          },
+          "interaction_log": {
+            "type": "List[Dict[str, Any]]"
+          },
+          "user_relationships": {
+            "type": "Dict[str, Set[str]]"
+          },
+          "session_analytics": {
+            "type": "SessionAnalytics"
+          }
+        }
+      },
+      "session_manager.SessionAnalytics": {
+        "parents": [],
+        "attributes": {
+          "session_manager": {
+            "type": "SessionManager"
+          },
+          "analytics_cache": {
+            "type": "Dict[str, Any]"
+          }
+        }
+      },
+      "socketio_events.SocketIOEventRegistry": {
+        "parents": [],
+        "attributes": {
+          "socketio": {
+            "type": "SocketIO"
+          },
+          "session_manager": {
+            "type": "SessionManager"
+          },
+          "event_validator": {
+            "type": "EventValidator"
+          },
+          "message_validator": {
+            "type": "MessageValidator"
+          },
+          "registered_events": {
+            "type": "Dict[str, Callable]"
+          },
+          "middleware_stack": {
+            "type": "List[Callable]"
+          }
+        }
+      }
+    },
+    "functions": {
+      "admin_manager.OperationResult.get_duration": {
+        "return_type": "Optional[timedelta]",
+        "param_types": {}
+      },
+      "admin_manager.OperationResult.add_error": {
+        "return_type": "None",
+        "param_types": {
+          "error": "str"
+        }
+      },
+      "admin_manager.OperationResult.add_warning": {
+        "return_type": "None",
+        "param_types": {
+          "warning": "str"
+        }
+      },
+      "admin_manager.AdminManager.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "admin_manager.AdminManager._initialize_system_config": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "admin_manager.AdminManager.execute_operation": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "operation_type": "str",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._execute_specific_operation": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._handle_user_management": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._handle_system_configuration": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._handle_data_migration": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._handle_security_audit": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._handle_performance_tuning": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._handle_backup_restore": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._handle_monitoring_setup": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager._result_to_dict": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "result": "OperationResult"
+        }
+      },
+      "admin_manager.AdminManager._add_audit_entry": {
+        "return_type": "None",
+        "param_types": {
+          "result": "OperationResult",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "admin_manager.AdminManager.get_operation_status": {
+        "return_type": "Optional[Dict[str, Any]]",
+        "param_types": {
+          "operation_id": "str"
+        }
+      },
+      "admin_manager.AdminManager.get_active_operations": {
+        "return_type": "List[str]",
+        "param_types": {}
+      },
+      "admin_manager.AdminManager.get_system_status": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "admin_manager.AdminManager.cancel_operation": {
+        "return_type": "bool",
+        "param_types": {
+          "operation_id": "str"
+        }
+      },
+      "database_manager.DatabaseConnection.__init__": {
+        "return_type": null,
+        "param_types": {
+          "connection_id": "str"
+        }
+      },
+      "database_manager.DatabaseConnection.execute": {
+        "return_type": "Any",
+        "param_types": {
+          "query": "str",
+          "params": "Optional[tuple]"
+        }
+      },
+      "database_manager.DatabaseConnection.commit": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.DatabaseConnection.rollback": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.DatabaseConnection.begin_transaction": {
+        "return_type": "None",
+        "param_types": {
+          "isolation_level": "Optional[str]"
+        }
+      },
+      "database_manager.DatabaseConnection.close": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.DatabaseConnection.is_connected": {
+        "return_type": "bool",
+        "param_types": {}
+      },
+      "database_manager.DatabaseConnection.get_stats": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "database_manager.TransactionManager.__init__": {
+        "return_type": null,
+        "param_types": {
+          "connection": "DatabaseConnection",
+          "isolation_level": "str"
+        }
+      },
+      "database_manager.TransactionManager.begin_transaction": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.TransactionManager.commit_transaction": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.TransactionManager.rollback_transaction": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.TransactionManager.close_connection": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.TransactionManager.execute_in_transaction": {
+        "return_type": "Any",
+        "param_types": {
+          "query": "str",
+          "params": "Optional[tuple]"
+        }
+      },
+      "database_manager.TransactionManager.transaction_context": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "database_manager.TransactionManager.get_transaction_info": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "database_manager.get_db_connection": {
+        "return_type": "DatabaseConnection",
+        "param_types": {}
+      },
+      "database_manager.close_all_connections": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "database_manager.get_pool_stats": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "database_manager.create_transaction_manager": {
+        "return_type": "TransactionManager",
+        "param_types": {
+          "isolation_level": "str"
+        }
+      },
+      "database_manager.database_transaction": {
+        "return_type": null,
+        "param_types": {
+          "isolation_level": "str"
+        }
+      },
+      "decorators.DecoratorRegistry.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "decorators.DecoratorRegistry.register_decorator": {
+        "return_type": "None",
+        "param_types": {
+          "name": "str",
+          "decorator": "Callable"
+        }
+      },
+      "decorators.DecoratorRegistry.get_decorator_chain": {
+        "return_type": "List[str]",
+        "param_types": {
+          "func_name": "str"
+        }
+      },
+      "decorators.trace": {
+        "return_type": "Callable",
+        "param_types": {
+          "func": "Optional[Callable]"
+        }
+      },
+      "decorators.monitor_performance": {
+        "return_type": "Callable",
+        "param_types": {
+          "func": "Optional[Callable]"
+        }
+      },
+      "decorators.validate_auth": {
+        "return_type": "Callable",
+        "param_types": {
+          "required_role": "Optional[str]",
+          "check_session": "bool"
+        }
+      },
+      "decorators.rate_limit": {
+        "return_type": "Callable",
+        "param_types": {
+          "calls": "int",
+          "period": "int",
+          "per_user": "bool",
+          "key_func": "Optional[Callable]"
+        }
+      },
+      "decorators.ClassBasedDecorator.__init__": {
+        "return_type": null,
+        "param_types": {
+          "config": "Dict[str, Any]"
+        }
+      },
+      "decorators.ClassBasedDecorator.__call__": {
+        "return_type": "Callable",
+        "param_types": {
+          "func": "Callable"
+        }
+      },
+      "decorators.ClassBasedDecorator._validate_arguments": {
+        "return_type": "None",
+        "param_types": {
+          "func": "Callable",
+          "args": "tuple",
+          "kwargs": "dict"
+        }
+      },
+      "decorators.ClassBasedDecorator._transform_result": {
+        "return_type": "Any",
+        "param_types": {
+          "result": "Any"
+        }
+      },
+      "decorators.create_custom_decorator": {
+        "return_type": "Callable",
+        "param_types": {
+          "name": "str",
+          "pre_hook": "Optional[Callable]",
+          "post_hook": "Optional[Callable]",
+          "error_hook": "Optional[Callable]"
+        }
+      },
+      "decorators.multi_decorator": {
+        "return_type": "Callable",
+        "param_types": {}
+      },
+      "decorators.conditional_decorator": {
+        "return_type": "Callable",
+        "param_types": {
+          "condition": "Union[bool, Callable]",
+          "decorator": "Callable"
+        }
+      },
+      "decorators.advanced_cache": {
+        "return_type": "Callable",
+        "param_types": {
+          "ttl": "int",
+          "key_func": "Optional[Callable]",
+          "serializer": "Optional[Callable]",
+          "validator": "Optional[Callable]"
+        }
+      },
+      "decorators.create_monitoring_decorator": {
+        "return_type": "Callable",
+        "param_types": {
+          "metrics_collector": "Any"
+        }
+      },
+      "decorators.transaction_decorator": {
+        "return_type": "Callable",
+        "param_types": {
+          "isolation_level": "str",
+          "rollback_on": "Optional[List[Type[Exception]]]"
+        }
+      },
+      "decorators.PropertyDecorator.__init__": {
+        "return_type": null,
+        "param_types": {
+          "validator": "Optional[Callable]",
+          "transformer": "Optional[Callable]",
+          "cache": "bool"
+        }
+      },
+      "decorators.PropertyDecorator.__call__": {
+        "return_type": "property",
+        "param_types": {
+          "func": "Callable"
+        }
+      },
+      "decorators.complex_calculation": {
+        "return_type": "Dict[str, float]",
+        "param_types": {
+          "data": "List[Dict[str, Any]]",
+          "multiplier": "float"
+        }
+      },
+      "decorators.admin_operation": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "operation_type": "str",
+          "parameters": "Dict[str, Any]"
+        }
+      },
+      "decorators.cached_expensive_operation": {
+        "return_type": "Any",
+        "param_types": {
+          "input_data": "Any"
+        }
+      },
+      "decorators.debug_function": {
+        "return_type": "str",
+        "param_types": {}
+      },
+      "decorators.multi_decorated_function": {
+        "return_type": "str",
+        "param_types": {
+          "param": "str"
+        }
+      },
+      "event_validator.ValidationReport.is_valid": {
+        "return_type": "bool",
+        "param_types": {}
+      },
+      "event_validator.ValidationReport.has_errors": {
+        "return_type": "bool",
+        "param_types": {}
+      },
+      "event_validator.ValidationReport.has_warnings": {
+        "return_type": "bool",
+        "param_types": {}
+      },
+      "event_validator.ValidationReport.get_error_codes": {
+        "return_type": "List[str]",
+        "param_types": {}
+      },
+      "event_validator.ValidationReport.add_error": {
+        "return_type": "None",
+        "param_types": {
+          "field": "str",
+          "message": "str",
+          "code": "str",
+          "level": "ValidationLevel",
+          "context": "Dict[str, Any]",
+          "suggestions": "List[str]"
+        }
+      },
+      "event_validator.ValidationRule.validate": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.ValidationRule.get_rule_name": {
+        "return_type": "str",
+        "param_types": {}
+      },
+      "event_validator.BaseValidationRule.__init__": {
+        "return_type": null,
+        "param_types": {
+          "rule_name": "str",
+          "description": "str"
+        }
+      },
+      "event_validator.BaseValidationRule._validate_implementation": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.BaseValidationRule.validate": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.BaseValidationRule.get_rule_name": {
+        "return_type": "str",
+        "param_types": {}
+      },
+      "event_validator.RequiredFieldRule.__init__": {
+        "return_type": null,
+        "param_types": {
+          "required_fields": "List[str]"
+        }
+      },
+      "event_validator.RequiredFieldRule._validate_implementation": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.DataTypeRule.__init__": {
+        "return_type": null,
+        "param_types": {
+          "field_types": "Dict[str, Union[type, List[type]]]"
+        }
+      },
+      "event_validator.DataTypeRule._validate_implementation": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.RegexValidationRule.__init__": {
+        "return_type": null,
+        "param_types": {
+          "field_patterns": "Dict[str, str]"
+        }
+      },
+      "event_validator.RegexValidationRule._validate_implementation": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.ValidationEngine.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "event_validator.ValidationEngine.add_rule": {
+        "return_type": "'ValidationEngine'",
+        "param_types": {
+          "rule": "BaseValidationRule"
+        }
+      },
+      "event_validator.ValidationEngine.add_rules": {
+        "return_type": "'ValidationEngine'",
+        "param_types": {
+          "rules": "List[BaseValidationRule]"
+        }
+      },
+      "event_validator.ValidationEngine.set_global_context": {
+        "return_type": "'ValidationEngine'",
+        "param_types": {
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.ValidationEngine.validate": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.ValidationEngine._generate_cache_key": {
+        "return_type": "str",
+        "param_types": {
+          "data": "Any",
+          "context": "Dict[str, Any]"
+        }
+      },
+      "event_validator.ValidationEngine._merge_reports": {
+        "return_type": "None",
+        "param_types": {
+          "main_report": "ValidationReport",
+          "rule_report": "ValidationReport"
+        }
+      },
+      "event_validator.ValidationEngine.create_rule_builder": {
+        "return_type": "'ValidationRuleBuilder'",
+        "param_types": {}
+      },
+      "event_validator.ValidationRuleBuilder.__init__": {
+        "return_type": null,
+        "param_types": {
+          "engine": "ValidationEngine"
+        }
+      },
+      "event_validator.ValidationRuleBuilder.require_fields": {
+        "return_type": "'ValidationRuleBuilder'",
+        "param_types": {}
+      },
+      "event_validator.ValidationRuleBuilder.field_types": {
+        "return_type": "'ValidationRuleBuilder'",
+        "param_types": {}
+      },
+      "event_validator.ValidationRuleBuilder.field_patterns": {
+        "return_type": "'ValidationRuleBuilder'",
+        "param_types": {}
+      },
+      "event_validator.ValidationRuleBuilder.build": {
+        "return_type": "ValidationEngine",
+        "param_types": {}
+      },
+      "event_validator.EventValidator.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "event_validator.EventValidator._setup_default_validations": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "event_validator.EventValidator.validate_event": {
+        "return_type": "ValidationReport",
+        "param_types": {
+          "event_data": "Dict[str, Any]"
+        }
+      },
+      "event_validator.EventValidator.validate_result": {
+        "return_type": "bool",
+        "param_types": {
+          "result": "Any"
+        }
+      },
+      "event_validator.EventValidator.get_validation_details": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "event_validator.MessageValidator.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "event_validator.MessageValidator._setup_default_filters": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "event_validator.MessageValidator.validate_message": {
+        "return_type": "bool",
+        "param_types": {
+          "message": "str"
+        }
+      },
+      "event_validator.MessageValidator.get_validation_details": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "event_validator.validate_complete_action": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "event_data": "Dict[str, Any]",
+          "message_content": "str"
+        }
+      },
+      "inheritence_complex.AbstractProcessor.__init__": {
+        "return_type": null,
+        "param_types": {
+          "processor_id": "str"
+        }
+      },
+      "inheritence_complex.AbstractProcessor.process_data": {
+        "return_type": "ProcessingResult",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.AbstractProcessor.validate_input": {
+        "return_type": "bool",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.AbstractProcessor.get_statistics": {
+        "return_type": "Dict[str, int]",
+        "param_types": {}
+      },
+      "inheritence_complex.AbstractProcessor.log_operation": {
+        "return_type": "None",
+        "param_types": {
+          "operation": "str",
+          "details": "Optional[Dict[str, Any]]"
+        }
+      },
+      "inheritence_complex.AsyncProcessor.__init__": {
+        "return_type": null,
+        "param_types": {
+          "processor_id": "str"
+        }
+      },
+      "inheritence_complex.AsyncProcessor.async_process_data": {
+        "return_type": "ProcessingResult",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.AsyncProcessor.batch_process": {
+        "return_type": "List[ProcessingResult]",
+        "param_types": {
+          "data_list": "List[Any]"
+        }
+      },
+      "inheritence_complex.AsyncProcessor.queue_for_async_processing": {
+        "return_type": "None",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.CacheableMixin.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "inheritence_complex.CacheableMixin.get_cache_key": {
+        "return_type": "str",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.CacheableMixin.get_from_cache": {
+        "return_type": "Optional[Any]",
+        "param_types": {
+          "cache_key": "str"
+        }
+      },
+      "inheritence_complex.CacheableMixin.store_in_cache": {
+        "return_type": "None",
+        "param_types": {
+          "cache_key": "str",
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.CacheableMixin.get_cache_statistics": {
+        "return_type": "Dict[str, Union[int, float]]",
+        "param_types": {}
+      },
+      "inheritence_complex.ValidatedMixin.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "inheritence_complex.ValidatedMixin.add_validation_rule": {
+        "return_type": "None",
+        "param_types": {
+          "rule": "callable",
+          "description": "str"
+        }
+      },
+      "inheritence_complex.ValidatedMixin.comprehensive_validate": {
+        "return_type": "bool",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.MetricsMixin.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "inheritence_complex.MetricsMixin.record_metric": {
+        "return_type": "None",
+        "param_types": {
+          "metric_name": "str",
+          "value": "float"
+        }
+      },
+      "inheritence_complex.MetricsMixin.add_metric_callback": {
+        "return_type": "None",
+        "param_types": {
+          "metric_name": "str",
+          "callback": "callable"
+        }
+      },
+      "inheritence_complex.MetricsMixin.get_metric_summary": {
+        "return_type": "Optional[Dict[str, float]]",
+        "param_types": {
+          "metric_name": "str"
+        }
+      },
+      "inheritence_complex.BasicDataProcessor.__init__": {
+        "return_type": null,
+        "param_types": {
+          "processor_id": "str",
+          "enable_cache": "bool"
+        }
+      },
+      "inheritence_complex.BasicDataProcessor.validate_input": {
+        "return_type": "bool",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.BasicDataProcessor.process_data": {
+        "return_type": "ProcessingResult",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.BasicDataProcessor._internal_process": {
+        "return_type": "Any",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.AdvancedProcessor.__init__": {
+        "return_type": null,
+        "param_types": {
+          "processor_id": "str",
+          "priority": "Priority"
+        }
+      },
+      "inheritence_complex.AdvancedProcessor.process_data": {
+        "return_type": "ProcessingResult",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.AdvancedProcessor._processing_time_callback": {
+        "return_type": "None",
+        "param_types": {
+          "metric_name": "str",
+          "value": "float",
+          "history": "List[float]"
+        }
+      },
+      "inheritence_complex.AdvancedProcessor._data_size_callback": {
+        "return_type": "None",
+        "param_types": {
+          "metric_name": "str",
+          "value": "float",
+          "history": "List[float]"
+        }
+      },
+      "inheritence_complex.AdvancedProcessor.change_processing_strategy": {
+        "return_type": "bool",
+        "param_types": {
+          "new_strategy": "str"
+        }
+      },
+      "inheritence_complex.SpecializedProcessor.__init__": {
+        "return_type": null,
+        "param_types": {
+          "processor_id": "str",
+          "specialization": "str"
+        }
+      },
+      "inheritence_complex.SpecializedProcessor._validate_specialization": {
+        "return_type": "bool",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.SpecializedProcessor._internal_process": {
+        "return_type": "Any",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.SpecializedProcessor._process_numeric": {
+        "return_type": "Any",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.SpecializedProcessor._process_text": {
+        "return_type": "Any",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.SpecializedProcessor._process_structured": {
+        "return_type": "Any",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.ProcessorProtocol.process_data": {
+        "return_type": "ProcessingResult",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.ProcessorProtocol.get_statistics": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "inheritence_complex.GenericProcessor.__init__": {
+        "return_type": null,
+        "param_types": {
+          "input_type": "type",
+          "output_type": "type"
+        }
+      },
+      "inheritence_complex.GenericProcessor.process_typed_data": {
+        "return_type": "U",
+        "param_types": {
+          "data": "T"
+        }
+      },
+      "inheritence_complex.GenericProcessor._create_type_converter": {
+        "return_type": "callable",
+        "param_types": {
+          "from_type": "type",
+          "to_type": "type"
+        }
+      },
+      "inheritence_complex.UltimateProcessor.__init__": {
+        "return_type": null,
+        "param_types": {
+          "processor_id": "str"
+        }
+      },
+      "inheritence_complex.UltimateProcessor.ultimate_process": {
+        "return_type": "ProcessingResult",
+        "param_types": {
+          "data": "Dict[str, Any]"
+        }
+      },
+      "inheritence_complex.UltimateProcessor._apply_ultimate_enhancements": {
+        "return_type": "Any",
+        "param_types": {
+          "data": "Any"
+        }
+      },
+      "inheritence_complex.UltimateProcessor.ultimate_processing_context": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "inheritence_complex.create_processor_hierarchy": {
+        "return_type": "Dict[str, AbstractProcessor]",
+        "param_types": {
+          "processor_configs": "List[Dict[str, Any]]"
+        }
+      },
+      "proxy_handler.ProxyMetrics.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "proxy_handler.ProxyMetrics.record_call": {
+        "return_type": "None",
+        "param_types": {
+          "execution_time": "float",
+          "success": "bool",
+          "cache_hit": "bool"
+        }
+      },
+      "proxy_handler.ProxyMetrics.get_success_rate": {
+        "return_type": "float",
+        "param_types": {}
+      },
+      "proxy_handler.ProxyMetrics.get_cache_hit_rate": {
+        "return_type": "float",
+        "param_types": {}
+      },
+      "proxy_handler.BaseProxy.__init__": {
+        "return_type": null,
+        "param_types": {
+          "target": "Any",
+          "config": "ProxyConfig"
+        }
+      },
+      "proxy_handler.BaseProxy._proxy_method_call": {
+        "return_type": "Any",
+        "param_types": {
+          "method_name": "str"
+        }
+      },
+      "proxy_handler.BaseProxy.__getattr__": {
+        "return_type": "Any",
+        "param_types": {
+          "name": "str"
+        }
+      },
+      "proxy_handler.BaseProxy._create_proxy_method": {
+        "return_type": "Callable",
+        "param_types": {
+          "method_name": "str",
+          "original_method": "Callable"
+        }
+      },
+      "proxy_handler.BaseProxy._execute_with_circuit_breaker": {
+        "return_type": "Any",
+        "param_types": {
+          "method_name": "str",
+          "method": "Callable"
+        }
+      },
+      "proxy_handler.BaseProxy._get_cache_key": {
+        "return_type": "str",
+        "param_types": {
+          "method_name": "str"
+        }
+      },
+      "proxy_handler.BaseProxy._metrics_context": {
+        "return_type": null,
+        "param_types": {
+          "method_name": "str"
+        }
+      },
+      "proxy_handler.DataProxy.__init__": {
+        "return_type": null,
+        "param_types": {
+          "data_source": "Any",
+          "config": "ProxyConfig"
+        }
+      },
+      "proxy_handler.DataProxy._proxy_method_call": {
+        "return_type": "Any",
+        "param_types": {
+          "method_name": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.__init__": {
+        "return_type": null,
+        "param_types": {
+          "target": "Any",
+          "config": "ProxyConfig"
+        }
+      },
+      "proxy_handler.HavenProxy.validate_user_credentials": {
+        "return_type": "bool",
+        "param_types": {
+          "auth_data": "Dict[str, Any]"
+        }
+      },
+      "proxy_handler.HavenProxy.get_user_preferences": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.validate_room_access": {
+        "return_type": "bool",
+        "param_types": {
+          "user_id": "str",
+          "room_name": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.get_user_info": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.validate_admin_role": {
+        "return_type": "bool",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.validate_moderator_role": {
+        "return_type": "bool",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.get_runner_capabilities": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "proxy_handler.HavenProxy.get_guest_limitations": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "proxy_handler.HavenProxy.validate_message_content": {
+        "return_type": "bool",
+        "param_types": {
+          "message": "str",
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.log_room_message": {
+        "return_type": "None",
+        "param_types": {
+          "room": "str",
+          "user_id": "str",
+          "message": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.validate_direct_message_permission": {
+        "return_type": "bool",
+        "param_types": {
+          "sender_id": "str",
+          "recipient_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.validate_broadcast_permission": {
+        "return_type": "bool",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.get_room_statistics": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "room_name": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.validate_event_data": {
+        "return_type": "bool",
+        "param_types": {
+          "event_name": "str",
+          "data": "Dict[str, Any]",
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.process_event": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {
+          "event_name": "str",
+          "data": "Dict[str, Any]",
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy.user_exists": {
+        "return_type": "bool",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "proxy_handler.HavenProxy._proxy_method_call": {
+        "return_type": "Any",
+        "param_types": {
+          "method_name": "str"
+        }
+      },
+      "proxy_handler.UserProxy.__init__": {
+        "return_type": null,
+        "param_types": {
+          "user_data": "Dict[str, Any]",
+          "config": "ProxyConfig"
+        }
+      },
+      "proxy_handler.UserProxy.has_role": {
+        "return_type": "bool",
+        "param_types": {
+          "role": "str"
+        }
+      },
+      "proxy_handler.UserProxy.id": {
+        "return_type": "str",
+        "param_types": {}
+      },
+      "proxy_handler.UserProxy._proxy_method_call": {
+        "return_type": "Any",
+        "param_types": {
+          "method_name": "str"
+        }
+      },
+      "session_manager.UserSession.is_valid": {
+        "return_type": "bool",
+        "param_types": {}
+      },
+      "session_manager.UserSession.is_expired": {
+        "return_type": "bool",
+        "param_types": {}
+      },
+      "session_manager.UserSession.time_until_expiry": {
+        "return_type": "timedelta",
+        "param_types": {}
+      },
+      "session_manager.UserSession.update_activity": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.__init__": {
+        "return_type": null,
+        "param_types": {
+          "haven_proxy": "HavenProxy"
+        }
+      },
+      "session_manager.SessionManager.create_session": {
+        "return_type": "str",
+        "param_types": {
+          "user_id": "Optional[str]",
+          "session_duration": "timedelta",
+          "ip_address": "str",
+          "user_agent": "str"
+        }
+      },
+      "session_manager.SessionManager.create_user_session": {
+        "return_type": "UserSession",
+        "param_types": {
+          "user_id": "str",
+          "session_id": "str"
+        }
+      },
+      "session_manager.SessionManager.get_current_session": {
+        "return_type": "Optional[UserSession]",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.get_current_session_id": {
+        "return_type": "Optional[str]",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.get_current_user_id": {
+        "return_type": "Optional[str]",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.get_current_user": {
+        "return_type": "Optional[Any]",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.get_current_timestamp": {
+        "return_type": "float",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.validate_session": {
+        "return_type": "bool",
+        "param_types": {
+          "session_id": "str"
+        }
+      },
+      "session_manager.SessionManager.validate_room_access": {
+        "return_type": "bool",
+        "param_types": {
+          "room_name": "str"
+        }
+      },
+      "session_manager.SessionManager.get_user_room": {
+        "return_type": "str",
+        "param_types": {
+          "user_id": "Optional[str]"
+        }
+      },
+      "session_manager.SessionManager.get_user_rooms": {
+        "return_type": "List[str]",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "session_manager.SessionManager.get_active_users": {
+        "return_type": "List[str]",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.cleanup_user_session": {
+        "return_type": "None",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "session_manager.SessionManager.destroy_session": {
+        "return_type": "bool",
+        "param_types": {
+          "session_id": "str"
+        }
+      },
+      "session_manager.SessionManager._determine_user_role": {
+        "return_type": "UserRole",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "session_manager.SessionManager._get_role_permissions": {
+        "return_type": "Set[str]",
+        "param_types": {
+          "role": "UserRole"
+        }
+      },
+      "session_manager.SessionManager._expire_session": {
+        "return_type": "None",
+        "param_types": {
+          "session_id": "str"
+        }
+      },
+      "session_manager.SessionManager._terminate_session": {
+        "return_type": "None",
+        "param_types": {
+          "session_id": "str",
+          "reason": "str"
+        }
+      },
+      "session_manager.SessionManager._trigger_event": {
+        "return_type": "None",
+        "param_types": {
+          "event_name": "str",
+          "session": "UserSession"
+        }
+      },
+      "session_manager.SessionManager.get_session_statistics": {
+        "return_type": "Dict[str, Any]",
+        "param_types": {}
+      },
+      "session_manager.SessionManager.session_context": {
+        "return_type": null,
+        "param_types": {
+          "session_id": "str"
+        }
+      },
+      "session_manager.SessionManager.add_session_event_handler": {
+        "return_type": "None",
+        "param_types": {
+          "event_name": "str",
+          "handler": "Callable"
+        }
+      },
+      "session_manager.SessionManager.periodic_cleanup": {
+        "return_type": "Dict[str, int]",
+        "param_types": {}
+      },
+      "session_manager.initialize_session_manager": {
+        "return_type": "SessionManager",
+        "param_types": {
+          "haven_proxy": "HavenProxy"
+        }
+      },
+      "session_manager.get_current_session": {
+        "return_type": "Optional[UserSession]",
+        "param_types": {}
+      },
+      "session_manager.get_current_user": {
+        "return_type": "Optional[Any]",
+        "param_types": {}
+      },
+      "session_manager.get_current_user_id": {
+        "return_type": "Optional[str]",
+        "param_types": {}
+      },
+      "session_manager.SessionInteractionManager.__init__": {
+        "return_type": null,
+        "param_types": {
+          "session_manager": "SessionManager"
+        }
+      },
+      "session_manager.SessionInteractionManager.record_user_interaction": {
+        "return_type": "None",
+        "param_types": {
+          "user1_id": "str",
+          "user2_id": "str",
+          "interaction_type": "str",
+          "data": "Dict[str, Any]"
+        }
+      },
+      "session_manager.SessionInteractionManager._get_user_session": {
+        "return_type": "Optional[UserSession]",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "session_manager.SessionAnalytics.__init__": {
+        "return_type": null,
+        "param_types": {
+          "session_manager": "SessionManager"
+        }
+      },
+      "session_manager.SessionAnalytics.compute_user_engagement_score": {
+        "return_type": "float",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "session_manager.SessionAnalytics._get_user_session": {
+        "return_type": "Optional[UserSession]",
+        "param_types": {
+          "user_id": "str"
+        }
+      },
+      "socketio_events.SocketIOEventRegistry.__init__": {
+        "return_type": null,
+        "param_types": {
+          "socketio": "SocketIO",
+          "session_manager": "SessionManager"
+        }
+      },
+      "socketio_events.SocketIOEventRegistry.register_dynamic_event": {
+        "return_type": "None",
+        "param_types": {
+          "event_name": "str",
+          "handler": "Callable"
+        }
+      },
+      "socketio_events.SocketIOEventRegistry.batch_register_events": {
+        "return_type": "None",
+        "param_types": {
+          "event_configs": "List[Dict[str, Any]]"
+        }
+      },
+      "socketio_events.SocketIOEventRegistry.create_event_handler": {
+        "return_type": "Callable",
+        "param_types": {
+          "config": "Dict[str, Any]"
+        }
+      },
+      "socketio_events.SocketIOEventRegistry._create_room_handler": {
+        "return_type": "Callable",
+        "param_types": {
+          "config": "Dict[str, Any]"
+        }
+      },
+      "socketio_events.SocketIOEventRegistry._create_broadcast_handler": {
+        "return_type": "Callable",
+        "param_types": {
+          "config": "Dict[str, Any]"
+        }
+      },
+      "socketio_events.register_events": {
+        "return_type": "None",
+        "param_types": {
+          "socketio": "SocketIO",
+          "haven_proxy": "HavenProxy"
+        }
+      },
+      "socketio_events.create_dynamic_handler": {
+        "return_type": "Callable",
+        "param_types": {
+          "event_name": "str",
+          "proxy": "HavenProxy",
+          "session_manager": "SessionManager"
+        }
+      },
+      "socketio_events.emergency_broadcast": {
+        "return_type": "None",
+        "param_types": {
+          "message": "str",
+          "severity": "str"
+        }
+      },
+      "socketio_events.admin_notification": {
+        "return_type": "None",
+        "param_types": {
+          "admin_id": "str",
+          "notification": "Dict[str, Any]"
+        }
+      }
+    },
+    "state": {
+      "admin_manager.manager": {
+        "type": "AdminManager",
+        "inferred_from_value": true
+      },
+      "admin_manager.result": {
+        "type": "manager.execute_operation",
+        "inferred_from_value": true
+      },
+      "admin_manager.status": {
+        "type": "manager.get_system_status",
+        "inferred_from_value": true
+      },
+      "database_manager._connection_pool": {
+        "type": "List[DatabaseConnection]",
+        "inferred_from_value": false
+      },
+      "database_manager._pool_lock": {
+        "type": "threading.Lock",
+        "inferred_from_value": true
+      },
+      "database_manager._connection_counter": {
+        "type": null,
+        "inferred_from_value": false
+      },
+      "database_manager.conn": {
+        "type": "get_db_connection",
+        "inferred_from_value": true
+      },
+      "database_manager.tx_manager": {
+        "type": "TransactionManager",
+        "inferred_from_value": true
+      },
+      "database_manager.stats": {
+        "type": "get_pool_stats",
+        "inferred_from_value": true
+      },
+      "decorators.PERFORMANCE_METRICS": {
+        "type": "Dict[str, List[float]]",
+        "inferred_from_value": false
+      },
+      "decorators.AUTH_CACHE": {
+        "type": "Dict[str, bool]",
+        "inferred_from_value": false
+      },
+      "decorators.RATE_LIMIT_CACHE": {
+        "type": "Dict[str, Dict[str, Any]]",
+        "inferred_from_value": false
+      },
+      "decorators.TRACE_LOCK": {
+        "type": "Lock",
+        "inferred_from_value": true
+      },
+      "decorators._decorator_registry": {
+        "type": "DecoratorRegistry",
+        "inferred_from_value": true
+      },
+      "decorators.performance_monitor": {
+        "type": "create_custom_decorator",
+        "inferred_from_value": true
+      },
+      "event_validator.T": {
+        "type": "TypeVar",
+        "inferred_from_value": true
+      },
+      "event_validator.event_validator": {
+        "type": "EventValidator",
+        "inferred_from_value": true
+      },
+      "event_validator.message_validator": {
+        "type": "MessageValidator",
+        "inferred_from_value": true
+      },
+      "event_validator.test_event_data": {
+        "type": null,
+        "inferred_from_value": false
+      },
+      "event_validator.event_validation_result": {
+        "type": "event_validator.validate_event",
+        "inferred_from_value": true
+      },
+      "event_validator.message_validation_result": {
+        "type": "message_validator.validate_message",
+        "inferred_from_value": true
+      },
+      "event_validator.complete_validation": {
+        "type": "validate_complete_action",
+        "inferred_from_value": true
+      },
+      "inheritence_complex.T": {
+        "type": "TypeVar",
+        "inferred_from_value": true
+      },
+      "inheritence_complex.U": {
+        "type": "TypeVar",
+        "inferred_from_value": true
+      },
+      "inheritence_complex.ultimate_processor": {
+        "type": "UltimateProcessor",
+        "inferred_from_value": true
+      },
+      "inheritence_complex.test_data": {
+        "type": null,
+        "inferred_from_value": false
+      },
+      "inheritence_complex.result": {
+        "type": "ultimate_processor.ultimate_process",
+        "inferred_from_value": true
+      },
+      "inheritence_complex.stats": {
+        "type": "ultimate_processor.get_statistics",
+        "inferred_from_value": true
+      },
+      "inheritence_complex.cache_stats": {
+        "type": "ultimate_processor.get_cache_statistics",
+        "inferred_from_value": true
+      },
+      "inheritence_complex.metric_summary": {
+        "type": "ultimate_processor.get_metric_summary",
+        "inferred_from_value": true
+      },
+      "proxy_handler.T": {
+        "type": "TypeVar",
+        "inferred_from_value": true
+      },
+      "session_manager._global_session_manager": {
+        "type": "Optional[SessionManager]",
+        "inferred_from_value": false
+      },
+      "socketio_events._socketio_instance": {
+        "type": "Optional[SocketIO]",
+        "inferred_from_value": false
+      },
+      "socketio_events._haven_proxy": {
+        "type": "Optional[HavenProxy]",
+        "inferred_from_value": false
+      },
+      "socketio_events._session_manager": {
+        "type": "Optional[SessionManager]",
+        "inferred_from_value": false
+      },
+      "socketio_events.EVENT_HANDLERS": {
+        "type": "Dict[str, Callable]",
+        "inferred_from_value": false
+      },
+      "socketio_events.ACTIVE_ROOMS": {
+        "type": "Dict[str, List[str]]",
+        "inferred_from_value": false
+      }
+    },
+    "external_classes": {
+      "threading.Lock": {
+        "module": "threading",
+        "name": "Lock",
+        "local_alias": "Lock"
+      },
+      "flask_socketio.SocketIO": {
+        "module": "flask_socketio",
+        "name": "SocketIO",
+        "local_alias": "SocketIO"
+      }
+    },
+    "external_functions": {
+      "flask_socketio.emit": {
+        "module": "flask_socketio",
+        "name": "emit",
+        "local_alias": "emit",
+        "return_type": null
+      },
+      "flask_socketio.disconnect": {
+        "module": "flask_socketio",
+        "name": "disconnect",
+        "local_alias": "disconnect",
+        "return_type": null
+      },
+      "flask_socketio.join_room": {
+        "module": "flask_socketio",
+        "name": "join_room",
+        "local_alias": "join_room",
+        "return_type": null
+      },
+      "flask_socketio.leave_room": {
+        "module": "flask_socketio",
+        "name": "leave_room",
+        "local_alias": "leave_room",
+        "return_type": null
+      }
+    }
+  },
+  "atlas": {
+    "admin_manager.py": {
+      "file_path": "admin_manager.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    },
+    "database_manager.py": {
+      "file_path": "database_manager.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    },
+    "decorators.py": {
+      "file_path": "decorators.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    },
+    "event_validator.py": {
+      "file_path": "event_validator.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    },
+    "inheritence_complex.py": {
+      "file_path": "inheritence_complex.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    },
+    "proxy_handler.py": {
+      "file_path": "proxy_handler.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    },
+    "session_manager.py": {
+      "file_path": "session_manager.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    },
+    "socketio_events.py": {
+      "file_path": "socketio_events.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [],
+      "functions": [],
+      "module_state": []
+    }
+  }
+}
