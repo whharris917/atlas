@@ -130,22 +130,18 @@ class LocalVariableStrategy(BaseStrategy):
         super().__init__("LocalVariable")
     
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
-        local_vars = context.get('local_variables', set())
-        return base_name in local_vars
+        # Match original: check symbol_manager for variable types
+        symbol_manager = context.get('symbol_manager')
+        can_resolve = symbol_manager and symbol_manager.get_variable_type(base_name) is not None
+        ResolutionLogger.log_strategy(self.name, base_name, can_resolve, 3)
+        return can_resolve
     
     def resolve(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:
-        # Local variables resolve to their contextual FQN
-        current_module = context.get('current_module', '')
-        current_class = context.get('current_class_name', '')
-        current_function = context.get('current_function_name', '')
-        
-        if current_function:
-            if current_class:
-                return f"{current_module}.{current_class}.{current_function}.{base_name}"
-            else:
-                return f"{current_module}.{current_function}.{base_name}"
-        
-        return f"{current_module}.{base_name}"
+        # Match original: get type from symbol_manager
+        symbol_manager = context['symbol_manager']
+        result = symbol_manager.get_variable_type(base_name)
+        ResolutionLogger.log_strategy(f"{self.name}.resolve", f"{base_name} -> {result}", True, 3)
+        return result
 
 
 class SelfStrategy(BaseStrategy):
@@ -155,13 +151,16 @@ class SelfStrategy(BaseStrategy):
         super().__init__("Self")
     
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
-        return (base_name == 'self' and 
-                context.get('current_class_name') is not None)
+        # Match original: use 'current_class' not 'current_class_name'
+        can_resolve = base_name == "self" and context.get('current_class')
+        ResolutionLogger.log_strategy(self.name, base_name, can_resolve, 3)
+        return can_resolve
     
     def resolve(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:
-        current_module = context.get('current_module', '')
-        current_class = context.get('current_class_name', '')
-        return f"{current_module}.{current_class}"
+        # Match original: return 'current_class' directly
+        result = context['current_class']
+        ResolutionLogger.log_strategy(f"{self.name}.resolve", f"{base_name} -> {result}", True, 3)
+        return result
 
 
 class ImportStrategy(BaseStrategy):
@@ -355,11 +354,11 @@ class NameResolver:
         
         ResolutionLogger.log_attempt(name_parts)
         
-        # Check cache first
-        cached_result = self.cache.get(name_parts, context)
-        if cached_result:
-            ResolutionLogger.log_success(cached_result)
-            return cached_result.fqn
+        # Temporarily disable caching to match original behavior exactly
+        # cached_result = self.cache.get(name_parts, context)
+        # if cached_result:
+        #     ResolutionLogger.log_success(cached_result)
+        #     return cached_result.fqn
         
         # Resolve based on complexity
         if len(name_parts) == 1:
@@ -367,17 +366,16 @@ class NameResolver:
         else:
             result = self._resolve_complex_name(name_parts, context)
         
-        # Cache and log result
-        resolution_result = ResolutionResult(
-            result, 
-            "cached" if cached_result else "computed",
-            "high" if result else "none"
-        )
-        
-        self.cache.put(name_parts, context, resolution_result)
+        # Cache and log result (disabled for now)
+        # resolution_result = ResolutionResult(
+        #     result, 
+        #     "computed",
+        #     "high" if result else "none"
+        # )
+        # self.cache.put(name_parts, context, resolution_result)
         
         if result:
-            ResolutionLogger.log_success(resolution_result)
+            ResolutionLogger.log_success(ResolutionResult(result, "computed", "high"))
         else:
             ResolutionLogger.log_failure(name_parts)
         
