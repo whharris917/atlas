@@ -2542,8 +2542,7 @@
               ],
               "docstring": null,
               "calls": [
-                "threading.RLock",
-                "admin_manager.AdminManager._initialize_system_config"
+                "threading.RLock"
               ],
               "instantiations": [],
               "accessed_state": [],
@@ -2570,10 +2569,7 @@
               "docstring": "\n        Execute an administrative operation.\n        This is the main entry point called by the decorator in decorators.py.\n        ",
               "calls": [
                 "uuid.uuid4",
-                "admin_manager.OperationResult.add_error",
-                "admin_manager.AdminManager._result_to_dict",
-                "admin_manager.AdminManager._execute_specific_operation",
-                "admin_manager.AdminManager._add_audit_entry"
+                "admin_manager.OperationResult.add_error"
               ],
               "instantiations": [
                 "admin_manager.OperationResult"
@@ -2737,9 +2733,7 @@
                 "operation_id"
               ],
               "docstring": "Get status of a specific operation.",
-              "calls": [
-                "admin_manager.AdminManager._result_to_dict"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [
                 "admin_manager.result"
@@ -2873,9 +2867,7 @@
                 "self"
               ],
               "docstring": "Close the database connection.",
-              "calls": [
-                "database_manager.DatabaseConnection.rollback"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -2960,9 +2952,7 @@
                 "self"
               ],
               "docstring": "Close the database connection.",
-              "calls": [
-                "database_manager.TransactionManager.rollback_transaction"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -2986,11 +2976,7 @@
                 "self"
               ],
               "docstring": "Context manager for automatic transaction handling.",
-              "calls": [
-                "database_manager.TransactionManager.begin_transaction",
-                "database_manager.TransactionManager.commit_transaction",
-                "database_manager.TransactionManager.rollback_transaction"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -3178,10 +3164,7 @@
                 "func"
               ],
               "docstring": null,
-              "calls": [
-                "decorators.ClassBasedDecorator._validate_arguments",
-                "decorators.ClassBasedDecorator._transform_result"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -3758,7 +3741,6 @@
               ],
               "docstring": "Main validation method with error handling.",
               "calls": [
-                "event_validator.BaseValidationRule._validate_implementation",
                 "event_validator.ValidationReport.add_error"
               ],
               "instantiations": [
@@ -3923,9 +3905,7 @@
                 "rules"
               ],
               "docstring": "Add multiple validation rules.",
-              "calls": [
-                "event_validator.ValidationEngine.add_rule"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -3950,10 +3930,7 @@
                 "context"
               ],
               "docstring": "Comprehensive validation using all rules.",
-              "calls": [
-                "event_validator.ValidationEngine._generate_cache_key",
-                "event_validator.ValidationEngine._merge_reports"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4082,9 +4059,7 @@
                 "self"
               ],
               "docstring": null,
-              "calls": [
-                "event_validator.EventValidator._setup_default_validations"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationEngine"
               ],
@@ -4155,9 +4130,7 @@
                 "self"
               ],
               "docstring": null,
-              "calls": [
-                "event_validator.MessageValidator._setup_default_filters"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -4568,10 +4541,7 @@
                 "data"
               ],
               "docstring": "Implementation of abstract method with caching.",
-              "calls": [
-                "inheritence_complex.BasicDataProcessor.validate_input",
-                "inheritence_complex.BasicDataProcessor._internal_process"
-              ],
+              "calls": [],
               "instantiations": [
                 "inheritence_complex.ProcessingResult"
               ],
@@ -4708,11 +4678,7 @@
                 "data"
               ],
               "docstring": "Specialized processing logic.",
-              "calls": [
-                "inheritence_complex.SpecializedProcessor._process_numeric",
-                "inheritence_complex.SpecializedProcessor._process_text",
-                "inheritence_complex.SpecializedProcessor._process_structured"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -4750,9 +4716,7 @@
                 "data"
               ],
               "docstring": "Structured data processing.",
-              "calls": [
-                "inheritence_complex.SpecializedProcessor._process_structured"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [
                 "inheritence_complex.result"
@@ -4814,9 +4778,7 @@
                 "data"
               ],
               "docstring": "Process data with type conversion.",
-              "calls": [
-                "inheritence_complex.GenericProcessor._create_type_converter"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -4862,9 +4824,7 @@
                 "data"
               ],
               "docstring": "Ultimate processing method combining all capabilities.",
-              "calls": [
-                "inheritence_complex.UltimateProcessor._apply_ultimate_enhancements"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5057,9 +5017,7 @@
                 "name"
               ],
               "docstring": "Dynamic attribute access with proxy behavior.",
-              "calls": [
-                "proxy_handler.BaseProxy._create_proxy_method"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5074,9 +5032,7 @@
                 "original_method"
               ],
               "docstring": "Create a proxy wrapper for a method.",
-              "calls": [
-                "proxy_handler.BaseProxy._proxy_method_call"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5243,9 +5199,7 @@
                 "user_id"
               ],
               "docstring": "Check if user has moderator role.",
-              "calls": [
-                "proxy_handler.HavenProxy.validate_admin_role"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5319,9 +5273,7 @@
                 "user_id"
               ],
               "docstring": "Validate broadcast permissions.",
-              "calls": [
-                "proxy_handler.HavenProxy.validate_admin_role"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5581,11 +5533,7 @@
               ],
               "docstring": "Create new session with comprehensive setup.",
               "calls": [
-                "uuid.uuid4",
-                "session_manager.SessionManager._determine_user_role",
-                "session_manager.SessionManager._get_role_permissions",
-                "session_manager.SessionManager._terminate_session",
-                "session_manager.SessionManager._trigger_event"
+                "uuid.uuid4"
               ],
               "instantiations": [
                 "session_manager.UserSession"
@@ -5603,11 +5551,7 @@
                 "session_id"
               ],
               "docstring": "Create authenticated user session with validation.",
-              "calls": [
-                "session_manager.SessionManager._determine_user_role",
-                "session_manager.SessionManager._get_role_permissions",
-                "session_manager.SessionManager._trigger_event"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5621,10 +5565,7 @@
                 "self"
               ],
               "docstring": "Get current active session.",
-              "calls": [
-                "session_manager.SessionManager._trigger_event",
-                "session_manager.SessionManager._expire_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5637,9 +5578,7 @@
                 "self"
               ],
               "docstring": "Get current session ID.",
-              "calls": [
-                "session_manager.SessionManager.get_current_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5650,9 +5589,7 @@
                 "self"
               ],
               "docstring": "Get current user ID.",
-              "calls": [
-                "session_manager.SessionManager.get_current_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5663,9 +5600,7 @@
                 "self"
               ],
               "docstring": "Get current user object.",
-              "calls": [
-                "session_manager.SessionManager.get_current_user_id"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5688,10 +5623,7 @@
                 "session_id"
               ],
               "docstring": "Validate session and update activity.",
-              "calls": [
-                "session_manager.SessionManager._expire_session",
-                "session_manager.SessionManager._trigger_event"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5705,9 +5637,7 @@
                 "room_name"
               ],
               "docstring": "Validate room access for current user.",
-              "calls": [
-                "session_manager.SessionManager.get_current_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5721,9 +5651,7 @@
                 "user_id"
               ],
               "docstring": "Get user-specific room name.",
-              "calls": [
-                "session_manager.SessionManager.get_current_user_id"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5735,9 +5663,7 @@
                 "user_id"
               ],
               "docstring": "Get all rooms for a user.",
-              "calls": [
-                "session_manager.SessionManager.get_user_room"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5760,9 +5686,7 @@
                 "user_id"
               ],
               "docstring": "Cleanup all sessions for a user.",
-              "calls": [
-                "session_manager.SessionManager._trigger_event"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5776,9 +5700,7 @@
                 "session_id"
               ],
               "docstring": "Destroy a specific session.",
-              "calls": [
-                "session_manager.SessionManager._trigger_event"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5816,9 +5738,7 @@
                 "session_id"
               ],
               "docstring": "Mark session as expired.",
-              "calls": [
-                "session_manager.SessionManager._trigger_event"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5831,10 +5751,7 @@
                 "reason"
               ],
               "docstring": "Terminate session with reason.",
-              "calls": [
-                "session_manager.SessionManager._trigger_event",
-                "session_manager.SessionManager.destroy_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -5873,9 +5790,7 @@
                 "session_id"
               ],
               "docstring": "Context manager for session operations.",
-              "calls": [
-                "session_manager.SessionManager.get_current_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5901,9 +5816,7 @@
                 "self"
               ],
               "docstring": "Perform periodic cleanup of expired sessions.",
-              "calls": [
-                "session_manager.SessionManager._expire_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5940,9 +5853,7 @@
                 "data"
               ],
               "docstring": "Record interaction between users.",
-              "calls": [
-                "session_manager.SessionInteractionManager._get_user_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -5986,9 +5897,7 @@
                 "user_id"
               ],
               "docstring": "Compute complex user engagement score.",
-              "calls": [
-                "session_manager.SessionInteractionManager._get_user_session"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -6119,13 +6028,13 @@
               ],
               "docstring": "Register event handler dynamically with full decorator chain.",
               "calls": [
-                "socketio_events.SocketIOEventRegistry.socketio.emit::event_received",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_current_timestamp::unknown_event",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_current_session_id::unknown_event",
-                "socketio_events.SocketIOEventRegistry.event_validator.validate_result::$result",
-                "socketio_events.SocketIOEventRegistry.socketio.emit::${event_name}_success",
-                "socketio_events.SocketIOEventRegistry.event_validator.get_validation_details::unknown_event",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_user_room::unknown_event"
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::event_received",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_current_timestamp::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_current_session_id::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.event_validator.validate_result::$result",
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::${event_name}_success",
+                "socketio_events.socketio_events.SocketIOEventRegistry.event_validator.get_validation_details::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_user_room::unknown_event"
               ],
               "instantiations": [],
               "accessed_state": [],
@@ -6134,11 +6043,11 @@
                 "@monitor_performance"
               ],
               "emit_contexts": {
-                "socketio_events.SocketIOEventRegistry.socketio.emit::event_received_context": {
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::event_received_context": {
                   "has_data": true,
                   "data_args_count": 1
                 },
-                "socketio_events.SocketIOEventRegistry.socketio.emit::${event_name}_success_context": {
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::${event_name}_success_context": {
                   "room": "dynamic_value",
                   "has_data": true,
                   "data_args_count": 1
@@ -6153,17 +6062,17 @@
               ],
               "docstring": "Batch registration with complex SocketIO patterns.",
               "calls": [
-                "socketio_events.SocketIOEventRegistry.create_event_handler::$config",
-                "socketio_events.SocketIOEventRegistry.apply_middleware_stack::$handler",
+                "socketio_events.socketio_events.SocketIOEventRegistry.create_event_handler::$config",
+                "socketio_events.socketio_events.SocketIOEventRegistry.apply_middleware_stack::$handler",
                 "socketio_events.config.get::middleware",
-                "socketio_events.SocketIOEventRegistry.socketio.on::$decorated_handler",
-                "socketio_events.SocketIOEventRegistry.socketio.on::$event_name"
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.on::$decorated_handler",
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.on::$event_name"
               ],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [],
               "emit_contexts": {
-                "socketio_events.SocketIOEventRegistry.apply_middleware_stack::$handler_context": {
+                "socketio_events.socketio_events.SocketIOEventRegistry.apply_middleware_stack::$handler_context": {
                   "has_data": true,
                   "data_args_count": 1
                 },
@@ -6182,10 +6091,10 @@
               "docstring": "Factory method creating handlers with embedded SocketIO calls.",
               "calls": [
                 "socketio_events.config.get::type",
-                "socketio_events.SocketIOEventRegistry._create_room_handler::$config",
-                "socketio_events.SocketIOEventRegistry._create_broadcast_handler::$config",
-                "socketio_events.SocketIOEventRegistry._create_auth_handler::$config",
-                "socketio_events.SocketIOEventRegistry._create_standard_handler::$config"
+                "socketio_events.socketio_events.SocketIOEventRegistry._create_room_handler::$config",
+                "socketio_events.socketio_events.SocketIOEventRegistry._create_broadcast_handler::$config",
+                "socketio_events.socketio_events.SocketIOEventRegistry._create_auth_handler::$config",
+                "socketio_events.socketio_events.SocketIOEventRegistry._create_standard_handler::$config"
               ],
               "instantiations": [],
               "accessed_state": [],
@@ -6205,14 +6114,13 @@
               ],
               "docstring": "Create room-based handler with complex SocketIO operations.",
               "calls": [
-                "socketio_events.data.get::room",
-                "socketio_events.SocketIOEventRegistry.session_manager.validate_room_access::$room_name",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.validate_room_access::$room_name",
                 "flask_socketio.join_room::$room_name",
-                "socketio_events.SocketIOEventRegistry.socketio.emit::user_joined_room",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_current_user_id::unknown_event",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_current_timestamp::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::user_joined_room",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_current_user_id::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_current_timestamp::unknown_event",
                 "socketio_events.ACTIVE_ROOMS.get::$room_name",
-                "socketio_events.SocketIOEventRegistry.socketio.emit::room_activity"
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::room_activity"
               ],
               "instantiations": [],
               "accessed_state": [
@@ -6220,11 +6128,7 @@
               ],
               "decorators": [],
               "emit_contexts": {
-                "socketio_events.data.get::room_context": {
-                  "has_data": true,
-                  "data_args_count": 1
-                },
-                "socketio_events.SocketIOEventRegistry.socketio.emit::user_joined_room_context": {
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::user_joined_room_context": {
                   "room": "$room_name",
                   "has_data": true,
                   "data_args_count": 1
@@ -6233,7 +6137,7 @@
                   "has_data": true,
                   "data_args_count": 1
                 },
-                "socketio_events.SocketIOEventRegistry.socketio.emit::room_activity_context": {
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::room_activity_context": {
                   "room": "$active_room",
                   "has_data": true,
                   "data_args_count": 1
@@ -6248,29 +6152,24 @@
               ],
               "docstring": "Create broadcast handler with complex emit patterns.",
               "calls": [
-                "socketio_events.data.get::message",
-                "socketio_events.SocketIOEventRegistry.message_validator.validate_message::$message",
-                "socketio_events.SocketIOEventRegistry.socketio.emit::global_message",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_current_user_id::unknown_event",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_current_timestamp::unknown_event",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_active_users::unknown_event",
-                "socketio_events.SocketIOEventRegistry.session_manager.get_user_room::$user_id",
-                "socketio_events.SocketIOEventRegistry.socketio.emit::personal_message"
+                "socketio_events.socketio_events.SocketIOEventRegistry.message_validator.validate_message::$message",
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::global_message",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_current_user_id::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_current_timestamp::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_active_users::unknown_event",
+                "socketio_events.socketio_events.SocketIOEventRegistry.session_manager.get_user_room::$user_id",
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::personal_message"
               ],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [],
               "emit_contexts": {
-                "socketio_events.data.get::message_context": {
-                  "has_data": true,
-                  "data_args_count": 1
-                },
-                "socketio_events.SocketIOEventRegistry.socketio.emit::global_message_context": {
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::global_message_context": {
                   "broadcast": true,
                   "has_data": true,
                   "data_args_count": 1
                 },
-                "socketio_events.SocketIOEventRegistry.socketio.emit::personal_message_context": {
+                "socketio_events.socketio_events.SocketIOEventRegistry.socketio.emit::personal_message_context": {
                   "room": "$user_room",
                   "has_data": true,
                   "data_args_count": 1
@@ -6291,14 +6190,12 @@
           "calls": [
             "socketio_events.SocketIOEventRegistry::$socketio",
             "session_manager.SessionManager.create_session",
-            "socketio_events.auth.get::is_runner",
             "flask_socketio.SocketIO.emit::runner_connected",
             "socketio_events._haven_proxy.get_runner_capabilities::unknown_event",
             "session_manager.SessionManager.get_current_timestamp",
             "flask_socketio.join_room::runners",
             "flask_socketio.SocketIO.emit::runner_room_joined",
             "socketio_events._haven_proxy.validate_user_credentials::$auth",
-            "socketio_events.auth.get::user_id",
             "session_manager.SessionManager.create_user_session",
             "flask_socketio.SocketIO.emit::connection_established",
             "socketio_events._haven_proxy.get_user_preferences::$user_id",
@@ -6314,7 +6211,6 @@
             "flask_socketio.leave_room::$room",
             "flask_socketio.SocketIO.emit::user_left_room",
             "session_manager.SessionManager.destroy_session",
-            "socketio_events.data.get::room",
             "socketio_events._haven_proxy.validate_room_access::$user_id",
             "flask_socketio.join_room::$room_name",
             "flask_socketio.SocketIO.emit::room_joined",
@@ -6322,9 +6218,6 @@
             "socketio_events._haven_proxy.get_user_info::$user_id",
             "socketio_events._haven_proxy.get_room_statistics::$room_name",
             "flask_socketio.SocketIO.emit::room_stats_updated",
-            "socketio_events.data.get::message",
-            "socketio_events.data.get::target_type",
-            "socketio_events.data.get::target",
             "socketio_events._haven_proxy.validate_message_content::$message",
             "flask_socketio.SocketIO.emit::message_rejected",
             "flask_socketio.SocketIO.emit::room_message",
@@ -6404,14 +6297,6 @@
               "has_data": true,
               "data_args_count": 1
             },
-            "socketio_events.data.get::message_context": {
-              "has_data": true,
-              "data_args_count": 1
-            },
-            "socketio_events.data.get::target_type_context": {
-              "has_data": true,
-              "data_args_count": 1
-            },
             "socketio_events._haven_proxy.validate_message_content::$message_context": {
               "has_data": true,
               "data_args_count": 1
@@ -6469,16 +6354,10 @@
             "session_manager.SessionManager.get_current_user_id",
             "proxy_handler.HavenProxy.validate_event_data",
             "proxy_handler.HavenProxy.process_event",
-            "socketio_events.result.get::success",
             "socketio_events._socketio_instance.emit::${event_name}_processed",
             "session_manager.SessionManager.get_current_timestamp",
-            "socketio_events.result.get::notify_others",
             "socketio_events._socketio_instance.emit::${event_name}_notification",
-            "socketio_events.result.get::notification_data",
-            "socketio_events.result.get::update_room",
-            "socketio_events.result.get::room",
             "socketio_events._socketio_instance.emit::${event_name}_room_update",
-            "socketio_events.result.get::room_data",
             "socketio_events._socketio_instance.emit::${event_name}_error"
           ],
           "instantiations": [],
