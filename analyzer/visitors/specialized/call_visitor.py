@@ -138,62 +138,217 @@ class CallVisitor:
         return any(resolved_fqn.startswith(lib) for lib in EXTERNAL_LIBRARY_ALLOWLIST)
     
     def _track_intermediate_chain_calls(self, name_parts: List[str], context: Dict[str, Any], final_resolved_fqn: str):
-        """Track intermediate method calls in complex chains."""
+        """
+        FIXED: Track intermediate method calls in both fluent interfaces and module instance calls.
+        
+        Handles two patterns:
+        1. Fluent interfaces: obj.method1().method2().method3()
+        2. Module instances: module_var.method() where module_var is an instance
+        """
         self.logger.log(f"    [INTERMEDIATE] Tracking chain steps for: {'.'.join(name_parts)}", 4)
         
-        # Only track intermediate calls if we have a multi-part chain
         if len(name_parts) <= 1:
             return
         
-        # Track each progressive step in the chain (excluding the final call)
-        for i in range(1, len(name_parts)):
-            partial_chain = name_parts[:i+1]
-            partial_name = ".".join(partial_chain)
+        # STRATEGY 1: Handle simple module instance calls (e.g., event_validator.validate_event)
+        if len(name_parts) == 2:
+            base_name = name_parts[0]
+            method_name = name_parts[1]
             
-            self.logger.log(f"    [INTERMEDIATE] Step {i}: {partial_name}", 4)
+            self.logger.log(f"    [INTERMEDIATE] Strategy 1: Module instance call {base_name}.{method_name}", 4)
             
-            # Skip if this is the same as the final resolved call
-            if partial_name == ".".join(name_parts):
-                continue
+            # Try to resolve the base as a module-level variable
+            base_resolved = self._cached_resolve_name([base_name], context)
             
-            # Try to resolve this partial chain
-            partial_resolved = self._cached_resolve_name(partial_chain, context)
-            
-            if partial_resolved and partial_resolved != final_resolved_fqn:
-                self.logger.log(f"    [INTERMEDIATE] Step {i} resolved to: {partial_resolved}", 4)
+            if base_resolved and base_resolved in self.recon_data.get("state", {}):
+                self.logger.log(f"    [INTERMEDIATE] Base resolved to state variable: {base_resolved}", 4)
                 
-                # Check if this is a function/method call (not just an attribute access)
-                if (partial_resolved in self.recon_data["functions"] or
-                    partial_resolved in self.recon_data.get("external_functions", {})):
-                    # Only add if not already captured
-                    if partial_resolved not in self.current_function_report["calls"]:
-                        self._add_unique_call(partial_resolved)
-                        self.logger.log(f"    [INTERMEDIATE] ADDED intermediate call: {partial_resolved}", 4)
-                
-                # Update context for next step using return type if available
-                if i < len(name_parts) - 1:
-                    self._update_chain_context(partial_resolved, name_parts[0], context)
+                # Get the type of this state variable
+                state_info = self.recon_data["state"][base_resolved]
+                if isinstance(state_info, dict):
+                    var_type = state_info.get("type")
+                    if var_type:
+                        self.logger.log(f"    [INTERMEDIATE] State variable type: {var_type}", 4)
+                        
+                        # Resolve the type to get the class FQN
+                        type_fqn = self._resolve_type_to_fqn(var_type, context)
+                        if type_fqn:
+                            self.logger.log(f"    [INTERMEDIATE] Type resolved to: {type_fqn}", 4)
+                            
+                            # Check if the method exists on this type
+                            method_fqn = f"{type_fqn}.{method_name}"
+                            if method_fqn in self.recon_data.get("functions", {}):
+                                if method_fqn not in self.current_function_report["calls"]:
+                                    self._add_unique_call(method_fqn)
+                                    self.logger.log(f"    [INTERMEDIATE] ADDED module instance call: {method_fqn}", 4)
+                                return
+                            else:
+                                self.logger.log(f"    [INTERMEDIATE] Method {method_fqn} not found in functions", 4)
+                        else:
+                            self.logger.log(f"    [INTERMEDIATE] Could not resolve type: {var_type}", 4)
+                    else:
+                        self.logger.log(f"    [INTERMEDIATE] No type information for state variable", 4)
+                else:
+                    self.logger.log(f"    [INTERMEDIATE] State info is not dict format", 4)
             else:
-                self.logger.log(f"    [INTERMEDIATE] Step {i} could not be resolved or same as final", 4)
+                self.logger.log(f"    [INTERMEDIATE] Base not resolved as state variable", 4)
+        
+        # STRATEGY 2: Handle fluent interface chains (3+ parts)
+        if len(name_parts) >= 3:
+            self.logger.log(f"    [INTERMEDIATE] Strategy 2: Fluent interface chain", 4)
+            
+            # Find where the method chain starts by trying different split points
+            current_context_fqn = None
+            method_start_index = None
+            
+            # Try resolving progressively longer base objects
+            for split_point in range(1, len(name_parts)):
+                base_parts = name_parts[:split_point]
+                base_resolved = self._cached_resolve_name(base_parts, context)
+                
+                if base_resolved:
+                    self.logger.log(f"    [INTERMEDIATE] Split point {split_point}: base {'.'.join(base_parts)} -> {base_resolved}", 4)
+                    
+                    # Check if the next part could be a method on this resolved object
+                    if split_point < len(name_parts):
+                        next_method = name_parts[split_point]
+                        
+                        # Get the type of the base object
+                        base_type = self._get_object_type(base_resolved, context)
+                        if base_type:
+                            self.logger.log(f"    [INTERMEDIATE] Base type: {base_type}", 4)
+                            
+                            method_candidate = f"{base_type}.{next_method}"
+                            if method_candidate in self.recon_data.get("functions", {}):
+                                # Found the start of the method chain!
+                                current_context_fqn = base_type
+                                method_start_index = split_point
+                                self.logger.log(f"    [INTERMEDIATE] Found fluent chain start: base={'.'.join(base_parts)} -> {base_type}", 4)
+                                break
+                            else:
+                                self.logger.log(f"    [INTERMEDIATE] Method candidate {method_candidate} not found", 4)
+                        else:
+                            self.logger.log(f"    [INTERMEDIATE] Could not get type for base: {base_resolved}", 4)
+            
+            if current_context_fqn and method_start_index is not None:
+                self.logger.log(f"    [INTERMEDIATE] Processing fluent chain starting at index {method_start_index}", 4)
+                
+                # Process each method in the fluent chain
+                for i in range(method_start_index, len(name_parts)):
+                    method_name = name_parts[i]
+                    method_fqn = f"{current_context_fqn}.{method_name}"
+                    
+                    self.logger.log(f"    [INTERMEDIATE] Processing method {i}: {method_name} on {current_context_fqn}", 4)
+                    
+                    # Check if this method exists
+                    if method_fqn in self.recon_data.get("functions", {}):
+                        # Don't double-add the final method (handled by main call processing)
+                        if i < len(name_parts) - 1:
+                            if method_fqn not in self.current_function_report["calls"]:
+                                self._add_unique_call(method_fqn)
+                                self.logger.log(f"    [INTERMEDIATE] ADDED fluent method: {method_fqn}", 4)
+                        
+                        # Get return type for next method in chain
+                        func_info = self.recon_data["functions"][method_fqn]
+                        return_type = func_info.get("return_type")
+                        
+                        if return_type and return_type not in ["None", "Unknown", None]:
+                            # Clean quoted return types
+                            clean_return_type = return_type.strip("'\"")
+                            self.logger.log(f"    [INTERMEDIATE] Method {method_name} returns: {clean_return_type}", 4)
+                            
+                            # Resolve return type to FQN for next method
+                            resolved_return_type = self._resolve_type_to_fqn(clean_return_type, context)
+                            if resolved_return_type:
+                                current_context_fqn = resolved_return_type
+                                self.logger.log(f"    [INTERMEDIATE] Chain continues with: {resolved_return_type}", 4)
+                            else:
+                                self.logger.log(f"    [INTERMEDIATE] Could not resolve return type: {clean_return_type}", 4)
+                                break
+                        else:
+                            self.logger.log(f"    [INTERMEDIATE] No useful return type for {method_fqn}", 4)
+                            break
+                    else:
+                        self.logger.log(f"    [INTERMEDIATE] Method {method_fqn} not found", 4)
+                        break
+            else:
+                self.logger.log(f"    [INTERMEDIATE] Could not identify fluent chain start", 4)
     
-    def _update_chain_context(self, resolved_fqn: str, base_name: str, context: Dict[str, Any]):
-        """Update resolution context based on intermediate call return type."""
-        if resolved_fqn in self.recon_data["functions"]:
+    def _get_object_type(self, resolved_fqn: str, context: Dict[str, Any]) -> Optional[str]:
+        """Get the type of a resolved object (for fluent interface processing)."""
+        self.logger.log(f"    [TYPE] Getting object type for: {resolved_fqn}", 4)
+        
+        # If it's already a class, return as-is
+        if resolved_fqn in self.recon_data.get("classes", {}):
+            self.logger.log(f"    [TYPE] Object is a class: {resolved_fqn}", 4)
+            return resolved_fqn
+        
+        # If it's a state variable, get its type
+        if resolved_fqn in self.recon_data.get("state", {}):
+            self.logger.log(f"    [TYPE] Object is a state variable", 4)
+            state_info = self.recon_data["state"][resolved_fqn]
+            if isinstance(state_info, dict):
+                var_type = state_info.get("type")
+                if var_type:
+                    self.logger.log(f"    [TYPE] State variable type: {var_type}", 4)
+                    resolved_type = self._resolve_type_to_fqn(var_type, context)
+                    self.logger.log(f"    [TYPE] Resolved to: {resolved_type}", 4)
+                    return resolved_type
+        
+        # If it's a function, get its return type
+        if resolved_fqn in self.recon_data.get("functions", {}):
+            self.logger.log(f"    [TYPE] Object is a function", 4)
             func_info = self.recon_data["functions"][resolved_fqn]
             return_type = func_info.get("return_type")
-            if return_type:
-                # Extract core type and try to resolve it to FQN
-                type_inference = context.get('type_inference')
-                if type_inference:
-                    core_type = type_inference.extract_core_type(return_type)
-                    if core_type:
-                        resolved_type_fqn = type_inference._resolve_return_type_to_fqn(core_type, context)
-                        if resolved_type_fqn:
-                            # Update symbol table for next resolution step
-                            symbol_manager = context.get('symbol_manager')
-                            if symbol_manager:
-                                symbol_manager.update_variable_type(base_name, resolved_type_fqn)
-                                self.logger.log(f"    [INTERMEDIATE] Updated context: {base_name} -> {resolved_type_fqn}", 4)
+            if return_type and return_type not in ["None", "Unknown", None]:
+                clean_return_type = return_type.strip("'\"")
+                self.logger.log(f"    [TYPE] Function returns: {clean_return_type}", 4)
+                resolved_type = self._resolve_type_to_fqn(clean_return_type, context)
+                self.logger.log(f"    [TYPE] Resolved to: {resolved_type}", 4)
+                return resolved_type
+        
+        self.logger.log(f"    [TYPE] Could not determine type for: {resolved_fqn}", 4)
+        return None
+    
+    def _resolve_type_to_fqn(self, type_name: str, context: Dict[str, Any]) -> Optional[str]:
+        """Resolve a type name to its fully qualified name."""
+        if not type_name or type_name in ["None", "Unknown"]:
+            return None
+        
+        self.logger.log(f"    [TYPE_RESOLVE] Resolving type: {type_name}", 4)
+        
+        # Already FQN
+        if "." in type_name:
+            if type_name in self.recon_data.get("classes", {}):
+                self.logger.log(f"    [TYPE_RESOLVE] Already FQN and exists: {type_name}", 4)
+                return type_name
+        
+        # Extract core type from generics
+        core_type = type_name.split("[")[0] if "[" in type_name else type_name
+        self.logger.log(f"    [TYPE_RESOLVE] Core type: {core_type}", 4)
+        
+        # Try name resolver first
+        resolved = self.name_resolver.resolve_name([core_type], context)
+        if resolved and resolved in self.recon_data.get("classes", {}):
+            self.logger.log(f"    [TYPE_RESOLVE] Name resolver found: {resolved}", 4)
+            return resolved
+        
+        # Search all classes for this type name
+        for class_fqn in self.recon_data.get("classes", {}):
+            if class_fqn.endswith(f".{core_type}"):
+                self.logger.log(f"    [TYPE_RESOLVE] Found by suffix match: {class_fqn}", 4)
+                return class_fqn
+        
+        # Try current module
+        current_module = context.get('current_module', '')
+        if current_module:
+            candidate = f"{current_module}.{core_type}"
+            if candidate in self.recon_data.get("classes", {}):
+                self.logger.log(f"    [TYPE_RESOLVE] Found in current module: {candidate}", 4)
+                return candidate
+        
+        self.logger.log(f"    [TYPE_RESOLVE] Could not resolve type: {type_name}", 4)
+        return None
     
     def _process_function_arguments(self, node: ast.Call, context: Dict[str, Any]):
         """Process function arguments for function references."""

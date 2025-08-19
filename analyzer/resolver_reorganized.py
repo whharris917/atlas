@@ -37,7 +37,7 @@ class ContextKeys:
     """Centralized context key definitions to avoid magic strings."""
     CURRENT_MODULE = 'current_module'
     CURRENT_CLASS = 'current_class'
-    CURRENT_FUNCTION = 'current_function_name'
+    CURRENT_FUNCTION = 'current_function_fqn'
     SYMBOL_MANAGER = 'symbol_manager'
     IMPORT_MAP = 'import_map'
 
@@ -553,48 +553,146 @@ class AttributeResolver:
     
     def _resolve_attribute_type(self, attr_type: str, context: Dict[str, Any]) -> Optional[str]:
         """
-        Resolve an attribute type to its FQN.
+        ENHANCED: Resolve an attribute type to its FQN with improved robustness.
         
         This handles cases like:
         - connection: DatabaseConnection -> database_manager.DatabaseConnection
-        - manager: AdminManager -> admin_manager.AdminManager
+        - manager: AdminManager -> admin_manager.AdminManager  
         - 'ValidationRuleBuilder' -> event_validator.ValidationRuleBuilder
+        - ValidationRuleBuilder -> event_validator.ValidationRuleBuilder (FIXED)
         """
+        self.logger.log(f"Resolving attribute type: {attr_type}", LogLevel.TRACE, "TYPE")
+        
         # Handle quoted types like "'ValidationRuleBuilder'"
         if attr_type.startswith("'") and attr_type.endswith("'"):
             attr_type = attr_type[1:-1]
+            self.logger.log(f"Cleaned quoted type: {attr_type}", LogLevel.TRACE, "TYPE")
         
-        # If it already looks like an FQN, return as-is
+        # If it already looks like an FQN, validate and return
         if "." in attr_type:
-            return attr_type
+            if attr_type in self.recon_data.get(ReconDataKeys.CLASSES, {}):
+                self.logger.log(f"Already FQN and exists: {attr_type}", LogLevel.TRACE, "TYPE")
+                return attr_type
+            else:
+                self.logger.log(f"Looks like FQN but not found: {attr_type}", LogLevel.TRACE, "TYPE")
         
-        # Try to resolve the type name using the same logic as base name resolution
+        # ENHANCED: Try to resolve the type name using base name resolution strategies
+        self.logger.log(f"Trying base name resolution for: {attr_type}", LogLevel.TRACE, "TYPE")
         resolved = self._resolve_base_name(attr_type, context)
-        if resolved:
+        if resolved and resolved in self.recon_data.get(ReconDataKeys.CLASSES, {}):
+            self.logger.log(f"Base name resolution succeeded: {attr_type} -> {resolved}", LogLevel.TRACE, "TYPE")
             return resolved
         
-        # Fallback: check if it's a class in the current module
+        # ENHANCED: Try current module first (most common case)
         current_module = context.get(ContextKeys.CURRENT_MODULE)
         if current_module:
             candidate = f"{current_module}.{attr_type}"
             if candidate in self.recon_data.get(ReconDataKeys.CLASSES, {}):
+                self.logger.log(f"Found in current module: {candidate}", LogLevel.TRACE, "TYPE")
                 return candidate
         
-        # Check all modules for this class name
+        # ENHANCED: Search all modules for this class name (more comprehensive)
+        self.logger.log(f"Searching all modules for class: {attr_type}", LogLevel.TRACE, "TYPE")
+        matching_classes = []
         for class_fqn in self.recon_data.get(ReconDataKeys.CLASSES, {}):
             if class_fqn.endswith(f".{attr_type}"):
-                self.logger.log(f"Found type in module: {class_fqn}", LogLevel.TRACE, "TYPE")
-                return class_fqn
+                matching_classes.append(class_fqn)
         
-        # Check external classes
+        if matching_classes:
+            # If multiple matches, prefer the one from current module or shortest path
+            if len(matching_classes) == 1:
+                result = matching_classes[0]
+                self.logger.log(f"Found unique match: {result}", LogLevel.TRACE, "TYPE")
+                return result
+            else:
+                # Multiple matches - prefer current module if available
+                if current_module:
+                    current_module_match = f"{current_module}.{attr_type}"
+                    if current_module_match in matching_classes:
+                        self.logger.log(f"Chose current module match: {current_module_match}", LogLevel.TRACE, "TYPE")
+                        return current_module_match
+                
+                # Otherwise pick the shortest (least nested)
+                result = min(matching_classes, key=lambda x: x.count('.'))
+                self.logger.log(f"Chose shortest match: {result} from {matching_classes}", LogLevel.TRACE, "TYPE")
+                return result
+        
+        # ENHANCED: Check external classes too
         for ext_class_fqn in self.recon_data.get(ReconDataKeys.EXTERNAL_CLASSES, {}):
             if ext_class_fqn.endswith(f".{attr_type}"):
-                self.logger.log(f"Found external type: {ext_class_fqn}", LogLevel.TRACE, "TYPE")
+                self.logger.log(f"Found in external classes: {ext_class_fqn}", LogLevel.TRACE, "TYPE")
                 return ext_class_fqn
         
-        # Final fallback: return the type as-is
-        self.logger.log(f"Using type as-is: {attr_type}", LogLevel.TRACE, "TYPE")
-        return attr_type
+        self.logger.log(f"Could not resolve type: {attr_type}", LogLevel.TRACE, "TYPE")
+        return None
+
+    def _resolve_base_name(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:
+        """
+        ENHANCED: Resolve base name using all available strategies.
+        
+        This method should use the same logic as the main resolver strategies
+        to find the FQN for a base name like "ValidationRuleBuilder".
+        """
+        self.logger.log(f"Resolving base name: {base_name}", LogLevel.TRACE, "BASE")
+        
+        # Try each strategy in order
+        for strategy in [
+            self._try_local_variable_strategy,
+            self._try_self_strategy, 
+            self._try_import_strategy,
+            self._try_module_strategy
+        ]:
+            result = strategy(base_name, context)
+            if result:
+                self.logger.log(f"Base name resolved by {strategy.__name__}: {base_name} -> {result}", LogLevel.TRACE, "BASE")
+                return result
+        
+        self.logger.log(f"Could not resolve base name: {base_name}", LogLevel.TRACE, "BASE")
+        return None
+
+    def _try_import_strategy(self, name: str, context: Dict[str, Any]) -> Optional[str]:
+        """Try to resolve name through imports."""
+        current_module = context.get(ContextKeys.CURRENT_MODULE)
+        if not current_module:
+            return None
+        
+        # Check if this name is a class in the current module
+        candidate = f"{current_module}.{name}"
+        if candidate in self.recon_data.get(ReconDataKeys.CLASSES, {}):
+            return candidate
+        
+        # Could add more import resolution logic here
+        return None
+
+    def _try_module_strategy(self, name: str, context: Dict[str, Any]) -> Optional[str]:
+        """Try to resolve name as module-level reference."""
+        current_module = context.get(ContextKeys.CURRENT_MODULE)
+        if not current_module:
+            return None
+        
+        # Check state variables in current module
+        candidate = f"{current_module}.{name}"
+        if candidate in self.recon_data.get(ReconDataKeys.STATE, {}):
+            return candidate
+        
+        return None
+
+    def _try_local_variable_strategy(self, name: str, context: Dict[str, Any]) -> Optional[str]:
+        """Try to resolve as local variable."""
+        # This would check the symbol manager
+        symbol_manager = context.get('symbol_manager')
+        if symbol_manager:
+            var_type = symbol_manager.get_variable_type(name)
+            if var_type:
+                return self._resolve_attribute_type(var_type, context)
+        return None
+
+    def _try_self_strategy(self, name: str, context: Dict[str, Any]) -> Optional[str]:
+        """Try to resolve as self reference."""
+        if name == "self":
+            current_class = context.get(ContextKeys.CURRENT_CLASS)
+            return current_class
+        return None
 
 
 class NameResolver:
