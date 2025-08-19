@@ -13,7 +13,7 @@ Updated: Added --resolver flag for testing resolver implementations independentl
 
 import sys
 import argparse
-from analyzer.utils import (
+from analyzer.utils_new import (
     discover_python_files,
     validate_python_version,
     generate_json_report

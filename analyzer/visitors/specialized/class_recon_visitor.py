@@ -9,8 +9,8 @@ EMERGENCY FIX: Fixed class context management and attribute finalization to matc
 
 import ast
 from typing import Dict, List, Any, Optional
-from ...utils.logger import AnalysisLogger
-from ...utils.naming import generate_class_fqn
+from ...utils_new.logger import AnalysisLogger
+from ...utils_new.naming import generate_class_fqn
 
 
 class ClassReconVisitor:

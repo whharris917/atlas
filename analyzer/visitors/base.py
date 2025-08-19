@@ -6,8 +6,8 @@ Base AST visitor providing common functionality for all specialized visitors.
 
 import ast
 from typing import Dict, List, Any, Optional
-from ..utils.logger import AnalysisLogger
-from ..utils.naming import generate_fqn, generate_class_fqn, generate_function_fqn
+from ..utils_new import AnalysisLogger
+from ..utils_new import generate_fqn, generate_class_fqn, generate_function_fqn
 
 
 class BaseVisitor(ast.NodeVisitor):

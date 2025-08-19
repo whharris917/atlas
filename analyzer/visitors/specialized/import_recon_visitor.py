@@ -7,8 +7,8 @@ Part of the Phase 2 refactoring to break down the monolithic ReconVisitor.
 
 import ast
 from typing import Dict, List, Any, Optional
-from ...utils.logger import AnalysisLogger
-from ...utils import EXTERNAL_LIBRARY_ALLOWLIST
+from ...utils_new.logger import AnalysisLogger
+from ...utils_new import EXTERNAL_LIBRARY_ALLOWLIST
 
 
 class ImportReconVisitor:

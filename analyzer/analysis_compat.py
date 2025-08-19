@@ -11,9 +11,9 @@ from typing import Dict, List, Any
 
 # Import the refactored components
 try:
-    from .visitors.analysis_refactored import RefactoredAnalysisVisitor, run_analysis_pass as refactored_run_analysis_pass
-    from .utils.logger import set_global_log_level
-    from .core.configuration import get_config, set_config, AnalysisConfig
+    from .visitors import RefactoredAnalysisVisitor, run_analysis_pass as refactored_run_analysis_pass
+    from .utils_new import set_global_log_level
+    from .core import get_config, set_config, AnalysisConfig
     REFACTORED_AVAILABLE = True
 except ImportError as e:
     # Fallback to original implementation if refactored components aren't available

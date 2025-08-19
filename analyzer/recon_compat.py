@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 def get_recon_info() -> Dict[str, Any]:
     """Get information about available reconnaissance implementations."""
     try:
-        from .visitors.recon_refactored import run_reconnaissance_pass_refactored
+        from .visitors import run_reconnaissance_pass_refactored
         refactored_available = True
     except ImportError:
         refactored_available = False

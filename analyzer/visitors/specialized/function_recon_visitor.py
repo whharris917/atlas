@@ -9,8 +9,8 @@ EMERGENCY FIX: Added missing __init__ attribute extraction logic to match origin
 
 import ast
 from typing import Dict, List, Any, Optional
-from ...utils.logger import AnalysisLogger
-from ...utils.naming import generate_function_fqn
+from ...utils_new.logger import AnalysisLogger
+from ...utils_new.naming import generate_function_fqn
 
 
 class FunctionReconVisitor:

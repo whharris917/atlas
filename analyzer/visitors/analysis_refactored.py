@@ -16,9 +16,9 @@ from .specialized.call_visitor import CallVisitor
 from .specialized.assignment_visitor import AssignmentVisitor
 
 # Import utilities
-from ..utils.logger import AnalysisLogger, get_logger
-from ..utils.naming import generate_function_fqn, generate_class_fqn
-from ..core.configuration import get_config
+from ..utils_new import AnalysisLogger, get_logger
+from ..utils_new import generate_function_fqn, generate_class_fqn
+from ..core import get_config
 
 # Import existing components (to be refactored later)
 from ..resolver import NameResolver

@@ -17,8 +17,8 @@ from .specialized.function_recon_visitor import FunctionReconVisitor
 from .specialized.state_recon_visitor import StateReconVisitor
 
 # Import utilities and base functionality
-from ..utils.logger import AnalysisLogger, get_logger
-from ..core.configuration import get_config
+from ..utils_new import AnalysisLogger, get_logger
+from ..core import get_config
 from ..type_inference import TypeInferenceEngine
 
 
