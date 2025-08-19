@@ -4108,7 +4108,10 @@
               "docstring": "Setup default event validation rules.",
               "calls": [
                 "event_validator.ValidationEngine.create_rule_builder",
-                "event_validator.ValidationRuleBuilder.build"
+                "event_validator.ValidationRuleBuilder.require_fields",
+                "event_validator.ValidationRuleBuilder.field_types",
+                "event_validator.ValidationRuleBuilder.build",
+                "event_validator.ValidationRuleBuilder.field_patterns"
               ],
               "instantiations": [
                 "event_validator.ValidationEngine"
