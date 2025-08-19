@@ -41,36 +41,33 @@ class NameResolver:
     the existing API contract that other modules depend on.
     """
     
-    def __init__(self, recon_data: Dict[str, Any], use_refactored: Optional[bool] = None):
+    def __init__(self, recon_data: Dict[str, Any]):
         """
         Initialize name resolver with compatibility layer.
         
+        CRITICAL: Maintains exact same signature as original NameResolver
+        to ensure all existing code continues to work unchanged.
+        
         Args:
             recon_data: Reconnaissance data from previous pass
-            use_refactored: 
-                - True: Force refactored implementation
-                - False: Force original implementation  
-                - None: Auto-detect best available implementation
         """
         self.recon_data = recon_data
         info = get_resolver_info()
         
-        # Determine which implementation to use
-        if use_refactored is None:
-            # Auto-detect: prefer refactored if available
-            use_refactored = info["refactored_available"]
-        elif use_refactored and not info["refactored_available"]:
-            print("[RESOLVER_COMPAT] Warning: Refactored implementation requested but not available, falling back to original")
-            use_refactored = False
-        elif not use_refactored and not info["original_available"]:
-            print("[RESOLVER_COMPAT] Warning: Original implementation requested but not available, using refactored")
-            use_refactored = True
+        # Auto-detect best available implementation
+        use_refactored = info["refactored_available"]
         
         # Initialize the selected implementation
         if use_refactored:
-            from .resolver_refactored import RefactoredNameResolver
-            self._resolver = RefactoredNameResolver(recon_data)
-            self._implementation = "refactored"
+            try:
+                from .resolver_refactored import RefactoredNameResolver
+                self._resolver = RefactoredNameResolver(recon_data)
+                self._implementation = "refactored"
+            except (ImportError, NotImplementedError):
+                # Fallback to original if refactored fails
+                from .resolver_original import NameResolver as OriginalNameResolver
+                self._resolver = OriginalNameResolver(recon_data)
+                self._implementation = "original"
         else:
             from .resolver_original import NameResolver as OriginalNameResolver
             self._resolver = OriginalNameResolver(recon_data)
@@ -99,14 +96,40 @@ class NameResolver:
 
 
 # For backwards compatibility and direct import scenarios
-def create_name_resolver(recon_data: Dict[str, Any]) -> NameResolver:
+def create_name_resolver(recon_data: Dict[str, Any], use_refactored: Optional[bool] = None) -> NameResolver:
     """
-    Factory function for creating NameResolver instances.
+    Factory function for creating NameResolver instances with implementation control.
     
-    This provides an alternative way to get a resolver while maintaining
-    the auto-detection behavior.
+    This provides an alternative way to get a resolver with explicit implementation choice
+    while the main NameResolver class maintains API compatibility.
+    
+    Args:
+        recon_data: Reconnaissance data from previous pass
+        use_refactored: 
+            - True: Force refactored implementation
+            - False: Force original implementation  
+            - None: Auto-detect best available implementation
     """
-    return NameResolver(recon_data)
+    # Create resolver normally (auto-detects)
+    resolver = NameResolver(recon_data)
+    
+    # If specific implementation requested, override the auto-detection
+    if use_refactored is not None:
+        info = get_resolver_info()
+        
+        if use_refactored and info["refactored_available"]:
+            try:
+                from .resolver_refactored import RefactoredNameResolver
+                resolver._resolver = RefactoredNameResolver(recon_data)
+                resolver._implementation = "refactored"
+            except (ImportError, NotImplementedError):
+                print("[RESOLVER_COMPAT] Warning: Refactored implementation requested but failed, keeping original")
+        elif not use_refactored and info["original_available"]:
+            from .resolver_original import NameResolver as OriginalNameResolver
+            resolver._resolver = OriginalNameResolver(recon_data)
+            resolver._implementation = "original"
+    
+    return resolver
 
 
 # Export the compatibility class as the main interface
