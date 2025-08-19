@@ -1,14 +1,15 @@
 """
-Reorganized Name Resolver - Code Atlas (Session 3 Fixes)
+Reorganized Name Resolver - Code Atlas (Session 3 Fix V2)
 
-This is a proof-of-concept reorganization of the original resolver that addresses
-the key problems while maintaining identical API and behavior.
+Based on Test 3 regression analysis - the previous fixes were too conservative
+and broke core resolution logic. This version restores resolution capability
+while maintaining exact behavioral compatibility.
 
-Session 3 fixes based on Test 3 diff analysis:
-1. Fix spurious threading.RLock and uuid.uuid4 calls
-2. Fix FQN prefix mismatches in SocketIO calls  
-3. Ensure exact behavior matching with original resolver
-4. Address context data handling issues
+Key fixes:
+1. Restore proper resolution logic flow
+2. Fix over-conservative ImportStrategy  
+3. Maintain exact context key usage
+4. Prevent spurious external library resolution
 """
 
 from typing import Dict, List, Any, Optional, Set
@@ -68,7 +69,7 @@ class ResolutionCache:
     def get_key(self, name_parts: List[str], context: Dict[str, Any]) -> str:
         """Generate cache key from name parts and relevant context."""
         module = context.get('current_module', '')
-        class_name = context.get('current_class', '')  # Fixed: use 'current_class' not 'current_class_name'
+        class_name = context.get('current_class', '')  # Fixed: use 'current_class'
         func_name = context.get('current_function_name', '')
         return f"{module}:{class_name}:{func_name}:{'.'.join(name_parts)}"
     
@@ -119,36 +120,18 @@ class LocalVariableStrategy(BaseStrategy):
         super().__init__("LocalVariable")
     
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
-        # Use symbol_manager like original implementation
+        # Match original exactly: check symbol_manager for variable types
         symbol_manager = context.get('symbol_manager')
         if symbol_manager:
-            var_type = symbol_manager.get_variable_type(base_name)
-            return var_type is not None
-        
-        # Fallback to local_variables set if symbol_manager not available
-        local_vars = context.get('local_variables', set())
-        return base_name in local_vars
+            return symbol_manager.get_variable_type(base_name) is not None
+        return False
     
     def resolve(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:
-        # Use symbol_manager like original implementation  
+        # Match original exactly: get type from symbol_manager
         symbol_manager = context.get('symbol_manager')
         if symbol_manager:
-            var_type = symbol_manager.get_variable_type(base_name)
-            if var_type:
-                return var_type
-        
-        # Fallback behavior - local variables resolve to their contextual FQN
-        current_module = context.get('current_module', '')
-        current_class = context.get('current_class', '')  # Fixed: use 'current_class' not 'current_class_name'
-        current_function = context.get('current_function_name', '')
-        
-        if current_function:
-            if current_class:
-                return f"{current_module}.{current_class}.{current_function}.{base_name}"
-            else:
-                return f"{current_module}.{current_function}.{base_name}"
-        
-        return f"{current_module}.{base_name}"
+            return symbol_manager.get_variable_type(base_name)
+        return None
 
 
 class SelfStrategy(BaseStrategy):
@@ -158,13 +141,12 @@ class SelfStrategy(BaseStrategy):
         super().__init__("Self")
     
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
-        return (base_name == 'self' and 
-                context.get('current_class') is not None)  # Fixed: use 'current_class' not 'current_class_name'
+        # Match original exactly: use 'current_class' and check for 'self'
+        return base_name == "self" and context.get('current_class') is not None
     
     def resolve(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:
-        current_module = context.get('current_module', '')
-        current_class = context.get('current_class', '')  # Fixed: use 'current_class' not 'current_class_name'
-        return f"{current_module}.{current_class}"
+        # Match original exactly: return 'current_class' directly
+        return context.get('current_class')
 
 
 class ImportStrategy(BaseStrategy):
@@ -175,32 +157,30 @@ class ImportStrategy(BaseStrategy):
         self.recon_data = recon_data
     
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
+        # Check import map first - this is the primary resolution mechanism
         import_map = context.get('import_map', {})
-        
-        # First check direct import map
         if base_name in import_map:
             return True
-            
-        # Don't automatically resolve external references - be more conservative
-        # Only resolve if we have explicit evidence
-        return self._has_explicit_external_reference(base_name)
+        
+        # Only check external libraries if not in import map
+        # Be more selective to prevent spurious resolutions
+        return self._is_known_external_reference(base_name)
     
     def resolve(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:
+        # Try import map first (most reliable)
         import_map = context.get('import_map', {})
-        
-        # Try direct import map first
         if base_name in import_map:
             return import_map[base_name]
         
-        # Only try external resolution if explicitly available
-        return self._resolve_external(base_name)
+        # Only try external if we have strong evidence
+        return self._resolve_known_external(base_name)
     
-    def _has_explicit_external_reference(self, name: str) -> bool:
-        """Check if name has explicit external library reference."""
+    def _is_known_external_reference(self, name: str) -> bool:
+        """Check if name is a known external library reference with strong evidence."""
         external_classes = self.recon_data.get("external_classes", {})
         external_functions = self.recon_data.get("external_functions", {})
         
-        # Only resolve if we have an exact alias match
+        # Check for exact alias matches in external data
         for ext_info in external_classes.values():
             if ext_info.get("local_alias") == name:
                 return True
@@ -211,8 +191,8 @@ class ImportStrategy(BaseStrategy):
         
         return False
     
-    def _resolve_external(self, name: str) -> Optional[str]:
-        """Resolve external library reference."""
+    def _resolve_known_external(self, name: str) -> Optional[str]:
+        """Resolve external library reference with strong evidence."""
         external_classes = self.recon_data.get("external_classes", {})
         external_functions = self.recon_data.get("external_functions", {})
         
@@ -221,7 +201,7 @@ class ImportStrategy(BaseStrategy):
             if ext_info.get("local_alias") == name:
                 return ext_fqn
         
-        # Check external functions
+        # Check external functions  
         for ext_fqn, ext_info in external_functions.items():
             if ext_info.get("local_alias") == name:
                 return ext_fqn
@@ -236,7 +216,7 @@ class ModuleStrategy(BaseStrategy):
         super().__init__("Module")
     
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
-        # Be more conservative - only resolve if we have clear module context
+        # This is the fallback - it can always attempt resolution if we have a module
         current_module = context.get('current_module', '')
         return bool(current_module)
     
@@ -266,7 +246,7 @@ class AttributeResolver:
         if not base_fqn:
             return None
         
-        # Build the full attribute chain - be more conservative about chain building
+        # Build the full attribute chain
         return f"{base_fqn}.{'.'.join(remaining_parts)}"
     
     def _resolve_base_name(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:

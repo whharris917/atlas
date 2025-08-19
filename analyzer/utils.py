@@ -67,8 +67,9 @@ def discover_python_files() -> List[pathlib.Path]:
     return python_files
 
 
-def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> None:
-    """Generate final JSON report."""
+def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any], 
+                        implementation: str = "unknown", resolver: str = "unknown") -> None:
+    """Generate final JSON report with dynamic filename."""
     print("=== GENERATING JSON REPORT ===")
 
     final_report = {
@@ -76,7 +77,10 @@ def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> N
         "atlas": atlas
     }
 
-    output_file = pathlib.Path("code_atlas_report.json")
+    # Generate dynamic filename based on implementation and resolver
+    filename = f"code_atlas_report_{implementation}_{resolver}.json"
+    output_file = pathlib.Path(filename)
+    
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(final_report, f, indent=2, ensure_ascii=False)

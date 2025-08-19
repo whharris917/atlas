@@ -221,7 +221,7 @@ def main() -> None:
         elif not args.quiet:
             print("Generating report...")
         
-        generate_json_report(recon_data, atlas)
+        generate_json_report(recon_data, atlas, args.implementation, resolver_choice)
 
         if not args.quiet:
             print("=== CODE ATLAS GENERATION COMPLETE ===")
