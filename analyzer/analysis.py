@@ -14,7 +14,7 @@ from .resolver import NameResolver
 from .type_inference import TypeInferenceEngine
 from .symbol_table import SymbolTableManager
 from .code_checker import CodeStandardChecker
-from .utils import LOG_LEVEL, EXTERNAL_LIBRARY_ALLOWLIST, log_violation, ViolationType
+from .utils import EXTERNAL_LIBRARY_ALLOWLIST, log_violation, ViolationType
 
 
 class AnalysisVisitor(ast.NodeVisitor):
@@ -49,8 +49,9 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def log(self, message: str, indent: int = 0, level: int = 1):
         """Output formatted log messages with level control."""
-        if level <= LOG_LEVEL:
-            print("  " * indent + message)
+        # For now, keep the old print statements to avoid breaking everything
+        # We'll migrate this to the new logging system in the next step
+        print("  " * indent + message)
     
     def _get_context(self) -> Dict[str, Any]:
         """Get current resolution context."""
@@ -69,7 +70,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         
         if cache_key in self.resolution_cache:
             cached_result = self.resolution_cache[cache_key]
-            if LOG_LEVEL >= 2:
+            if True:  # Temporarily removed LOG_LEVEL check
                 print(f"    [CACHE] {'.'.join(name_parts)} -> {cached_result} (cached)")
             return cached_result
         

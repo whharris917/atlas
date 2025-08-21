@@ -1,14 +1,16 @@
 """
 Utilities and Configuration - Code Atlas
 
-Contains shared constants, helper functions for logging, file discovery,
-report generation, and version validation.
+Contains shared constants, helper functions for file discovery,
+report generation, and version validation. Logging moved to dedicated logger module.
 """
 
 import json
 import pathlib
 import sys
 from typing import Dict, List, Any
+
+from .logger import get_logger, create_context, AnalysisPhase
 
 # --- Configuration Constants ---
 
@@ -21,10 +23,7 @@ EXTERNAL_LIBRARY_ALLOWLIST = {
     'uuid'
 }
 
-LOG_LEVEL = 3  # 0=minimal, 1=normal, 2=verbose, 3=debug
-
-
-# --- Helper Classes and Functions ---
+# --- Helper Classes ---
 
 class ViolationType:
     """Code standard violation types for enhanced logging."""
@@ -34,23 +33,21 @@ class ViolationType:
     MISSING_CLASS_ANNOTATION = "MISSING_CLASS_ANNOTATION"
 
 
-def log_violation(violation_type: str, details: str, impact: str, indent: int = 3):
-    """Log code standard violations with impact assessment."""
-    if LOG_LEVEL >= 1:
-        print("  " * indent + f"[CODE_STANDARD_VIOLATION] {violation_type}: {details}")
-        print("  " * indent + f"[IMPACT] {impact}")
-        print("  " * indent + f"[ACTION_REQUIRED] Add appropriate type annotation")
-
-
-def set_log_level(level: int) -> None:
-    """Set logging level: 0=minimal, 1=normal, 2=verbose, 3=debug"""
-    global LOG_LEVEL
-    LOG_LEVEL = level
-    print(f"Log level set to {level}")
+def log_violation(violation_type: str, details: str, impact: str, context_module: str = "code_checker"):
+    """Log code standard violations with impact assessment using centralized logger."""
+    logger = get_logger()
+    context = create_context(context_module, AnalysisPhase.ANALYSIS, "violation_check")
+    
+    logger.warning(f"CODE VIOLATION [{violation_type}]: {details}", context)
+    logger.info(f"Impact: {impact}", context.with_indent(1))
+    logger.info("Action Required: Add appropriate type annotation", context.with_indent(1))
 
 
 def discover_python_files() -> List[pathlib.Path]:
     """Discover Python files in current directory."""
+    logger = get_logger()
+    context = create_context("utils", AnalysisPhase.DISCOVERY, "discover_files")
+    
     current_dir = pathlib.Path.cwd()
     script_name = "atlas.py"
 
@@ -59,17 +56,19 @@ def discover_python_files() -> List[pathlib.Path]:
         if py_file.name != script_name:
             python_files.append(py_file)
     
-    # Also discover files in subdirectories if needed (optional)
-    # for py_file in current_dir.rglob("*.py"):
-    #     if py_file.name != script_name:
-    #         python_files.append(py_file)
+    logger.debug(f"Discovered {len(python_files)} Python files in {current_dir}", context)
+    for py_file in python_files:
+        logger.trace(f"Found: {py_file.name}", context.with_indent(1))
 
     return python_files
 
 
 def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> None:
     """Generate final JSON report."""
-    print("=== GENERATING JSON REPORT ===")
+    logger = get_logger()
+    context = create_context("utils", AnalysisPhase.REPORTING, "generate_report")
+    
+    logger.info("Generating JSON report", context)
 
     final_report = {
         "recon_data": recon_data,
@@ -77,22 +76,29 @@ def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> N
     }
 
     output_file = pathlib.Path("code_atlas_report.json")
+    
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(final_report, f, indent=2, ensure_ascii=False)
 
-        print(f"Report successfully written to: {output_file}")
-        print(f"Report size: {output_file.stat().st_size} bytes")
+        file_size = output_file.stat().st_size
+        logger.info(f"Report successfully written to: {output_file}", context)
+        logger.debug(f"Report size: {file_size} bytes", context)
 
     except Exception as e:
-        print(f"ERROR: Failed to write JSON report: {e}")
+        logger.error(f"Failed to write JSON report: {e}", context)
         sys.exit(1)
 
 
 def validate_python_version() -> None:
     """Validate Python version requirements."""
+    logger = get_logger()
+    context = create_context("utils", AnalysisPhase.VALIDATION, "version_check")
+    
     if sys.version_info < (3, 9):
-        print("ERROR: This script requires Python 3.9 or newer")
-        print(f"Current version: {sys.version}")
-        print("Please upgrade Python and try again.")
+        logger.error(f"This script requires Python 3.9 or newer", context)
+        logger.error(f"Current version: {sys.version}", context)
+        logger.error("Please upgrade Python and try again.", context)
         sys.exit(1)
+    else:
+        logger.debug(f"Python version check passed: {sys.version}", context)
