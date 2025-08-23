@@ -9,6 +9,7 @@ like SocketIO emits.
 import ast
 import pathlib
 from typing import Dict, List, Any, Optional
+import inspect
 
 from .resolver import NameResolver
 from .type_inference import TypeInferenceEngine
@@ -29,7 +30,7 @@ def _analysis_context(module_name: str, function: str = None, **extra) -> LogCon
 
 
 class AnalysisVisitor(ast.NodeVisitor):
-    """Clean analysis visitor focused on traversal and reporting with SocketIO emit detection, intermediate chain tracking, and external library support."""
+    """Enhanced analysis visitor with automatic source tracking and verbose context."""
     
     def __init__(self, recon_data: Dict[str, Any], module_name: str):
         self.recon_data = recon_data
@@ -59,7 +60,28 @@ class AnalysisVisitor(ast.NodeVisitor):
         }
     
     def _log(self, level: LogLevel, message: str, **extra):
-        """Log with automatic context generation."""
+        """Enhanced log with automatic source detection and correct module tracking."""
+        # Automatically determine source function using inspect - ALWAYS works
+        try:
+            source_frame = inspect.currentframe().f_back
+            source_method_name = source_frame.f_code.co_name
+            source_function = f"AnalysisVisitor.{source_method_name}"
+        except Exception as e:
+            # This should never happen, but just in case
+            source_function = f"AnalysisVisitor.unknown_error_{str(e)}"
+        
+        # Extract class name from current_class if available
+        class_name = None
+        if self.current_class:
+            # Convert "module.ClassName" to just "ClassName"
+            class_name = self.current_class.split('.')[-1]
+        
+        # Extract function name from current_function_fqn if available  
+        function_name = None
+        if self.current_function_fqn:
+            # Convert "module.Class.method" or "module.function" to just "method"/"function"
+            function_name = self.current_function_fqn.split('.')[-1]
+        
         logger_method = {
             LogLevel.ERROR: get_logger(__name__).error,
             LogLevel.WARNING: get_logger(__name__).warning,
@@ -68,8 +90,18 @@ class AnalysisVisitor(ast.NodeVisitor):
             LogLevel.TRACE: get_logger(__name__).trace
         }[level]
         
-        logger_method(message, context=_analysis_context(self.module_name, self.current_function_fqn, **extra))
-    
+        # Create context with EXPLICIT values - no defaults that could be wrong
+        context = LogContext(
+            module=self.module_name,        # EXPLICIT: The module being analyzed  
+            phase=AnalysisPhase.ANALYSIS,   # EXPLICIT: Always ANALYSIS phase
+            function=function_name,         # EXPLICIT: Function being analyzed (or None)
+            class_name=class_name,          # EXPLICIT: Class being analyzed (or None)  
+            source=source_function,         # EXPLICIT: Atlas method that logged this
+            **extra
+        )
+        
+        logger_method(message, context=context)
+
     def _get_context(self) -> Dict[str, Any]:
         """Get current resolution context."""
         return {

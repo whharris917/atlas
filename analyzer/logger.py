@@ -1,12 +1,16 @@
+# Complete enhanced logger.py implementation
+# analyzer/logger.py
+
 """
 Enhanced Logging System - Code Atlas
 
-Centralized logging with structured output, configurable levels,
-and context-aware formatting for better debugging and maintenance.
+Centralized logging with highly verbose structured output, automatic source detection,
+and comprehensive context tracking for detailed debugging visibility.
 """
 
 import logging
 import sys
+import inspect
 from enum import Enum, auto
 from typing import Optional, Dict, Any, List
 from pathlib import Path
@@ -33,38 +37,86 @@ class AnalysisPhase(Enum):
 
 
 class LogContext:
-    """Context information for structured logging."""
+    """Enhanced context information for highly verbose structured logging."""
     
     def __init__(
             self, 
-            module: str = "atlas", 
+            module: str = None,  # FIXED: No default "atlas" value
             phase: Optional[AnalysisPhase] = None, 
             function: Optional[str] = None, 
             file_name: Optional[str] = None,
+            class_name: Optional[str] = None,
+            source: Optional[str] = None,
             extra: Optional[Dict[str, Any]] = None
         ):
         self.module = module
         self.phase = phase
         self.function = function
         self.file_name = file_name
+        self.class_name = class_name
+        self.source = source
         self.extra = extra or {}
         self.indent_level = 0
     
     def with_indent(self, level: int) -> 'LogContext':
         """Create new context with different indent level."""
-        new_context = LogContext(self.module, self.phase, self.function, self.file_name, self.extra)
+        new_context = LogContext(
+            self.module, 
+            self.phase, 
+            self.function, 
+            self.file_name, 
+            self.class_name,
+            self.source,
+            self.extra
+        )
         new_context.indent_level = level
         return new_context
     
     def with_function(self, function: str) -> 'LogContext':
         """Create new context with different function."""
-        new_context = LogContext(self.module, self.phase, function, self.file_name, self.extra)
+        new_context = LogContext(
+            self.module, 
+            self.phase, 
+            function, 
+            self.file_name, 
+            self.class_name,
+            self.source,
+            self.extra
+        )
+        new_context.indent_level = self.indent_level
+        return new_context
+    
+    def with_class(self, class_name: str) -> 'LogContext':
+        """Create new context with different class."""
+        new_context = LogContext(
+            self.module, 
+            self.phase, 
+            self.function, 
+            self.file_name, 
+            class_name,
+            self.source,
+            self.extra
+        )
+        new_context.indent_level = self.indent_level
+        return new_context
+    
+    def with_source(self, source: str) -> 'LogContext':
+        """Create new context with different source function."""
+        new_context = LogContext(
+            self.module, 
+            self.phase, 
+            self.function, 
+            self.file_name, 
+            self.class_name,
+            source,
+            self.extra
+        )
         new_context.indent_level = self.indent_level
         return new_context
 
 
 class AtlasLogger:
-    """Centralized logger for Code Atlas with structured output."""
+    """Enhanced centralized logger with highly verbose context formatting."""
     
     def __init__(
             self, 
@@ -135,7 +187,7 @@ class AtlasLogger:
             context: LogContext,
             extra_data: Optional[Dict[str, Any]] = None
         ) -> str:
-        """Format log message with context and styling."""
+        """Enhanced format with highly verbose context breakdown - all fields always shown."""
         parts = []
         
         # Timestamp
@@ -152,24 +204,27 @@ class AtlasLogger:
         # Level text
         parts.append(f"[{level.name}]")
         
-        # Context information
+        # Enhanced context information - ALL FIELDS ALWAYS SHOWN
         if self.show_context:
-            context_parts = []
+            # Phase - show even if None
+            phase_value = context.phase.name if context.phase else "None"
+            parts.append(f"[phase:{phase_value}]")
             
-            if context.module:
-                context_parts.append(f"module:{context.module}")
+            # Module - show even if None
+            module_value = context.module if context.module else "None"
+            parts.append(f"[module:{module_value}]")
             
-            if context.phase:
-                context_parts.append(f"phase:{context.phase.name}")
+            # Class - show even if None
+            class_value = context.class_name if context.class_name else "None"
+            parts.append(f"[class:{class_value}]")
             
-            if context.function:
-                context_parts.append(f"func:{context.function}")
+            # Function - show even if None
+            function_value = context.function if context.function else "None"
+            parts.append(f"[function:{function_value}]")
             
-            if context.file_name:
-                context_parts.append(f"file:{context.file_name}")
-            
-            if context_parts:
-                parts.append(f"[{' '.join(context_parts)}]")
+            # Source - Atlas function generating this log, show even if None
+            source_value = context.source if context.source else "None"
+            parts.append(f"[source:{source_value}]")
         
         # Indentation
         indent = "  " * context.indent_level
@@ -283,60 +338,27 @@ class AtlasLogger:
         self._log(LogLevel.TRACE, message, ctx, extra_data)
     
     def section_header(self, title: str, context: Optional[LogContext] = None):
-        """Log section header."""
+        """Log section header with visual formatting."""
         ctx = context or LogContext()
-        
-        if self.use_emojis:
-            header = f"🚀 === {title.upper()} ==="
-        else:
-            header = f"=== {title.upper()} ==="
-        
-        self.info(header, ctx)
+        header = f"{'=' * 20} {title} {'=' * 20}"
+        self._log(LogLevel.INFO, header, ctx)
     
     def section_footer(self, title: str, context: Optional[LogContext] = None):
-        """Log section footer."""
+        """Log section footer with visual formatting."""
         ctx = context or LogContext()
-        
-        if self.use_emojis:
-            footer = f"✅ === {title.upper()} COMPLETE ==="
-        else:
-            footer = f"=== {title.upper()} COMPLETE ==="
-        
-        self.info(footer, ctx)
+        footer = f"{'=' * (42 + len(title))}"
+        self._log(LogLevel.INFO, footer, ctx)
     
     def progress(self, current: int, total: int, operation: str, context: Optional[LogContext] = None):
-        """Log progress message."""
+        """Log progress information."""
         ctx = context or LogContext()
         percentage = (current / total) * 100 if total > 0 else 0
-        
-        if self.use_emojis:
-            progress_msg = f"⏳ Progress: {operation} ({current}/{total} - {percentage:.1f}%)"
-        else:
-            progress_msg = f"Progress: {operation} ({current}/{total} - {percentage:.1f}%)"
-        
-        self.info(progress_msg, ctx)
-    
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get logging statistics."""
-        return self.statistics.copy()
-    
-    def close(self):
-        """Close file handle if open."""
-        if self.file_handle:
-            self.file_handle.close()
-            self.file_handle = None
+        progress_msg = f"Progress: {current}/{total} ({percentage:.1f}%) - {operation}"
+        self._log(LogLevel.INFO, progress_msg, ctx)
 
 
 # Global logger instance
 _logger: Optional[AtlasLogger] = None
-
-
-def get_logger(module_name: str = "atlas") -> AtlasLogger:
-    """Get or create the global logger instance."""
-    global _logger
-    if _logger is None:
-        _logger = AtlasLogger()
-    return _logger
 
 
 def configure_logger(
@@ -346,9 +368,16 @@ def configure_logger(
         show_context: bool = True,
         use_emojis: bool = True
     ) -> AtlasLogger:
-    """Configure the global logger."""
+    """Configure and return the global logger instance."""
     global _logger
     _logger = AtlasLogger(level, output_file, show_timestamps, show_context, use_emojis)
+    return _logger
+
+
+def get_logger(module_name: str = __name__) -> AtlasLogger:
+    """Get the global logger instance."""
+    if _logger is None:
+        configure_logger()
     return _logger
 
 
@@ -356,10 +385,30 @@ def create_context(
         module: str, 
         phase: Optional[AnalysisPhase] = None,
         function: Optional[str] = None, 
-        file_name: Optional[str] = None
+        file_name: Optional[str] = None,
+        class_name: Optional[str] = None,
+        source: Optional[str] = None
     ) -> LogContext:
-    """Create a logging context."""
-    return LogContext(module, phase, function, file_name)
+    """Create a comprehensive logging context."""
+    return LogContext(module, phase, function, file_name, class_name, source)
+
+
+def _analysis_context(
+        module_name: str, 
+        function: str = None, 
+        class_name: str = None,
+        source: str = None,
+        **extra
+) -> LogContext:
+    """Create standardized analysis context with enhanced details."""
+    return LogContext(
+        module=module_name,
+        phase=AnalysisPhase.ANALYSIS,
+        function=function,
+        class_name=class_name,
+        source=source,
+        **extra
+    )
 
 
 # Convenience functions for common logging patterns
