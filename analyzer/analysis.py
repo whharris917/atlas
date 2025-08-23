@@ -15,7 +15,17 @@ from .type_inference import TypeInferenceEngine
 from .symbol_table import SymbolTableManager
 from .code_checker import CodeStandardChecker
 from .utils import EXTERNAL_LIBRARY_ALLOWLIST
-from .logger import get_logger, LogContext, AnalysisPhase
+from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+
+
+def _analysis_context(module_name: str, function: str = None, **extra) -> LogContext:
+    """Create standardized analysis context to eliminate repetitive LogContext creation."""
+    return LogContext(
+        module=module_name,
+        phase=AnalysisPhase.ANALYSIS,
+        function=function,
+        **extra
+    )
 
 
 class AnalysisVisitor(ast.NodeVisitor):
@@ -48,6 +58,18 @@ class AnalysisVisitor(ast.NodeVisitor):
             "module_state": []
         }
     
+    def _log(self, level: LogLevel, message: str, **extra):
+        """Log with automatic context generation."""
+        logger_method = {
+            LogLevel.ERROR: get_logger(__name__).error,
+            LogLevel.WARNING: get_logger(__name__).warning,
+            LogLevel.INFO: get_logger(__name__).info,
+            LogLevel.DEBUG: get_logger(__name__).debug,
+            LogLevel.TRACE: get_logger(__name__).trace
+        }[level]
+        
+        logger_method(message, context=_analysis_context(self.module_name, self.current_function_fqn, **extra))
+    
     def _get_context(self) -> Dict[str, Any]:
         """Get current resolution context."""
         return {
@@ -65,8 +87,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         
         if cache_key in self.resolution_cache:
             cached_result = self.resolution_cache[cache_key]
-            get_logger(__name__).trace(f"Cache hit: {'.'.join(name_parts)} -> {cached_result}", 
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+            self._log(LogLevel.TRACE, f"Cache hit: {'.'.join(name_parts)} -> {cached_result}")
             return cached_result
         
         result = self.name_resolver.resolve_name(name_parts, context)
@@ -80,18 +101,12 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def _log_code_violation(self, violation_type: str, details: str, impact: str):
         """Log code standard violations using centralized logging."""
-        get_logger(__name__).warning(f"Code violation - {violation_type}: {details}",
-                      context=LogContext(
-                          module=self.module_name,
-                          phase=AnalysisPhase.ANALYSIS,
-                          function=self.current_function_fqn,
-                          extra={'impact': impact, 'violation_type': violation_type}
-                      ))
+        self._log(LogLevel.WARNING, f"Code violation - {violation_type}: {details}",
+                  extra={'impact': impact, 'violation_type': violation_type})
     
     def visit_Module(self, node: ast.Module):
         """Process module."""
-        get_logger(__name__).info(f"Starting module analysis: {self.module_name}",
-                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+        self._log(LogLevel.INFO, f"Starting module analysis: {self.module_name}")
         
         if (node.body and isinstance(node.body[0], ast.Expr) and 
             isinstance(node.body[0].value, ast.Constant) and 
@@ -101,16 +116,14 @@ class AnalysisVisitor(ast.NodeVisitor):
         self.generic_visit(node)
         self.module_report["imports"] = self.import_map.copy()
         
-        get_logger(__name__).info(f"Module analysis complete: {self.module_name}",
-                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+        self._log(LogLevel.INFO, f"Module analysis complete: {self.module_name}")
     
     def visit_Import(self, node: ast.Import):
         """Process imports."""
         for alias in node.names:
             key = alias.asname if alias.asname else alias.name
             self.import_map[key] = alias.name
-            get_logger(__name__).debug(f"Import: {key} -> {alias.name}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+            self._log(LogLevel.DEBUG, f"Import: {key} -> {alias.name}")
     
     def visit_ImportFrom(self, node: ast.ImportFrom):
         """Process from imports."""
@@ -118,14 +131,12 @@ class AnalysisVisitor(ast.NodeVisitor):
             for alias in node.names:
                 key = alias.asname if alias.asname else alias.name
                 self.import_map[key] = f"{node.module}.{alias.name}"
-                get_logger(__name__).debug(f"From import: {key} -> {node.module}.{alias.name}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+                self._log(LogLevel.DEBUG, f"From import: {key} -> {node.module}.{alias.name}")
     
     def visit_ClassDef(self, node: ast.ClassDef):
         """Process class definitions."""
         class_fqn = f"{self.module_name}.{node.name}"
-        get_logger(__name__).debug(f"Analyzing class: {node.name}",
-                    context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+        self._log(LogLevel.DEBUG, f"Analyzing class: {node.name}")
         
         class_report = {
             "name": node.name,
@@ -152,8 +163,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         """Process function definitions and handle nested functions properly."""
         if not self.current_class:
             # Top-level function
-            get_logger(__name__).debug(f"Analyzing function: {node.name}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+            self._log(LogLevel.DEBUG, f"Analyzing function: {node.name}")
             function_report = self._analyze_function(node)
             self.module_report["functions"].append(function_report)
         elif not self.current_function_report:
@@ -162,9 +172,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             # This will be handled by visit_ClassDef
         else:
             # Nested function - process within current function context
-            get_logger(__name__).trace(f"Analyzing nested function: {node.name}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                         function=self.current_function_fqn))
+            self._log(LogLevel.TRACE, f"Analyzing nested function: {node.name}")
             self.symbol_manager.enter_nested_scope()
             try:
                 # Populate symbol table from nested function arguments
@@ -182,8 +190,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         else:
             function_fqn = f"{self.module_name}.{node.name}"
         
-        get_logger(__name__).debug(f"Starting function analysis: {function_fqn}",
-                    context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+        self._log(LogLevel.DEBUG, f"Starting function analysis: {function_fqn}")
         
         function_report = {
             "name": node.name,
@@ -206,9 +213,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             try:
                 decorator_str = f"@{ast.unparse(decorator)}"
                 function_report["decorators"].append(decorator_str)
-                get_logger(__name__).trace(f"Decorator found: {decorator_str}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=function_fqn))
+                self._log(LogLevel.TRACE, f"Decorator found: {decorator_str}")
             except Exception:
                 pass
         
@@ -236,26 +241,21 @@ class AnalysisVisitor(ast.NodeVisitor):
         if not function_report.get("emit_contexts"):
             function_report.pop("emit_contexts", None)
         
-        get_logger(__name__).debug(f"Function analysis complete: {function_fqn} - "
+        self._log(LogLevel.DEBUG, f"Function analysis complete: {function_fqn} - "
                     f"Calls: {len(function_report['calls'])}, "
                     f"Instantiations: {len(function_report['instantiations'])}, "
-                    f"State Access: {len(function_report['accessed_state'])}",
-                    context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+                    f"State Access: {len(function_report['accessed_state'])}")
         
         emit_count = len(function_report.get("emit_contexts", {}))
         if emit_count > 0:
-            get_logger(__name__).info(f"SocketIO emits detected: {emit_count}",
-                       context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                        function=function_fqn))
+            self._log(LogLevel.INFO, f"SocketIO emits detected: {emit_count}")
         
         return function_report
     
     def _populate_symbols_from_args(self, args: ast.arguments):
         """Populate symbol table from function arguments with violation checking and parameter type lookup."""
         context = self._get_context()
-        get_logger(__name__).trace(f"Processing {len(args.args)} function arguments",
-                    context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                     function=self.current_function_fqn))
+        self._log(LogLevel.TRACE, f"Processing {len(args.args)} function arguments")
         
         # Try to get parameter types from recon_data if available
         param_types_from_recon = {}
@@ -263,9 +263,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             func_info = self.recon_data["functions"][self.current_function_fqn]
             param_types_from_recon = func_info.get("param_types", {})
             if param_types_from_recon:
-                get_logger(__name__).trace(f"Found parameter types in recon data: {param_types_from_recon}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, f"Found parameter types in recon data: {param_types_from_recon}")
         
         for arg in args.args:
             if arg.arg == 'self':
@@ -276,30 +274,20 @@ class AnalysisVisitor(ast.NodeVisitor):
                 try:
                     type_parts = self.name_resolver.extract_name_parts(arg.annotation)
                     if type_parts:
-                        get_logger(__name__).trace(f"Processing type annotation for {arg.arg}: {'.'.join(type_parts)}",
-                                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                    function=self.current_function_fqn))
+                        self._log(LogLevel.TRACE, f"Processing type annotation for {arg.arg}: {'.'.join(type_parts)}")
                         resolved_type = self._cached_resolve_name(type_parts, context)
                         if resolved_type:
                             self.symbol_manager.update_variable_type(arg.arg, resolved_type)
-                            get_logger(__name__).trace(f"Resolved parameter {arg.arg} : {resolved_type}",
-                                       context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                        function=self.current_function_fqn))
+                            self._log(LogLevel.TRACE, f"Resolved parameter {arg.arg} : {resolved_type}")
                         else:
-                            get_logger(__name__).warning(f"Could not resolve type annotation for parameter '{arg.arg}'",
-                                         context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                          function=self.current_function_fqn,
-                                                          extra={'impact': 'Method calls on this parameter may fail'}))
+                            self._log(LogLevel.WARNING, f"Could not resolve type annotation for parameter '{arg.arg}'",
+                                         extra={'impact': 'Method calls on this parameter may fail'})
                 except Exception as e:
-                    get_logger(__name__).error(f"Error processing type for {arg.arg}: {e}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.ERROR, f"Error processing type for {arg.arg}: {e}")
             elif arg.arg in param_types_from_recon:
                 # No direct annotation but we have type info from recon
                 param_type_str = param_types_from_recon[arg.arg]
-                get_logger(__name__).trace(f"Using recon data type for {arg.arg}: {param_type_str}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, f"Using recon data type for {arg.arg}: {param_type_str}")
                 
                 try:
                     # Parse the type string and resolve it
@@ -310,39 +298,27 @@ class AnalysisVisitor(ast.NodeVisitor):
                         resolved_type = self._cached_resolve_name(type_parts, context)
                         if resolved_type:
                             self.symbol_manager.update_variable_type(arg.arg, resolved_type)
-                            get_logger(__name__).trace(f"Resolved parameter {arg.arg} : {resolved_type} (from recon)",
-                                       context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                        function=self.current_function_fqn))
+                            self._log(LogLevel.TRACE, f"Resolved parameter {arg.arg} : {resolved_type} (from recon)")
                         else:
                             # Fallback to the original string
                             self.symbol_manager.update_variable_type(arg.arg, param_type_str)
-                            get_logger(__name__).trace(f"Fallback parameter {arg.arg} : {param_type_str} (from recon)",
-                                       context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                        function=self.current_function_fqn))
+                            self._log(LogLevel.TRACE, f"Fallback parameter {arg.arg} : {param_type_str} (from recon)")
                     else:
                         # Simple type, use as-is
                         self.symbol_manager.update_variable_type(arg.arg, param_type_str)
-                        get_logger(__name__).trace(f"Simple parameter {arg.arg} : {param_type_str} (from recon)",
-                                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                    function=self.current_function_fqn))
+                        self._log(LogLevel.TRACE, f"Simple parameter {arg.arg} : {param_type_str} (from recon)")
                 except Exception as e:
-                    get_logger(__name__).error(f"Error processing recon type for {arg.arg}: {e}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.ERROR, f"Error processing recon type for {arg.arg}: {e}")
                     # Still use the string as fallback
                     self.symbol_manager.update_variable_type(arg.arg, param_type_str)
             else:
                 # Missing type hint and no recon data
-                get_logger(__name__).trace(f"No type hint or recon data for parameter '{arg.arg}'",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, f"No type hint or recon data for parameter '{arg.arg}'")
     
     def _visit_with_nested_handling(self, node: ast.AST):
         """Handle nested functions properly."""
         if isinstance(node, ast.FunctionDef) and self.current_function_report:
-            get_logger(__name__).trace(f"Analyzing nested function: {node.name}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                         function=self.current_function_fqn))
+            self._log(LogLevel.TRACE, f"Analyzing nested function: {node.name}")
             self.symbol_manager.enter_nested_scope()
             try:
                 self._populate_symbols_from_args(node.args)
@@ -361,21 +337,15 @@ class AnalysisVisitor(ast.NodeVisitor):
         try:
             name_parts = self.name_resolver.extract_name_parts(node.func)
             if not name_parts:
-                get_logger(__name__).trace("Could not extract name parts from call",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, "Could not extract name parts from call")
                 return
             
             raw_name = ".".join(name_parts)
-            get_logger(__name__).trace(f"Found call: {raw_name}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                         function=self.current_function_fqn))
+            self._log(LogLevel.TRACE, f"Found call: {raw_name}")
             
             # Check if this is a built-in that should be ignored
             if len(name_parts) == 1 and name_parts[0] in ['print', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple', 'range', 'enumerate', 'zip', 'all', 'any', 'max', 'min', 'sum', 'abs', 'round', 'sorted']:
-                get_logger(__name__).trace(f"Ignored built-in function: {raw_name}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, f"Ignored built-in function: {raw_name}")
                 self.generic_visit(node)
                 return
             
@@ -389,73 +359,51 @@ class AnalysisVisitor(ast.NodeVisitor):
                 self._track_intermediate_chain_calls(name_parts, context, resolved_fqn)
             
             if resolved_fqn:
-                get_logger(__name__).trace(f"Resolved call: {raw_name} -> {resolved_fqn}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, f"Resolved call: {raw_name} -> {resolved_fqn}")
                 
                 # **ENHANCED EMIT DETECTION**: Check for emit calls with comprehensive patterns
                 is_emit_call = self._is_emit_call(resolved_fqn, name_parts, raw_name)
                 
                 if is_emit_call:
                     self._handle_emit_call(node, resolved_fqn)
-                    get_logger(__name__).info(f"SocketIO emit detected: {resolved_fqn}",
-                              context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                               function=self.current_function_fqn))
+                    self._log(LogLevel.INFO, f"SocketIO emit detected: {resolved_fqn}")
                 # Handle instantiations
                 elif resolved_fqn in self.recon_data["classes"]:
                     if resolved_fqn not in self.current_function_report["instantiations"]:
                         self.current_function_report["instantiations"].append(resolved_fqn)
-                    get_logger(__name__).debug(f"Class instantiation: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.DEBUG, f"Class instantiation: {resolved_fqn}")
                 # Handle external class instantiations
                 elif resolved_fqn in self.recon_data.get("external_classes", {}):
                     if resolved_fqn not in self.current_function_report["instantiations"]:
                         self.current_function_report["instantiations"].append(resolved_fqn)
-                    get_logger(__name__).debug(f"External class instantiation: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.DEBUG, f"External class instantiation: {resolved_fqn}")
                 # Handle function calls
                 elif resolved_fqn in self.recon_data["functions"]:
                     self._add_unique_call(resolved_fqn)
-                    get_logger(__name__).debug(f"Function call: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.DEBUG, f"Function call: {resolved_fqn}")
                 # Handle external function calls
                 elif resolved_fqn in self.recon_data.get("external_functions", {}):
                     self._add_unique_call(resolved_fqn)
-                    get_logger(__name__).debug(f"External function call: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.DEBUG, f"External function call: {resolved_fqn}")
                 # Handle external library calls from old allowlist (for backward compatibility)
                 elif any(resolved_fqn.startswith(lib) for lib in EXTERNAL_LIBRARY_ALLOWLIST):
                     self._add_unique_call(resolved_fqn)
-                    get_logger(__name__).debug(f"External library call: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.DEBUG, f"External library call: {resolved_fqn}")
                 else:
-                    get_logger(__name__).trace(f"Call not in catalog: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.TRACE, f"Call not in catalog: {resolved_fqn}")
             else:
-                get_logger(__name__).trace(f"Could not resolve call: {raw_name}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, f"Could not resolve call: {raw_name}")
                 
                 # **FALLBACK EMIT DETECTION**: Check for emit patterns even when resolution fails
                 if self._is_emit_call_fallback(name_parts, raw_name):
-                    get_logger(__name__).info(f"Unresolved SocketIO emit detected: {raw_name}",
-                              context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                               function=self.current_function_fqn))
+                    self._log(LogLevel.INFO, f"Unresolved SocketIO emit detected: {raw_name}")
                     self._handle_emit_call(node, raw_name)  # Use raw name if we can't resolve
             
             # Check for function arguments
             self._process_function_arguments(node)
         
         except Exception as e:
-            get_logger(__name__).error(f"Error processing call: {e}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                         function=self.current_function_fqn))
+            self._log(LogLevel.ERROR, f"Error processing call: {e}")
         
         self.generic_visit(node)
     
@@ -513,9 +461,7 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def _track_intermediate_chain_calls(self, name_parts: List[str], context: Dict[str, Any], final_resolved_fqn: str):
         """Track intermediate method calls in complex chains - FIXED VERSION."""
-        get_logger(__name__).trace(f"Tracking intermediate chain calls for: {'.'.join(name_parts)}",
-                    context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                     function=self.current_function_fqn))
+        self._log(LogLevel.TRACE, f"Tracking intermediate chain calls for: {'.'.join(name_parts)}")
         
         # Only track intermediate calls if we have a multi-part chain
         if len(name_parts) <= 1:
@@ -534,9 +480,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             partial_resolved = self._cached_resolve_name(partial_chain, context)
             
             if partial_resolved and partial_resolved != final_resolved_fqn:
-                get_logger(__name__).trace(f"Intermediate chain step {i}: {partial_name} -> {partial_resolved}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.TRACE, f"Intermediate chain step {i}: {partial_name} -> {partial_resolved}")
                 
                 # Check if this is a function/method call (not just an attribute access)
                 if (partial_resolved in self.recon_data["functions"] or
@@ -544,9 +488,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                     # Only add if not already captured
                     if partial_resolved not in self.current_function_report["calls"]:
                         self._add_unique_call(partial_resolved)
-                        get_logger(__name__).debug(f"Intermediate call added: {partial_resolved}",
-                                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                    function=self.current_function_fqn))
+                        self._log(LogLevel.DEBUG, f"Intermediate call added: {partial_resolved}")
                 
                 # Update context for next step using return type if available
                 if i < len(name_parts) - 1:  # Don't update for the last step
@@ -565,15 +507,11 @@ class AnalysisVisitor(ast.NodeVisitor):
                     if resolved_type_fqn:
                         # Update symbol table for next resolution step
                         self.symbol_manager.update_variable_type(base_name, resolved_type_fqn)
-                        get_logger(__name__).trace(f"Updated chain context: {base_name} -> {resolved_type_fqn}",
-                                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                    function=self.current_function_fqn))
+                        self._log(LogLevel.TRACE, f"Updated chain context: {base_name} -> {resolved_type_fqn}")
     
     def _handle_emit_call(self, node: ast.Call, resolved_fqn: str):
         """Handle special emit methods for event name extraction."""
-        get_logger(__name__).debug(f"Processing SocketIO emit call: {resolved_fqn}",
-                    context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                     function=self.current_function_fqn))
+        self._log(LogLevel.DEBUG, f"Processing SocketIO emit call: {resolved_fqn}")
         
         # Extract event name from first argument
         event_name = None
@@ -610,9 +548,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                 self.current_function_report["emit_contexts"] = {}
             self.current_function_report["emit_contexts"][context_key] = emit_context
         
-        get_logger(__name__).trace(f"Emit details - Event: {event_name}, Context: {emit_context}",
-                    context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                     function=self.current_function_fqn))
+        self._log(LogLevel.TRACE, f"Emit details - Event: {event_name}, Context: {emit_context}")
     
     def _process_function_arguments(self, node: ast.Call):
         """Process function arguments for function references."""
@@ -624,9 +560,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                 if (arg_fqn and (arg_fqn in self.recon_data["functions"] or
                                arg_fqn in self.recon_data.get("external_functions", {}))):
                     self._add_unique_call(arg_fqn)
-                    get_logger(__name__).trace(f"Function argument reference: {arg_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.TRACE, f"Function argument reference: {arg_fqn}")
     
     def visit_Name(self, node: ast.Name):
         """Process name references for state access."""
@@ -642,18 +576,12 @@ class AnalysisVisitor(ast.NodeVisitor):
                 if not self.symbol_manager.get_variable_type(node.id):
                     if resolved_fqn not in self.current_function_report["accessed_state"]:
                         self.current_function_report["accessed_state"].append(resolved_fqn)
-                    get_logger(__name__).debug(f"State access: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.DEBUG, f"State access: {resolved_fqn}")
                 else:
-                    get_logger(__name__).trace(f"Name {node.id} shadowed by local variable",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.TRACE, f"Name {node.id} shadowed by local variable")
         
         except Exception as e:
-            get_logger(__name__).error(f"Error processing name reference {node.id}: {e}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                         function=self.current_function_fqn))
+            self._log(LogLevel.ERROR, f"Error processing name reference {node.id}: {e}")
         
         self.generic_visit(node)
     
@@ -679,18 +607,12 @@ class AnalysisVisitor(ast.NodeVisitor):
                 if not self.symbol_manager.get_variable_type(base_name):
                     if resolved_fqn not in self.current_function_report["accessed_state"]:
                         self.current_function_report["accessed_state"].append(resolved_fqn)
-                    get_logger(__name__).debug(f"Attribute state access: {resolved_fqn}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.DEBUG, f"Attribute state access: {resolved_fqn}")
                 else:
-                    get_logger(__name__).trace(f"Attribute base {base_name} shadowed by local variable",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.TRACE, f"Attribute base {base_name} shadowed by local variable")
         
         except Exception as e:
-            get_logger(__name__).error(f"Error processing attribute access: {e}",
-                        context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                         function=self.current_function_fqn))
+            self._log(LogLevel.ERROR, f"Error processing attribute access: {e}")
         
         self.generic_visit(node)
     
@@ -706,8 +628,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                             "value": ast.unparse(node.value) if node.value else "None"
                         }
                         self.module_report["module_state"].append(state_entry)
-                        get_logger(__name__).debug(f"Module state assignment: {target.id} = {state_entry['value']}",
-                                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+                        self._log(LogLevel.DEBUG, f"Module state assignment: {target.id} = {state_entry['value']}")
                     except Exception:
                         pass
         elif self.current_function_report:
@@ -721,21 +642,13 @@ class AnalysisVisitor(ast.NodeVisitor):
                             var_type = self.type_inference.infer_from_call(node.value, self.name_resolver, context)
                             if var_type:
                                 self.symbol_manager.update_variable_type(target.id, var_type)
-                                get_logger(__name__).trace(f"Variable assignment with type inference: {target.id} = {var_type}",
-                                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                            function=self.current_function_fqn))
+                                self._log(LogLevel.TRACE, f"Variable assignment with type inference: {target.id} = {var_type}")
                             else:
-                                get_logger(__name__).trace(f"Could not infer type for assignment: {target.id}",
-                                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                            function=self.current_function_fqn))
+                                self._log(LogLevel.TRACE, f"Could not infer type for assignment: {target.id}")
                         else:
-                            get_logger(__name__).trace(f"Non-call assignment: {target.id}",
-                                       context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                        function=self.current_function_fqn))
+                            self._log(LogLevel.TRACE, f"Non-call assignment: {target.id}")
                     except Exception as e:
-                        get_logger(__name__).error(f"Error processing assignment for {target.id}: {e}",
-                                   context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                    function=self.current_function_fqn))
+                        self._log(LogLevel.ERROR, f"Error processing assignment for {target.id}: {e}")
         
         self.generic_visit(node)
     
@@ -750,34 +663,25 @@ class AnalysisVisitor(ast.NodeVisitor):
                 }
                 self.module_report["module_state"].append(state_entry)
                 annotation_str = ast.unparse(node.annotation) if node.annotation else 'Unknown'
-                get_logger(__name__).debug(f"Module annotated assignment: {node.target.id} : {annotation_str} = {state_entry['value']}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS))
+                self._log(LogLevel.DEBUG, f"Module annotated assignment: {node.target.id} : {annotation_str} = {state_entry['value']}")
             except Exception:
                 pass
         elif self.current_function_report and isinstance(node.target, ast.Name):
             try:
                 if node.annotation:
                     annotation_str = ast.unparse(node.annotation)
-                    get_logger(__name__).trace(f"Annotated assignment: {node.target.id} : {annotation_str}",
-                               context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                function=self.current_function_fqn))
+                    self._log(LogLevel.TRACE, f"Annotated assignment: {node.target.id} : {annotation_str}")
                     context = self._get_context()
                     type_parts = self.name_resolver.extract_name_parts(node.annotation)
                     if type_parts:
                         resolved_type = self._cached_resolve_name(type_parts, context)
                         if resolved_type:
                             self.symbol_manager.update_variable_type(node.target.id, resolved_type)
-                            get_logger(__name__).trace(f"Symbol table updated: {node.target.id} : {resolved_type}",
-                                       context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                        function=self.current_function_fqn))
+                            self._log(LogLevel.TRACE, f"Symbol table updated: {node.target.id} : {resolved_type}")
                         else:
-                            get_logger(__name__).warning(f"Could not resolve type annotation: {annotation_str}",
-                                         context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                                          function=self.current_function_fqn))
+                            self._log(LogLevel.WARNING, f"Could not resolve type annotation: {annotation_str}")
             except Exception as e:
-                get_logger(__name__).error(f"Error processing annotated assignment: {e}",
-                           context=LogContext(module=self.module_name, phase=AnalysisPhase.ANALYSIS,
-                                            function=self.current_function_fqn))
+                self._log(LogLevel.ERROR, f"Error processing annotated assignment: {e}")
         
         self.generic_visit(node)
 
@@ -785,13 +689,13 @@ class AnalysisVisitor(ast.NodeVisitor):
 def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute analysis pass with clean architecture and external library support."""
     get_logger(__name__).info("Starting analysis pass",
-               context=LogContext(phase=AnalysisPhase.ANALYSIS))
+               context=_analysis_context("analysis"))
     
     atlas = {}
     
     for py_file in python_files:
         get_logger(__name__).info(f"Analyzing file: {py_file.name}",
-                   context=LogContext(phase=AnalysisPhase.ANALYSIS, file_name=py_file.name))
+                   context=_analysis_context("analysis", file_name=py_file.name))
         
         try:
             source_code = py_file.read_text(encoding='utf-8')
@@ -803,11 +707,11 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             
             atlas[py_file.name] = visitor.module_report
             get_logger(__name__).info(f"File analysis complete: {py_file.name}",
-                       context=LogContext(phase=AnalysisPhase.ANALYSIS, file_name=py_file.name))
+                       context=_analysis_context("analysis", file_name=py_file.name))
         
         except Exception as e:
             get_logger(__name__).error(f"Failed to analyze {py_file.name}: {e}",
-                        context=LogContext(phase=AnalysisPhase.ANALYSIS, file_name=py_file.name))
+                        context=_analysis_context("analysis", file_name=py_file.name))
             atlas[py_file.name] = {
                 "file_path": py_file.name,
                 "module_docstring": None,
@@ -819,6 +723,6 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             continue
     
     get_logger(__name__).info("Analysis pass complete",
-               context=LogContext(phase=AnalysisPhase.ANALYSIS))
+               context=_analysis_context("analysis"))
     
     return atlas
