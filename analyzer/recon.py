@@ -6,12 +6,13 @@ which catalogs all definitions (classes, functions, etc.) in the project.
 """
 
 import ast
+import inspect
 import pathlib
 from typing import Dict, List, Any, Optional
 
 from .type_inference import TypeInferenceEngine
 from .utils import EXTERNAL_LIBRARY_ALLOWLIST
-from .logger import create_context, AnalysisPhase, log_info, log_debug, log_trace, log_section_start, log_section_end
+from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
 
 
 class ReconVisitor(ast.NodeVisitor):
@@ -28,9 +29,24 @@ class ReconVisitor(ast.NodeVisitor):
         self.state = {}
         self.external_classes = {}  # Track external classes from imports
         self.external_functions = {}  # Track external functions from imports
+    
+    def _log(self, level: LogLevel, message: str, **extra):
+        """Consolidated logging with automatic source detection and context."""
+        try:
+            source_frame = inspect.currentframe().f_back
+            source_function = f"{self.__class__.__name__}.{source_frame.f_code.co_name}"
+        except Exception:
+            source_function = f"{self.__class__.__name__}.unknown"
         
-        # Logging context
-        self.log_context = create_context("recon", AnalysisPhase.RECONNAISSANCE, file_name=f"{module_name}.py")
+        context = LogContext(
+            module="recon",
+            phase=AnalysisPhase.RECONNAISSANCE,
+            source=source_function,
+            file_name=f"{self.module_name}.py",
+            **extra
+        )
+        
+        getattr(get_logger(__name__), level.name.lower())(message, context=context)
     
     def _is_camel_case(self, name: str) -> bool:
         """Check if a name follows CamelCase convention (likely a class)."""
@@ -49,7 +65,7 @@ class ReconVisitor(ast.NodeVisitor):
                     "name": imported_name,
                     "local_alias": local_name
                 }
-                log_debug(f"Added external class: {fqn} (alias: {local_name})", self.log_context.with_indent(1))
+                self._log(LogLevel.DEBUG, f"Added external class: {fqn} (alias: {local_name})")
             else:
                 # Likely a function
                 self.external_functions[fqn] = {
@@ -58,7 +74,7 @@ class ReconVisitor(ast.NodeVisitor):
                     "local_alias": local_name,
                     "return_type": None  # We don't know external function return types
                 }
-                log_debug(f"Added external function: {fqn} (alias: {local_name})", self.log_context.with_indent(1))
+                self._log(LogLevel.DEBUG, f"Added external function: {fqn} (alias: {local_name})")
     
     def visit_Import(self, node: ast.Import):
         """Process imports and extract external library items."""
@@ -66,15 +82,15 @@ class ReconVisitor(ast.NodeVisitor):
             # Handle direct module imports like: import threading
             if alias.name in EXTERNAL_LIBRARY_ALLOWLIST:
                 # For direct module imports, we'll handle them during name resolution
-                log_debug(f"Direct module import: {alias.name}", self.log_context.with_indent(1))
+                self._log(LogLevel.DEBUG, f"Direct module import: {alias.name}")
     
     def visit_ImportFrom(self, node: ast.ImportFrom):
         """Process from imports and extract external library items."""
         if node.module and node.module in EXTERNAL_LIBRARY_ALLOWLIST:
-            log_debug(f"Processing from {node.module}", self.log_context.with_indent(1))
+            self._log(LogLevel.DEBUG, f"Processing from {node.module}")
             for alias in node.names:
                 if alias.name == '*':
-                    log_debug(f"Warning: star import from {node.module} - cannot track individual items", self.log_context.with_indent(2))
+                    self._log(LogLevel.DEBUG, f"Warning: star import from {node.module} - cannot track individual items")
                     continue
                 
                 self._process_import(node.module, alias.name, alias.asname)
@@ -83,8 +99,7 @@ class ReconVisitor(ast.NodeVisitor):
         """Process class definitions with inheritance capture and attribute cataloging."""
         class_fqn = f"{self.module_name}.{node.name}"
         
-        class_context = self.log_context.with_function(f"visit_ClassDef:{node.name}")
-        log_debug(f"Processing class: {node.name}", class_context)
+        self._log(LogLevel.DEBUG, f"Processing class: {node.name}")
         
         # Capture inheritance information
         parent_classes = []
@@ -107,7 +122,7 @@ class ReconVisitor(ast.NodeVisitor):
                 pass
         
         if parent_classes:
-            log_debug(f"Found parent classes: {parent_classes}", class_context.with_indent(1))
+            self._log(LogLevel.DEBUG, f"Found parent classes: {parent_classes}")
         
         # Initialize attribute tracking for this class
         old_class = self.current_class
@@ -131,7 +146,7 @@ class ReconVisitor(ast.NodeVisitor):
             "attributes": self.current_class_attributes.copy()
         })
         
-        log_debug(f"Class {node.name} processed with {len(self.current_class_attributes)} attributes", class_context)
+        self._log(LogLevel.DEBUG, f"Class {node.name} processed with {len(self.current_class_attributes)} attributes")
         
         # Restore previous context
         self.current_class = old_class
@@ -144,14 +159,13 @@ class ReconVisitor(ast.NodeVisitor):
         else:
             fqn = f"{self.module_name}.{node.name}"
         
-        func_context = self.log_context.with_function(f"visit_FunctionDef:{node.name}")
-        log_trace(f"Processing function: {fqn}", func_context)
+        self._log(LogLevel.TRACE, f"Processing function: {fqn}")
         
         return_type = None
         if node.returns:
             try:
                 return_type = ast.unparse(node.returns)
-                log_trace(f"Found return type: {return_type}", func_context.with_indent(1))
+                self._log(LogLevel.TRACE, f"Found return type: {return_type}")
             except Exception:
                 pass
         
@@ -162,7 +176,7 @@ class ReconVisitor(ast.NodeVisitor):
                 try:
                     param_type = ast.unparse(arg.annotation)
                     param_types[arg.arg] = param_type
-                    log_trace(f"Parameter {arg.arg}: {param_type}", func_context.with_indent(1))
+                    self._log(LogLevel.TRACE, f"Parameter {arg.arg}: {param_type}")
                 except Exception:
                     pass
         
@@ -178,8 +192,7 @@ class ReconVisitor(ast.NodeVisitor):
     
     def _extract_init_attributes(self, init_node: ast.FunctionDef):
         """Extract class attribute assignments from __init__ method with parameter type inference."""
-        init_context = self.log_context.with_function("_extract_init_attributes")
-        log_debug("Analyzing __init__ method for attributes", init_context)
+        self._log(LogLevel.DEBUG, "Analyzing __init__ method for attributes")
         
         # First, extract parameter type hints from __init__ method
         param_types = {}
@@ -188,11 +201,11 @@ class ReconVisitor(ast.NodeVisitor):
                 try:
                     param_type = ast.unparse(arg.annotation)
                     param_types[arg.arg] = param_type
-                    log_trace(f"Parameter {arg.arg} has type hint: {param_type}", init_context.with_indent(1))
+                    self._log(LogLevel.TRACE, f"Parameter {arg.arg} has type hint: {param_type}")
                 except Exception as e:
-                    log_trace(f"Failed to extract type for {arg.arg}: {e}", init_context.with_indent(1))
+                    self._log(LogLevel.TRACE, f"Failed to extract type for {arg.arg}: {e}")
         
-        log_trace(f"Found {len(param_types)} parameter type hints", init_context)
+        self._log(LogLevel.TRACE, f"Found {len(param_types)} parameter type hints")
         
         for stmt in ast.walk(init_node):
             if isinstance(stmt, ast.Assign):
@@ -209,11 +222,11 @@ class ReconVisitor(ast.NodeVisitor):
                         if (isinstance(stmt.value, ast.Name) and 
                             stmt.value.id in param_types):
                             resolved_type = param_types[stmt.value.id]
-                            log_trace(f"{attr_name} = {stmt.value.id} : {resolved_type}", init_context.with_indent(1))
+                            self._log(LogLevel.TRACE, f"{attr_name} = {stmt.value.id} : {resolved_type}")
                         else:
                             # Fallback to value-based inference
                             resolved_type = self._infer_init_attribute_type(stmt.value)
-                            log_trace(f"{attr_name} inferred as: {resolved_type}", init_context.with_indent(1))
+                            self._log(LogLevel.TRACE, f"{attr_name} inferred as: {resolved_type}")
                         
                         self.current_class_attributes[attr_name] = {
                             "type": resolved_type or "Unknown"
@@ -231,7 +244,7 @@ class ReconVisitor(ast.NodeVisitor):
                     if stmt.annotation:
                         try:
                             type_annotation = ast.unparse(stmt.annotation)
-                            log_trace(f"{attr_name} : {type_annotation}", init_context.with_indent(1))
+                            self._log(LogLevel.TRACE, f"{attr_name} : {type_annotation}")
                         except Exception:
                             pass
                     
@@ -240,10 +253,10 @@ class ReconVisitor(ast.NodeVisitor):
                         if (stmt.value and isinstance(stmt.value, ast.Name) and 
                             stmt.value.id in param_types):
                             type_annotation = param_types[stmt.value.id]
-                            log_trace(f"{attr_name} from param {stmt.value.id} : {type_annotation}", init_context.with_indent(1))
+                            self._log(LogLevel.TRACE, f"{attr_name} from param {stmt.value.id} : {type_annotation}")
                         elif stmt.value:
                             type_annotation = self._infer_init_attribute_type(stmt.value)
-                            log_trace(f"{attr_name} inferred as: {type_annotation}", init_context.with_indent(1))
+                            self._log(LogLevel.TRACE, f"{attr_name} inferred as: {type_annotation}")
                     
                     self.current_class_attributes[attr_name] = {
                         "type": type_annotation or "Unknown"
@@ -306,7 +319,7 @@ class ReconVisitor(ast.NodeVisitor):
                         "type": inferred_type,
                         "inferred_from_value": bool(inferred_type)
                     }
-                    log_trace(f"State variable: {fqn} : {inferred_type}", self.log_context.with_indent(1))
+                    self._log(LogLevel.TRACE, f"State variable: {fqn} : {inferred_type}")
         else:
             # Class level assignments - class attributes
             for target in node.targets:
@@ -339,7 +352,7 @@ class ReconVisitor(ast.NodeVisitor):
                 "type": type_annotation,
                 "inferred_from_value": False
             }
-            log_trace(f"Annotated state: {fqn} : {type_annotation}", self.log_context.with_indent(1))
+            self._log(LogLevel.TRACE, f"Annotated state: {fqn} : {type_annotation}")
         elif self.current_class is not None:
             # Class level annotated assignment
             if isinstance(node.target, ast.Name):
@@ -370,9 +383,24 @@ class ReconVisitor(ast.NodeVisitor):
 
 def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
     """Execute reconnaissance pass with inheritance tracking, attribute cataloging, parameter type extraction, and external library support."""
-    main_context = create_context("recon", AnalysisPhase.RECONNAISSANCE, "run_reconnaissance_pass")
+    def _log(level: LogLevel, message: str, **extra):
+        """Consolidated logging for reconnaissance function."""
+        try:
+            source_frame = inspect.currentframe().f_back
+            source_function = f"run_reconnaissance_pass.{source_frame.f_code.co_name}" if source_frame else "run_reconnaissance_pass"
+        except Exception:
+            source_function = "run_reconnaissance_pass.unknown"
+        
+        context = LogContext(
+            module="recon",
+            phase=AnalysisPhase.RECONNAISSANCE,
+            source=source_function,
+            **extra
+        )
+        
+        getattr(get_logger(__name__), level.name.lower())(message, context=context)
     
-    log_section_start("RECONNAISSANCE PASS", main_context)
+    _log(LogLevel.INFO, "=== RECONNAISSANCE PASS ===")
     
     recon_data = {
         "classes": {},  # Internal classes
@@ -386,8 +414,7 @@ def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
     all_class_info = []
     
     for py_file in python_files:
-        file_context = main_context.with_function(f"analyze_file").with_indent(1)
-        log_info(f"Analyzing {py_file.name}", file_context)
+        _log(LogLevel.INFO, f"Analyzing {py_file.name}")
         
         try:
             source_code = py_file.read_text(encoding='utf-8')
@@ -403,28 +430,27 @@ def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
             recon_data["external_classes"].update(visitor.external_classes)
             recon_data["external_functions"].update(visitor.external_functions)
             
-            log_debug(f"Found {len(visitor.classes)} classes", file_context.with_indent(1))
-            log_debug(f"Found {len(visitor.functions)} functions/methods", file_context.with_indent(1))
-            log_debug(f"Found {len(visitor.state)} state variables", file_context.with_indent(1))
-            log_debug(f"Found {len(visitor.external_classes)} external classes", file_context.with_indent(1))
-            log_debug(f"Found {len(visitor.external_functions)} external functions", file_context.with_indent(1))
+            _log(LogLevel.DEBUG, f"Found {len(visitor.classes)} classes")
+            _log(LogLevel.DEBUG, f"Found {len(visitor.functions)} functions/methods")
+            _log(LogLevel.DEBUG, f"Found {len(visitor.state)} state variables")
+            _log(LogLevel.DEBUG, f"Found {len(visitor.external_classes)} external classes")
+            _log(LogLevel.DEBUG, f"Found {len(visitor.external_functions)} external functions")
         
         except Exception as e:
-            log_info(f"ERROR: Failed to analyze {py_file.name}: {e}", file_context.with_indent(1))
+            _log(LogLevel.INFO, f"ERROR: Failed to analyze {py_file.name}: {e}")
             continue
     
     # Now process inheritance relationships and include attributes
-    inheritance_context = main_context.with_function("process_inheritance").with_indent(1)
-    log_info("Processing inheritance relationships", inheritance_context)
+    _log(LogLevel.INFO, "Processing inheritance relationships")
     
     for class_info in all_class_info:
         class_fqn = class_info["fqn"]
         resolved_parents = []
         
-        log_debug(f"Processing {class_fqn} with parents: {class_info['parents']}", inheritance_context.with_indent(1))
+        _log(LogLevel.DEBUG, f"Processing {class_fqn} with parents: {class_info['parents']}")
         
         for parent in class_info["parents"]:
-            log_trace(f"Resolving parent: {parent}", inheritance_context.with_indent(2))
+            _log(LogLevel.TRACE, f"Resolving parent: {parent}")
             
             if "." not in parent:
                 module_name = class_fqn.split(".")[0]
@@ -432,22 +458,22 @@ def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
                 
                 if any(c["fqn"] == candidate for c in all_class_info):
                     resolved_parents.append(candidate)
-                    log_trace(f"Resolved to: {candidate}", inheritance_context.with_indent(3))
+                    _log(LogLevel.TRACE, f"Resolved to: {candidate}")
                 else:
                     # Search across all modules
                     found = False
                     for collected_class in all_class_info:
                         if collected_class["fqn"].endswith(f".{parent}"):
                             resolved_parents.append(collected_class["fqn"])
-                            log_trace(f"Resolved to: {collected_class['fqn']}", inheritance_context.with_indent(3))
+                            _log(LogLevel.TRACE, f"Resolved to: {collected_class['fqn']}")
                             found = True
                             break
                     if not found:
-                        log_trace(f"Could not resolve parent: {parent}", inheritance_context.with_indent(3))
+                        _log(LogLevel.TRACE, f"Could not resolve parent: {parent}")
             else:
                 # Already fully qualified
                 resolved_parents.append(parent)
-                log_trace(f"Already qualified: {parent}", inheritance_context.with_indent(3))
+                _log(LogLevel.TRACE, f"Already qualified: {parent}")
         
         recon_data["classes"][class_fqn] = {
             "parents": resolved_parents,
@@ -455,55 +481,53 @@ def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
         }
     
     # Generate summary
-    summary_context = main_context.with_function("generate_summary").with_indent(1)
-    log_info("Total project inventory:", summary_context)
-    log_info(f"Classes: {len(recon_data['classes'])}", summary_context.with_indent(1))
-    log_info(f"Functions/Methods: {len(recon_data['functions'])}", summary_context.with_indent(1))
-    log_info(f"State Variables: {len(recon_data['state'])}", summary_context.with_indent(1))
-    log_info(f"External Classes: {len(recon_data['external_classes'])}", summary_context.with_indent(1))
-    log_info(f"External Functions: {len(recon_data['external_functions'])}", summary_context.with_indent(1))
+    _log(LogLevel.INFO, "Total project inventory:")
+    _log(LogLevel.INFO, f"Classes: {len(recon_data['classes'])}")
+    _log(LogLevel.INFO, f"Functions/Methods: {len(recon_data['functions'])}")
+    _log(LogLevel.INFO, f"State Variables: {len(recon_data['state'])}")
+    _log(LogLevel.INFO, f"External Classes: {len(recon_data['external_classes'])}")
+    _log(LogLevel.INFO, f"External Functions: {len(recon_data['external_functions'])}")
     
     # Detailed catalog logging (debug level)
-    catalog_context = main_context.with_function("log_catalog").with_indent(1)
-    log_debug("RECONNAISSANCE CATALOG", catalog_context)
+    _log(LogLevel.DEBUG, "RECONNAISSANCE CATALOG")
     
-    log_debug("Classes with inheritance and attributes:", catalog_context.with_indent(1))
+    _log(LogLevel.DEBUG, "Classes with inheritance and attributes:")
     for class_fqn, class_info in recon_data["classes"].items():
         parents = class_info.get("parents", [])
         attributes = class_info.get("attributes", {})
         if parents:
-            log_debug(f"{class_fqn} extends {parents}", catalog_context.with_indent(2))
+            _log(LogLevel.DEBUG, f"{class_fqn} extends {parents}")
         else:
-            log_debug(f"{class_fqn}", catalog_context.with_indent(2))
+            _log(LogLevel.DEBUG, f"{class_fqn}")
         
         if attributes:
-            log_trace("Attributes:", catalog_context.with_indent(3))
+            _log(LogLevel.TRACE, "Attributes:")
             for attr_name, attr_info in attributes.items():
-                log_trace(f"{attr_name}: {attr_info.get('type', 'Unknown')}", catalog_context.with_indent(4))
+                _log(LogLevel.TRACE, f"{attr_name}: {attr_info.get('type', 'Unknown')}")
         else:
-            log_trace("No attributes detected", catalog_context.with_indent(3))
+            _log(LogLevel.TRACE, "No attributes detected")
     
-    log_debug("External Classes (from approved libraries):", catalog_context.with_indent(1))
+    _log(LogLevel.DEBUG, "External Classes (from approved libraries):")
     for ext_class_fqn, ext_info in recon_data["external_classes"].items():
-        log_debug(f"{ext_class_fqn} (alias: {ext_info['local_alias']}) from {ext_info['module']}", catalog_context.with_indent(2))
+        _log(LogLevel.DEBUG, f"{ext_class_fqn} (alias: {ext_info['local_alias']}) from {ext_info['module']}")
     
-    log_debug("External Functions (from approved libraries):", catalog_context.with_indent(1))
+    _log(LogLevel.DEBUG, "External Functions (from approved libraries):")
     for ext_func_fqn, ext_info in recon_data["external_functions"].items():
-        log_debug(f"{ext_func_fqn} (alias: {ext_info['local_alias']}) from {ext_info['module']}", catalog_context.with_indent(2))
+        _log(LogLevel.DEBUG, f"{ext_func_fqn} (alias: {ext_info['local_alias']}) from {ext_info['module']}")
     
-    log_debug("Functions/Methods with Parameter Types:", catalog_context.with_indent(1))
+    _log(LogLevel.DEBUG, "Functions/Methods with Parameter Types:")
     for func_fqn in sorted(recon_data["functions"].keys()):
         func_info = recon_data["functions"][func_fqn]
         return_type = func_info.get("return_type", "None")
         param_types = func_info.get("param_types", {})
         param_str = ", ".join([f"{name}: {ptype}" for name, ptype in param_types.items()]) if param_types else "no typed params"
-        log_trace(f"{func_fqn}({param_str}) -> {return_type}", catalog_context.with_indent(2))
+        _log(LogLevel.TRACE, f"{func_fqn}({param_str}) -> {return_type}")
     
-    log_debug("State Variables:", catalog_context.with_indent(1))
+    _log(LogLevel.DEBUG, "State Variables:")
     for state_fqn in sorted(recon_data["state"].keys()):
         state_info = recon_data["state"][state_fqn]
-        log_trace(f"{state_fqn} : {state_info.get('type', 'Unknown')} (inferred: {state_info.get('inferred_from_value', False)})", catalog_context.with_indent(2))
+        _log(LogLevel.TRACE, f"{state_fqn} : {state_info.get('type', 'Unknown')} (inferred: {state_info.get('inferred_from_value', False)})")
     
-    log_section_end("RECONNAISSANCE PASS", main_context)
+    _log(LogLevel.INFO, "=== RECONNAISSANCE PASS COMPLETE ===")
     
     return recon_data

@@ -2255,8 +2255,8 @@
         "inferred_from_value": true
       },
       "database_manager._connection_counter": {
-        "type": null,
-        "inferred_from_value": false
+        "type": "int",
+        "inferred_from_value": true
       },
       "database_manager.conn": {
         "type": "get_db_connection",
@@ -2307,8 +2307,8 @@
         "inferred_from_value": true
       },
       "event_validator.test_event_data": {
-        "type": null,
-        "inferred_from_value": false
+        "type": "dict",
+        "inferred_from_value": true
       },
       "event_validator.event_validation_result": {
         "type": "event_validator.validate_event",
@@ -2335,8 +2335,8 @@
         "inferred_from_value": true
       },
       "inheritence_complex.test_data": {
-        "type": null,
-        "inferred_from_value": false
+        "type": "dict",
+        "inferred_from_value": true
       },
       "inheritence_complex.result": {
         "type": "ultimate_processor.ultimate_process",
