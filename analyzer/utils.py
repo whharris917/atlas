@@ -8,9 +8,10 @@ report generation, and version validation.
 import json
 import pathlib
 import sys
+import inspect
 from typing import Dict, List, Any
 
-from .logger import get_logger, LogContext, AnalysisPhase
+from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
 
 # --- Configuration Constants ---
 
@@ -33,92 +34,111 @@ class ViolationType:
     MISSING_CLASS_ANNOTATION = "MISSING_CLASS_ANNOTATION"
 
 
+def _log(level: LogLevel, message: str, phase: AnalysisPhase = AnalysisPhase.DISCOVERY, **extra):
+    """Module-level consolidated logging for utils.py standalone functions."""
+    try:
+        source_frame = inspect.currentframe().f_back
+        source_function = f"utils.{source_frame.f_code.co_name}"
+    except Exception:
+        source_function = "utils.unknown"
+    
+    context = LogContext(
+        module="utils",
+        phase=phase,
+        source=source_function,
+        extra=extra
+    )
+    
+    getattr(get_logger(__name__), level.name.lower())(message, context=context)
+
+
 # --- Helper Functions ---
 
 def discover_python_files() -> List[pathlib.Path]:
     """Discover Python files in current directory."""
-    # Get logger fresh each time to ensure it uses current configuration
-    logger = get_logger(__name__)
     current_dir = pathlib.Path.cwd()
     script_name = "atlas.py"
 
-    get_logger(__name__).debug("Discovering Python files in current directory",
-                context=LogContext(phase=AnalysisPhase.DISCOVERY,
-                                 extra={'directory': str(current_dir)}))
+    _log(LogLevel.DEBUG, "Discovering Python files in current directory",
+         directory=str(current_dir))
 
     python_files = []
     for py_file in current_dir.glob("*.py"):
         if py_file.name != script_name:
             python_files.append(py_file)
-            get_logger(__name__).trace(f"Found Python file: {py_file.name}",
-                        context=LogContext(phase=AnalysisPhase.DISCOVERY))
+            _log(LogLevel.TRACE, f"Found Python file: {py_file.name}")
     
     # Also discover files in subdirectories if needed (optional)
     # for py_file in current_dir.rglob("*.py"):
     #     if py_file.name != script_name:
     #         python_files.append(py_file)
 
-    get_logger(__name__).info(f"Discovered {len(python_files)} Python files for analysis",
-               context=LogContext(phase=AnalysisPhase.DISCOVERY,
-                                extra={'file_count': len(python_files),
-                                       'excluded_script': script_name}))
+    _log(LogLevel.INFO, f"Discovered {len(python_files)} Python files for analysis",
+         file_count=len(python_files), excluded_script=script_name)
 
     return python_files
 
 
 def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> None:
     """Generate final JSON report."""
-    # Get logger fresh to ensure current configuration
-    logger = get_logger(__name__)
     
-    get_logger(__name__).info("Generating JSON report",
-               context=LogContext(phase=AnalysisPhase.REPORTING))
-
-    final_report = {
-        "recon_data": recon_data,
-        "atlas": atlas
+    _log(LogLevel.DEBUG, "Starting JSON report generation",
+         phase=AnalysisPhase.REPORTING)
+    
+    # Create comprehensive report structure
+    report = {
+        "metadata": {
+            "version": "2.1",
+            "generated_by": "Atlas Code Analysis Tool",
+            "analysis_phases": ["reconnaissance", "analysis"],
+            "features": [
+                "External Library Support", 
+                "SocketIO Detection", 
+                "Inheritance Analysis",
+                "Method Chain Tracking",
+                "Type Inference"
+            ]
+        },
+        "reconnaissance_data": recon_data,
+        "analysis_data": atlas
     }
 
-    output_file = pathlib.Path("code_atlas_report.json")
-    
     try:
+        output_file = "code_atlas_report.json"
         with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(final_report, f, indent=2, ensure_ascii=False)
-
-        file_size = output_file.stat().st_size
-        get_logger(__name__).info(f"Report successfully written: {output_file} ({file_size} bytes)",
-                   context=LogContext(phase=AnalysisPhase.REPORTING,
-                                    extra={'output_file': str(output_file),
-                                           'file_size_bytes': file_size}))
-
+            json.dump(report, f, indent=2, ensure_ascii=False)
+        
+        _log(LogLevel.INFO, f"Report generated successfully: {output_file}",
+             phase=AnalysisPhase.REPORTING, 
+             output_file=output_file,
+             report_size_kb=round(len(json.dumps(report)) / 1024, 2))
+        
     except Exception as e:
-        get_logger(__name__).error(f"Failed to write JSON report: {e}",
-                    context=LogContext(phase=AnalysisPhase.REPORTING,
-                                     extra={'output_file': str(output_file)}))
-        sys.exit(1)
+        _log(LogLevel.ERROR, f"Failed to generate report: {e}",
+             phase=AnalysisPhase.REPORTING, error=str(e))
+        raise
 
 
 def validate_python_version() -> None:
-    """Validate Python version requirements."""
-    # Get logger fresh to ensure current configuration
-    logger = get_logger(__name__)
+    """Validate Python version compatibility."""
     
-    required_version = (3, 9)
-    current_version = sys.version_info[:2]
+    _log(LogLevel.DEBUG, "Validating Python version compatibility")
     
-    get_logger(__name__).debug(f"Validating Python version: {current_version} >= {required_version}",
-                context=LogContext(phase=AnalysisPhase.VALIDATION,
-                                 extra={'current_version': current_version,
-                                        'required_version': required_version}))
+    required_major = 3
+    required_minor = 8
     
-    if current_version < required_version:
-        get_logger(__name__).error(f"Python version {current_version} is too old. Required: {required_version} or newer",
-                    context=LogContext(phase=AnalysisPhase.VALIDATION,
-                                     extra={'current_version_str': sys.version}))
-        get_logger(__name__).info("Please upgrade Python and try again",
-                   context=LogContext(phase=AnalysisPhase.VALIDATION))
-        sys.exit(1)
+    current_major = sys.version_info.major
+    current_minor = sys.version_info.minor
     
-    get_logger(__name__).info(f"Python version validation passed: {current_version}",
-               context=LogContext(phase=AnalysisPhase.VALIDATION,
-                                extra={'version_info': sys.version}))
+    current_version = f"{current_major}.{current_minor}"
+    required_version = f"{required_major}.{required_minor}"
+    
+    if current_major < required_major or (current_major == required_major and current_minor < required_minor):
+        error_msg = f"Python {required_version}+ required, but {current_version} found"
+        _log(LogLevel.ERROR, error_msg,
+             current_version=current_version,
+             required_version=required_version)
+        raise RuntimeError(error_msg)
+    
+    _log(LogLevel.TRACE, f"Python version validation passed: {current_version}",
+         version_check="passed", python_version=current_version)

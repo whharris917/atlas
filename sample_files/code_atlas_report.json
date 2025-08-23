@@ -1,5 +1,20 @@
 {
-  "recon_data": {
+  "metadata": {
+    "version": "2.1",
+    "generated_by": "Atlas Code Analysis Tool",
+    "analysis_phases": [
+      "reconnaissance",
+      "analysis"
+    ],
+    "features": [
+      "External Library Support",
+      "SocketIO Detection",
+      "Inheritance Analysis",
+      "Method Chain Tracking",
+      "Type Inference"
+    ]
+  },
+  "reconnaissance_data": {
     "classes": {
       "admin_manager.OperationType": {
         "parents": [],
@@ -2422,7 +2437,7 @@
       }
     }
   },
-  "atlas": {
+  "analysis_data": {
     "admin_manager.py": {
       "file_path": "admin_manager.py",
       "module_docstring": "\nAdmin management module for testing complex administrative operations.\nProvides mock admin functionality for testing decorator patterns and method chaining.\n",
