@@ -1,8 +1,0 @@
-[INFO] [phase:DISCOVERY] [module:atlas] [class:None] [function:main] [source:None] ==================== CODE ATLAS GENERATION ====================
-[INFO] [phase:DISCOVERY] [module:atlas] [class:None] [function:main] [source:None] Enhanced Python Project Analysis Tool
-[INFO] [phase:DISCOVERY] [module:atlas] [class:None] [function:main] [source:None] Features: External Library Support, SocketIO Detection, Inheritance Analysis
-[DEBUG] [phase:VALIDATION] [module:atlas] [class:None] [function:None] [source:None] Validating Python version: (3, 11) >= (3, 9)  (current_version=(3, 11) | required_version=(3, 9))
-[INFO] [phase:VALIDATION] [module:atlas] [class:None] [function:None] [source:None] Python version validation passed: (3, 11)  (version_info=3.11.13 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:03:15) [MSC v.1929 64 bit (AMD64)])
-[DEBUG] [phase:DISCOVERY] [module:atlas] [class:None] [function:None] [source:None] Discovering Python files in current directory  (directory=C:\Users\wilha\projects\PhoenixMegaproject\atlas)
-[INFO] [phase:DISCOVERY] [module:atlas] [class:None] [function:None] [source:None] Discovered 0 Python files for analysis  (file_count=0 | excluded_script=atlas.py)
-[ERROR] [phase:DISCOVERY] [module:atlas] [class:None] [function:main] [source:None] No Python files found in current directory
