@@ -125,8 +125,10 @@ def main() -> None:
         log_info("Analysis successful! Check 'code_atlas_report.json' for results.", context)
         
         # Print logging statistics if debug level or higher
+        """
         if logger.level.value >= LogLevel.DEBUG.value:
             logger.print_statistics()
+        """
 
     except KeyboardInterrupt:
         log_error("Operation cancelled by user", context)
