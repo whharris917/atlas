@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional
 
 from .type_inference import TypeInferenceEngine
 from .utils import EXTERNAL_LIBRARY_ALLOWLIST
-from .logger import get_logger, create_context, AnalysisPhase, log_info, log_debug, log_trace, log_section_start, log_section_end
+from .logger import create_context, AnalysisPhase, log_info, log_debug, log_trace, log_section_start, log_section_end
 
 
 class ReconVisitor(ast.NodeVisitor):
@@ -370,7 +370,6 @@ class ReconVisitor(ast.NodeVisitor):
 
 def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
     """Execute reconnaissance pass with inheritance tracking, attribute cataloging, parameter type extraction, and external library support."""
-    logger = get_logger()
     main_context = create_context("recon", AnalysisPhase.RECONNAISSANCE, "run_reconnaissance_pass")
     
     log_section_start("RECONNAISSANCE PASS", main_context)

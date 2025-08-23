@@ -10,8 +10,6 @@ from typing import Dict, List, Optional, Any
 
 from .logger import get_logger, LogContext, AnalysisPhase
 
-logger = get_logger(__name__)
-
 
 class ResolutionStrategy:
     """Base class for name resolution strategies."""
@@ -32,7 +30,7 @@ class LocalVariableStrategy(ResolutionStrategy):
         symbol_manager = context.get('symbol_manager')
         can_resolve = symbol_manager and symbol_manager.get_variable_type(base_name) is not None
         
-        logger.trace(f"LocalVariableStrategy.can_resolve({base_name}): {can_resolve}",
+        get_logger(__name__).trace(f"LocalVariableStrategy.can_resolve({base_name}): {can_resolve}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy': 'LocalVariable', 'variable': base_name}))
         return can_resolve
@@ -41,7 +39,7 @@ class LocalVariableStrategy(ResolutionStrategy):
         symbol_manager = context['symbol_manager']
         result = symbol_manager.get_variable_type(base_name)
         
-        logger.trace(f"LocalVariableStrategy.resolve({base_name}): {result}",
+        get_logger(__name__).trace(f"LocalVariableStrategy.resolve({base_name}): {result}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy': 'LocalVariable', 'variable': base_name, 'result': result}))
         return result
@@ -53,7 +51,7 @@ class SelfStrategy(ResolutionStrategy):
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
         can_resolve = base_name == "self" and context.get('current_class')
         
-        logger.trace(f"SelfStrategy.can_resolve({base_name}): {can_resolve}",
+        get_logger(__name__).trace(f"SelfStrategy.can_resolve({base_name}): {can_resolve}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy': 'Self', 'variable': base_name,
                                             'current_class': context.get('current_class')}))
@@ -62,7 +60,7 @@ class SelfStrategy(ResolutionStrategy):
     def resolve(self, base_name: str, context: Dict[str, Any]) -> Optional[str]:
         result = context['current_class']
         
-        logger.trace(f"SelfStrategy.resolve({base_name}): {result}",
+        get_logger(__name__).trace(f"SelfStrategy.resolve({base_name}): {result}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy': 'Self', 'variable': base_name, 'result': result}))
         return result
@@ -80,7 +78,7 @@ class ImportStrategy(ResolutionStrategy):
         can_resolve_external = self._can_resolve_external(base_name)
         can_resolve = can_resolve_import or can_resolve_external
         
-        logger.trace(f"ImportStrategy.can_resolve({base_name}): {can_resolve}",
+        get_logger(__name__).trace(f"ImportStrategy.can_resolve({base_name}): {can_resolve}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy': 'Import', 'variable': base_name,
                                             'import_available': can_resolve_import,
@@ -93,7 +91,7 @@ class ImportStrategy(ResolutionStrategy):
         # First try direct import map
         if base_name in import_map:
             result = import_map[base_name]
-            logger.trace(f"ImportStrategy.resolve({base_name}): {result} (from import map)",
+            get_logger(__name__).trace(f"ImportStrategy.resolve({base_name}): {result} (from import map)",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'strategy': 'Import', 'variable': base_name, 'result': result, 'source': 'import_map'}))
             return result
@@ -101,7 +99,7 @@ class ImportStrategy(ResolutionStrategy):
         # Then try external library resolution
         external_result = self._resolve_external(base_name)
         if external_result:
-            logger.trace(f"ImportStrategy.resolve({base_name}): {external_result} (external)",
+            get_logger(__name__).trace(f"ImportStrategy.resolve({base_name}): {external_result} (external)",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'strategy': 'Import', 'variable': base_name, 'result': external_result, 'source': 'external'}))
             return external_result
@@ -140,7 +138,7 @@ class ModuleStrategy(ResolutionStrategy):
     """Resolves names from current module (fallback)."""
     
     def can_resolve(self, base_name: str, context: Dict[str, Any]) -> bool:
-        logger.trace(f"ModuleStrategy.can_resolve({base_name}): True (fallback)",
+        get_logger(__name__).trace(f"ModuleStrategy.can_resolve({base_name}): True (fallback)",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy': 'Module', 'variable': base_name}))
         return True  # Always can try this as fallback
@@ -149,7 +147,7 @@ class ModuleStrategy(ResolutionStrategy):
         current_module = context.get('current_module', '')
         result = f"{current_module}.{base_name}"
         
-        logger.trace(f"ModuleStrategy.resolve({base_name}): {result}",
+        get_logger(__name__).trace(f"ModuleStrategy.resolve({base_name}): {result}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy': 'Module', 'variable': base_name, 'result': result}))
         return result
@@ -167,7 +165,7 @@ class NameResolver:
             ModuleStrategy()
         ]
         
-        logger.debug(f"Name resolver initialized with {len(self.strategies)} strategies",
+        get_logger(__name__).debug(f"Name resolver initialized with {len(self.strategies)} strategies",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'strategy_count': len(self.strategies),
                                             'recon_classes': len(recon_data.get("classes", {})),
@@ -178,12 +176,12 @@ class NameResolver:
     def resolve_name(self, name_parts: List[str], context: Dict[str, Any]) -> Optional[str]:
         """Resolve name using layered strategies with comprehensive logging."""
         if not name_parts:
-            logger.debug("Resolution failed: No name parts provided",
+            get_logger(__name__).debug("Resolution failed: No name parts provided",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS))
             return None
         
         name_str = '.'.join(name_parts)
-        logger.debug(f"Resolving name: {name_str}",
+        get_logger(__name__).debug(f"Resolving name: {name_str}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'name_parts': name_parts, 'parts_count': len(name_parts)}))
         
@@ -191,59 +189,59 @@ class NameResolver:
         if len(name_parts) == 1:
             result = self._resolve_simple(name_parts[0], context)
             if result:
-                logger.debug(f"Simple resolution successful: {name_str} -> {result}",
+                get_logger(__name__).debug(f"Simple resolution successful: {name_str} -> {result}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'resolution_type': 'simple', 'input': name_str, 'result': result}))
             else:
-                logger.debug(f"Simple resolution failed: {name_str}",
+                get_logger(__name__).debug(f"Simple resolution failed: {name_str}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'resolution_type': 'simple', 'input': name_str}))
             return result
         
         # Layer 2: Complex chain resolution
-        logger.trace(f"Complex chain resolution needed: {name_str}",
+        get_logger(__name__).trace(f"Complex chain resolution needed: {name_str}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'resolution_type': 'chain', 'input': name_str}))
         result = self._resolve_chain(name_parts, context)
         if result:
-            logger.debug(f"Chain resolution successful: {name_str} -> {result}",
+            get_logger(__name__).debug(f"Chain resolution successful: {name_str} -> {result}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'resolution_type': 'chain', 'input': name_str, 'result': result}))
         else:
-            logger.debug(f"Chain resolution failed: {name_str}",
+            get_logger(__name__).debug(f"Chain resolution failed: {name_str}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'resolution_type': 'chain', 'input': name_str}))
         return result
     
     def _resolve_simple(self, name: str, context: Dict[str, Any]) -> Optional[str]:
         """Resolve simple single name using strategies."""
-        logger.trace(f"Resolving simple name: {name}",
+        get_logger(__name__).trace(f"Resolving simple name: {name}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'resolution_method': 'simple', 'name': name}))
         
         for i, strategy in enumerate(self.strategies):
             strategy_name = strategy.__class__.__name__
-            logger.trace(f"Trying strategy {i+1}: {strategy_name}",
+            get_logger(__name__).trace(f"Trying strategy {i+1}: {strategy_name}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'strategy_index': i, 'strategy': strategy_name, 'name': name}))
             
             if strategy.can_resolve(name, context):
                 result = strategy.resolve(name, context)
                 if result and self._validate_resolution(result):
-                    logger.trace(f"Strategy {strategy_name} succeeded: {name} -> {result}",
+                    get_logger(__name__).trace(f"Strategy {strategy_name} succeeded: {name} -> {result}",
                                 context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                  extra={'successful_strategy': strategy_name, 'name': name, 'result': result}))
                     return result
                 else:
-                    logger.trace(f"Strategy {strategy_name} failed validation",
+                    get_logger(__name__).trace(f"Strategy {strategy_name} failed validation",
                                 context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                  extra={'failed_strategy': strategy_name, 'name': name, 'result': result}))
             else:
-                logger.trace(f"Strategy {strategy_name} cannot resolve {name}",
+                get_logger(__name__).trace(f"Strategy {strategy_name} cannot resolve {name}",
                             context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                              extra={'skipped_strategy': strategy_name, 'name': name}))
         
-        logger.trace(f"All strategies failed for: {name}",
+        get_logger(__name__).trace(f"All strategies failed for: {name}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'resolution_result': 'failed', 'name': name}))
         return None
@@ -252,34 +250,34 @@ class NameResolver:
         """Resolve complex attribute chains with enhanced attribute support."""
         # Resolve base
         base_name = name_parts[0]
-        logger.trace(f"Resolving chain base: {base_name}",
+        get_logger(__name__).trace(f"Resolving chain base: {base_name}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'chain_step': 'base', 'base_name': base_name, 'full_chain': name_parts}))
         
         base_fqn = self._resolve_simple(base_name, context)
         if not base_fqn:
-            logger.trace(f"Chain resolution failed: could not resolve base {base_name}",
+            get_logger(__name__).trace(f"Chain resolution failed: could not resolve base {base_name}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'chain_failure': 'base_resolution', 'base_name': base_name}))
             return None
         
-        logger.trace(f"Chain base resolved: {base_name} -> {base_fqn}",
+        get_logger(__name__).trace(f"Chain base resolved: {base_name} -> {base_fqn}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'base_name': base_name, 'base_fqn': base_fqn}))
         
         # Walk the chain
         current_fqn = base_fqn
         for i, attr in enumerate(name_parts[1:], 1):
-            logger.trace(f"Chain step {i}: Resolving {current_fqn}.{attr}",
+            get_logger(__name__).trace(f"Chain step {i}: Resolving {current_fqn}.{attr}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'chain_step': i, 'current_fqn': current_fqn, 'attr': attr}))
             current_fqn = self._resolve_attribute(current_fqn, attr, context)
             if not current_fqn:
-                logger.trace(f"Chain resolution failed at step {i}: .{attr}",
+                get_logger(__name__).trace(f"Chain resolution failed at step {i}: .{attr}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'chain_failure': 'attribute_resolution', 'step': i, 'attr': attr}))
                 return None
-            logger.trace(f"Chain step {i} resolved: {current_fqn}",
+            get_logger(__name__).trace(f"Chain step {i} resolved: {current_fqn}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'chain_step': i, 'resolved_fqn': current_fqn}))
         
@@ -288,35 +286,35 @@ class NameResolver:
     def _resolve_attribute(self, context_fqn: str, attr: str, context: Dict[str, Any]) -> Optional[str]:
         """Resolve attribute in context of given FQN with inheritance, attribute support, and external library support."""
         candidate = f"{context_fqn}.{attr}"
-        logger.trace(f"Resolving attribute: {context_fqn}.{attr}",
+        get_logger(__name__).trace(f"Resolving attribute: {context_fqn}.{attr}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'context_fqn': context_fqn, 'attr': attr, 'candidate': candidate}))
         
         # Check if context is a state variable - resolve through its type
         if context_fqn in self.recon_data["state"]:
-            logger.trace("Context is state variable, resolving through type",
+            get_logger(__name__).trace("Context is state variable, resolving through type",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'context_fqn': context_fqn, 'resolution_method': 'state_type'}))
             state_type = self._get_state_type(context_fqn)
             if state_type:
-                logger.trace(f"State type resolved: {state_type}",
+                get_logger(__name__).trace(f"State type resolved: {state_type}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'state_fqn': context_fqn, 'state_type': state_type}))
                 return self._resolve_attribute(state_type, attr, context)
             else:
-                logger.trace("Could not resolve state type",
+                get_logger(__name__).trace("Could not resolve state type",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'state_fqn': context_fqn}))
         
         # Check if context is an internal class - look for methods and attributes with inheritance
         if context_fqn in self.recon_data["classes"]:
-            logger.trace("Context is internal class, checking for method/attribute",
+            get_logger(__name__).trace("Context is internal class, checking for method/attribute",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'class_fqn': context_fqn, 'resolution_method': 'class_member'}))
             
             # First check direct method
             if candidate in self.recon_data["functions"]:
-                logger.trace(f"Found direct method: {candidate}",
+                get_logger(__name__).trace(f"Found direct method: {candidate}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'method_fqn': candidate, 'resolution_type': 'direct_method'}))
                 return candidate
@@ -327,39 +325,39 @@ class NameResolver:
             if attr in class_attributes:
                 attr_type = class_attributes[attr].get("type")
                 if attr_type and attr_type != "Unknown":
-                    logger.trace(f"Found class attribute: {attr} of type {attr_type}",
+                    get_logger(__name__).trace(f"Found class attribute: {attr} of type {attr_type}",
                                context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                 extra={'class_fqn': context_fqn, 'attr': attr, 'attr_type': attr_type}))
                     # Resolve the attribute type to its FQN
                     resolved_type = self._resolve_attribute_type(attr_type, context)
                     if resolved_type:
-                        logger.trace(f"Attribute type resolved to: {resolved_type}",
+                        get_logger(__name__).trace(f"Attribute type resolved to: {resolved_type}",
                                    context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                     extra={'attr_type': attr_type, 'resolved_type': resolved_type}))
                         return resolved_type
                     else:
-                        logger.trace(f"Could not resolve attribute type: {attr_type}",
+                        get_logger(__name__).trace(f"Could not resolve attribute type: {attr_type}",
                                    context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                     extra={'attr_type': attr_type}))
             
             # Then check inheritance chain
-            logger.trace("Checking inheritance for method/attribute",
+            get_logger(__name__).trace("Checking inheritance for method/attribute",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'class_fqn': context_fqn, 'attr': attr}))
             inherited_result = self._resolve_inherited_method_or_attribute(context_fqn, attr, context)
             if inherited_result:
-                logger.trace(f"Found in inheritance chain: {inherited_result}",
+                get_logger(__name__).trace(f"Found in inheritance chain: {inherited_result}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'class_fqn': context_fqn, 'attr': attr, 'inherited_result': inherited_result}))
                 return inherited_result
             
-            logger.trace("Method/attribute not found in class or inheritance chain",
+            get_logger(__name__).trace("Method/attribute not found in class or inheritance chain",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'class_fqn': context_fqn, 'attr': attr, 'candidate': candidate}))
         
         # Check if context is an external class
         elif context_fqn in self.recon_data.get("external_classes", {}):
-            logger.trace("Context is external class, checking for common methods",
+            get_logger(__name__).trace("Context is external class, checking for common methods",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'external_class_fqn': context_fqn, 'attr': attr}))
             
@@ -368,12 +366,12 @@ class NameResolver:
             
             # Special handling for known external library patterns
             if self._is_known_external_method(context_fqn, attr):
-                logger.trace(f"Found known external method: {external_method_fqn}",
+                get_logger(__name__).trace(f"Found known external method: {external_method_fqn}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'external_method': external_method_fqn, 'known_method': True}))
                 return external_method_fqn
             else:
-                logger.trace(f"Assuming external method exists: {external_method_fqn}",
+                get_logger(__name__).trace(f"Assuming external method exists: {external_method_fqn}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'external_method': external_method_fqn, 'assumed': True}))
                 return external_method_fqn
@@ -381,7 +379,7 @@ class NameResolver:
         # Check if context is a function - use return type
         if (context_fqn in self.recon_data["functions"] or 
             context_fqn in self.recon_data.get("external_functions", {})):
-            logger.trace("Context is function, using return type",
+            get_logger(__name__).trace("Context is function, using return type",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'function_fqn': context_fqn, 'resolution_method': 'return_type'}))
             
@@ -394,47 +392,47 @@ class NameResolver:
             if func_info:
                 return_type = func_info.get("return_type")
                 if return_type:
-                    logger.trace(f"Function return type: {return_type}",
+                    get_logger(__name__).trace(f"Function return type: {return_type}",
                                context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                 extra={'function_fqn': context_fqn, 'return_type': return_type}))
                     type_inference = context.get('type_inference')
                     if type_inference:
                         core_type = type_inference.extract_core_type(return_type)
                         if core_type:
-                            logger.trace(f"Core type extracted: {core_type}",
+                            get_logger(__name__).trace(f"Core type extracted: {core_type}",
                                        context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                         extra={'return_type': return_type, 'core_type': core_type}))
                             resolved_type = self._resolve_type_name(core_type, context)
                             if resolved_type:
-                                logger.trace(f"Type name resolved: {resolved_type}",
+                                get_logger(__name__).trace(f"Type name resolved: {resolved_type}",
                                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                             extra={'core_type': core_type, 'resolved_type': resolved_type}))
                                 return self._resolve_attribute(resolved_type, attr, context)
                             else:
-                                logger.trace("Could not resolve type name",
+                                get_logger(__name__).trace("Could not resolve type name",
                                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                             extra={'core_type': core_type}))
                         else:
-                            logger.trace("Could not extract core type",
+                            get_logger(__name__).trace("Could not extract core type",
                                        context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                         extra={'return_type': return_type}))
                     else:
-                        logger.trace("No type inference engine available",
+                        get_logger(__name__).trace("No type inference engine available",
                                    context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                     extra={'function_fqn': context_fqn}))
                 else:
-                    logger.trace("Function has no return type",
+                    get_logger(__name__).trace("Function has no return type",
                                context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                 extra={'function_fqn': context_fqn}))
         
         # Direct resolution
         if self._validate_resolution(candidate):
-            logger.trace(f"Direct resolution successful: {candidate}",
+            get_logger(__name__).trace(f"Direct resolution successful: {candidate}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'candidate': candidate, 'resolution_type': 'direct'}))
             return candidate
         
-        logger.trace("All attribute resolution attempts failed",
+        get_logger(__name__).trace("All attribute resolution attempts failed",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'context_fqn': context_fqn, 'attr': attr}))
         return None
@@ -457,12 +455,12 @@ class NameResolver:
     
     def _resolve_inherited_method_or_attribute(self, class_fqn: str, attr_name: str, context: Dict[str, Any]) -> Optional[str]:
         """Resolve method or attribute through inheritance chain."""
-        logger.trace(f"Checking inheritance chain for {class_fqn}.{attr_name}",
+        get_logger(__name__).trace(f"Checking inheritance chain for {class_fqn}.{attr_name}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'class_fqn': class_fqn, 'attr_name': attr_name}))
         
         if class_fqn not in self.recon_data["classes"]:
-            logger.trace(f"Class {class_fqn} not found in catalog",
+            get_logger(__name__).trace(f"Class {class_fqn} not found in catalog",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'class_fqn': class_fqn}))
             return None
@@ -470,19 +468,19 @@ class NameResolver:
         class_info = self.recon_data["classes"][class_fqn]
         parents = class_info.get("parents", [])
         
-        logger.trace(f"Parents of {class_fqn}: {parents}",
+        get_logger(__name__).trace(f"Parents of {class_fqn}: {parents}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'class_fqn': class_fqn, 'parents': parents}))
         
         for parent_fqn in parents:
             # Check for method in parent
             method_candidate = f"{parent_fqn}.{attr_name}"
-            logger.trace(f"Checking parent method: {method_candidate}",
+            get_logger(__name__).trace(f"Checking parent method: {method_candidate}",
                         context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                          extra={'parent_fqn': parent_fqn, 'method_candidate': method_candidate}))
             
             if method_candidate in self.recon_data["functions"]:
-                logger.trace(f"Found inherited method: {method_candidate}",
+                get_logger(__name__).trace(f"Found inherited method: {method_candidate}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'inherited_method': method_candidate}))
                 return method_candidate
@@ -494,7 +492,7 @@ class NameResolver:
                 if attr_name in parent_attributes:
                     attr_type = parent_attributes[attr_name].get("type")
                     if attr_type and attr_type != "Unknown":
-                        logger.trace(f"Found inherited attribute: {attr_name} of type {attr_type}",
+                        get_logger(__name__).trace(f"Found inherited attribute: {attr_name} of type {attr_type}",
                                    context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                                     extra={'parent_fqn': parent_fqn, 'attr_name': attr_name, 'attr_type': attr_type}))
                         resolved_type = self._resolve_attribute_type(attr_type, context)
@@ -504,12 +502,12 @@ class NameResolver:
             # Recursive check up the inheritance chain
             inherited = self._resolve_inherited_method_or_attribute(parent_fqn, attr_name, context)
             if inherited:
-                logger.trace(f"Found in grandparent: {inherited}",
+                get_logger(__name__).trace(f"Found in grandparent: {inherited}",
                            context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                             extra={'grandparent_result': inherited, 'parent_fqn': parent_fqn}))
                 return inherited
         
-        logger.trace(f"Method/attribute {attr_name} not found in inheritance chain",
+        get_logger(__name__).trace(f"Method/attribute {attr_name} not found in inheritance chain",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'class_fqn': class_fqn, 'attr_name': attr_name}))
         return None
@@ -597,7 +595,7 @@ class NameResolver:
                  fqn in self.recon_data.get("external_classes", {}) or
                  fqn in self.recon_data.get("external_functions", {}))
         
-        logger.trace(f"Validation check: {fqn} {'EXISTS' if exists else 'NOT_FOUND'}",
+        get_logger(__name__).trace(f"Validation check: {fqn} {'EXISTS' if exists else 'NOT_FOUND'}",
                     context=LogContext(phase=AnalysisPhase.ANALYSIS,
                                      extra={'fqn': fqn, 'exists': exists}))
         return exists

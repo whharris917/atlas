@@ -11,22 +11,20 @@ from typing import List
 from .utils import ViolationType
 from .logger import get_logger, LogContext, AnalysisPhase
 
-logger = get_logger(__name__)
-
 
 class CodeStandardChecker:
     """Detects and reports code standard violations during analysis."""
     
     def __init__(self):
         self.violation_count = 0
-        logger.debug("Code standard checker initialized",
+        get_logger(__name__).debug("Code standard checker initialized",
                     context=LogContext(phase=AnalysisPhase.VALIDATION))
     
     def check_function_type_hints(self, node: ast.FunctionDef, function_fqn: str) -> List[str]:
         """Check for missing type hints and report violations."""
         violations = []
         
-        logger.trace(f"Checking type hints for function: {function_fqn}",
+        get_logger(__name__).trace(f"Checking type hints for function: {function_fqn}",
                     context=LogContext(phase=AnalysisPhase.VALIDATION,
                                      function=function_fqn,
                                      extra={'arg_count': len(node.args.args)}))
@@ -60,7 +58,7 @@ class CodeStandardChecker:
             )
         
         if violations:
-            logger.info(f"Found {len(violations)} type hint violations in {function_fqn}",
+            get_logger(__name__).info(f"Found {len(violations)} type hint violations in {function_fqn}",
                        context=LogContext(phase=AnalysisPhase.VALIDATION,
                                         function=function_fqn,
                                         extra={'violation_count': len(violations),
@@ -68,7 +66,7 @@ class CodeStandardChecker:
                                                'missing_return_hint': not has_return_hint}))
             self.violation_count += len(violations)
         else:
-            logger.trace(f"No type hint violations found in {function_fqn}",
+            get_logger(__name__).trace(f"No type hint violations found in {function_fqn}",
                         context=LogContext(phase=AnalysisPhase.VALIDATION,
                                          function=function_fqn))
         
@@ -76,7 +74,7 @@ class CodeStandardChecker:
     
     def _log_violation(self, violation_type: str, details: str, impact: str, function_fqn: str) -> None:
         """Log code standard violations using centralized logging."""
-        logger.warning(f"Code violation - {violation_type}: {details}",
+        get_logger(__name__).warning(f"Code violation - {violation_type}: {details}",
                       context=LogContext(phase=AnalysisPhase.VALIDATION,
                                         function=function_fqn,
                                         extra={'violation_type': violation_type,
@@ -91,11 +89,11 @@ class CodeStandardChecker:
         }
         
         if self.violation_count > 0:
-            logger.info(f"Code standard checker summary: {self.violation_count} violations found",
+            get_logger(__name__).info(f"Code standard checker summary: {self.violation_count} violations found",
                        context=LogContext(phase=AnalysisPhase.VALIDATION,
                                         extra=summary))
         else:
-            logger.info("Code standard checker summary: No violations found",
+            get_logger(__name__).info("Code standard checker summary: No violations found",
                        context=LogContext(phase=AnalysisPhase.VALIDATION,
                                         extra=summary))
         

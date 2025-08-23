@@ -35,9 +35,14 @@ class AnalysisPhase(Enum):
 class LogContext:
     """Context information for structured logging."""
     
-    def __init__(self, module: str = "atlas", phase: Optional[AnalysisPhase] = None, 
-                 function: Optional[str] = None, file_name: Optional[str] = None,
-                 extra: Optional[Dict[str, Any]] = None):
+    def __init__(
+            self, 
+            module: str = "atlas", 
+            phase: Optional[AnalysisPhase] = None, 
+            function: Optional[str] = None, 
+            file_name: Optional[str] = None,
+            extra: Optional[Dict[str, Any]] = None
+        ):
         self.module = module
         self.phase = phase
         self.function = function
@@ -61,11 +66,14 @@ class LogContext:
 class AtlasLogger:
     """Centralized logger for Code Atlas with structured output."""
     
-    def __init__(self, level: LogLevel = LogLevel.INFO,
-                 output_file: Optional[Path] = None,
-                 show_timestamps: bool = False,
-                 show_context: bool = True,
-                 use_emojis: bool = True):
+    def __init__(
+            self, 
+            level: LogLevel = LogLevel.INFO,
+            output_file: Optional[Path] = None,
+            show_timestamps: bool = False,
+            show_context: bool = True,
+            use_emojis: bool = True
+        ):
         self.level = level
         self.output_file = output_file
         self.show_timestamps = show_timestamps
@@ -120,8 +128,13 @@ class AtlasLogger:
         }
         return emojis.get(phase, "")
     
-    def _format_message(self, level: LogLevel, message: str, context: LogContext,
-                       extra_data: Optional[Dict[str, Any]] = None) -> str:
+    def _format_message(
+            self, 
+            level: LogLevel, 
+            message: str, 
+            context: LogContext,
+            extra_data: Optional[Dict[str, Any]] = None
+        ) -> str:
         """Format log message with context and styling."""
         parts = []
         
@@ -186,8 +199,13 @@ class AtlasLogger:
             except Exception as e:
                 print(f"Warning: Could not write to log file: {e}")
     
-    def _log(self, level: LogLevel, message: str, context: LogContext,
-             extra_data: Optional[Dict[str, Any]] = None):
+    def _log(
+            self, 
+            level: LogLevel, 
+            message: str, 
+            context: LogContext,
+            extra_data: Optional[Dict[str, Any]] = None
+        ):
         """Internal logging method."""
         if not self._should_log(level):
             return
@@ -214,32 +232,52 @@ class AtlasLogger:
         formatted = self._format_message(level, message, context, merged_extra)
         self._output_message(formatted)
     
-    def error(self, message: str, context: Optional[LogContext] = None,
-              extra_data: Optional[Dict[str, Any]] = None):
+    def error(
+            self, 
+            message: str, 
+            context: Optional[LogContext] = None,
+            extra_data: Optional[Dict[str, Any]] = None
+        ):
         """Log error message."""
         ctx = context or LogContext()
         self._log(LogLevel.ERROR, message, ctx, extra_data)
     
-    def warning(self, message: str, context: Optional[LogContext] = None,
-                extra_data: Optional[Dict[str, Any]] = None):
+    def warning(
+            self, 
+            message: str, 
+            context: Optional[LogContext] = None,
+            extra_data: Optional[Dict[str, Any]] = None
+        ):
         """Log warning message."""
         ctx = context or LogContext()
         self._log(LogLevel.WARNING, message, ctx, extra_data)
     
-    def info(self, message: str, context: Optional[LogContext] = None,
-             extra_data: Optional[Dict[str, Any]] = None):
+    def info(
+            self, 
+            message: str, 
+            context: Optional[LogContext] = None,
+            extra_data: Optional[Dict[str, Any]] = None
+        ):
         """Log info message."""
         ctx = context or LogContext()
         self._log(LogLevel.INFO, message, ctx, extra_data)
     
-    def debug(self, message: str, context: Optional[LogContext] = None,
-              extra_data: Optional[Dict[str, Any]] = None):
+    def debug(
+            self, 
+            message: str, 
+            context: Optional[LogContext] = None,
+            extra_data: Optional[Dict[str, Any]] = None
+        ):
         """Log debug message."""
         ctx = context or LogContext()
         self._log(LogLevel.DEBUG, message, ctx, extra_data)
     
-    def trace(self, message: str, context: Optional[LogContext] = None,
-              extra_data: Optional[Dict[str, Any]] = None):
+    def trace(
+            self, 
+            message: str, 
+            context: Optional[LogContext] = None,
+            extra_data: Optional[Dict[str, Any]] = None
+        ):
         """Log trace message."""
         ctx = context or LogContext()
         self._log(LogLevel.TRACE, message, ctx, extra_data)
@@ -266,8 +304,7 @@ class AtlasLogger:
         
         self.info(footer, ctx)
     
-    def progress(self, current: int, total: int, operation: str,
-                context: Optional[LogContext] = None):
+    def progress(self, current: int, total: int, operation: str, context: Optional[LogContext] = None):
         """Log progress message."""
         ctx = context or LogContext()
         percentage = (current / total) * 100 if total > 0 else 0
@@ -302,19 +339,25 @@ def get_logger(module_name: str = "atlas") -> AtlasLogger:
     return _logger
 
 
-def configure_logger(level: LogLevel = LogLevel.INFO,
-                    output_file: Optional[Path] = None,
-                    show_timestamps: bool = False,
-                    show_context: bool = True,
-                    use_emojis: bool = True) -> AtlasLogger:
+def configure_logger(
+        level: LogLevel = LogLevel.INFO,
+        output_file: Optional[Path] = None,
+        show_timestamps: bool = False,
+        show_context: bool = True,
+        use_emojis: bool = True
+    ) -> AtlasLogger:
     """Configure the global logger."""
     global _logger
     _logger = AtlasLogger(level, output_file, show_timestamps, show_context, use_emojis)
     return _logger
 
 
-def create_context(module: str, phase: Optional[AnalysisPhase] = None,
-                  function: Optional[str] = None, file_name: Optional[str] = None) -> LogContext:
+def create_context(
+        module: str, 
+        phase: Optional[AnalysisPhase] = None,
+        function: Optional[str] = None, 
+        file_name: Optional[str] = None
+    ) -> LogContext:
     """Create a logging context."""
     return LogContext(module, phase, function, file_name)
 
