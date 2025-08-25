@@ -9,24 +9,13 @@ like SocketIO emits.
 import ast
 import pathlib
 from typing import Dict, List, Any, Optional
-import inspect
 
 from .resolver import NameResolver
 from .type_inference import TypeInferenceEngine
 from .symbol_table import SymbolTableManager
 from .code_checker import CodeStandardChecker
-from .utils import EXTERNAL_LIBRARY_ALLOWLIST
+from .utils import EXTERNAL_LIBRARY_ALLOWLIST, get_source
 from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
-
-
-def _analysis_context(module_name: str, function: str = None, **extra) -> LogContext:
-    """Create standardized analysis context to eliminate repetitive LogContext creation."""
-    return LogContext(
-        module=module_name,
-        phase=AnalysisPhase.ANALYSIS,
-        function=function,
-        **extra
-    )
 
 
 class AnalysisVisitor(ast.NodeVisitor):
@@ -59,48 +48,24 @@ class AnalysisVisitor(ast.NodeVisitor):
             "module_state": []
         }
     
-    def _log(self, level: LogLevel, message: str, **extra):
+
+    def _log(
+            self, 
+            level: LogLevel, 
+            message: str, 
+            extra: Optional[Dict[str, Any]] = None
+        ):
         """Enhanced log with automatic source detection and correct module tracking."""
-        # Automatically determine source function using inspect - ALWAYS works
-        try:
-            source_frame = inspect.currentframe().f_back
-            source_method_name = source_frame.f_code.co_name
-            source_function = f"AnalysisVisitor.{source_method_name}"
-        except Exception as e:
-            # This should never happen, but just in case
-            source_function = f"AnalysisVisitor.unknown_error_{str(e)}"
         
-        # Extract class name from current_class if available
-        class_name = None
-        if self.current_class:
-            # Convert "module.ClassName" to just "ClassName"
-            class_name = self.current_class.split('.')[-1]
-        
-        # Extract function name from current_function_fqn if available  
-        function_name = None
-        if self.current_function_fqn:
-            # Convert "module.Class.method" or "module.function" to just "method"/"function"
-            function_name = self.current_function_fqn.split('.')[-1]
-        
-        logger_method = {
-            LogLevel.ERROR: get_logger(__name__).error,
-            LogLevel.WARNING: get_logger(__name__).warning,
-            LogLevel.INFO: get_logger(__name__).info,
-            LogLevel.DEBUG: get_logger(__name__).debug,
-            LogLevel.TRACE: get_logger(__name__).trace
-        }[level]
-        
-        # Create context with EXPLICIT values - no defaults that could be wrong
         context = LogContext(
-            module=self.module_name,        # EXPLICIT: The module being analyzed  
-            phase=AnalysisPhase.ANALYSIS,   # EXPLICIT: Always ANALYSIS phase
-            function=function_name,         # EXPLICIT: Function being analyzed (or None)
-            class_name=class_name,          # EXPLICIT: Class being analyzed (or None)  
-            source=source_function,         # EXPLICIT: Atlas method that logged this
-            **extra
+            phase=AnalysisPhase.ANALYSIS,
+            source=get_source(),
+            module=self.module_name,
+            class_name=self.current_class,
+            function=self.current_function_fqn
         )
-        
-        logger_method(message, context=context)
+
+        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
 
     def _get_context(self) -> Dict[str, Any]:
         """Get current resolution context."""
@@ -133,8 +98,7 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def _log_code_violation(self, violation_type: str, details: str, impact: str):
         """Log code standard violations using centralized logging."""
-        self._log(LogLevel.WARNING, f"Code violation - {violation_type}: {details}",
-                  extra={'impact': impact, 'violation_type': violation_type})
+        self._log(LogLevel.WARNING, f"Code violation - {violation_type}: {details}", extra={'impact': impact, 'violation_type': violation_type})
     
     def visit_Module(self, node: ast.Module):
         """Process module."""
@@ -274,9 +238,10 @@ class AnalysisVisitor(ast.NodeVisitor):
             function_report.pop("emit_contexts", None)
         
         self._log(LogLevel.DEBUG, f"Function analysis complete: {function_fqn} - "
-                    f"Calls: {len(function_report['calls'])}, "
-                    f"Instantiations: {len(function_report['instantiations'])}, "
-                    f"State Access: {len(function_report['accessed_state'])}")
+            f"Calls: {len(function_report['calls'])}, "
+            f"Instantiations: {len(function_report['instantiations'])}, "
+            f"State Access: {len(function_report['accessed_state'])}"    
+        )
         
         emit_count = len(function_report.get("emit_contexts", {}))
         if emit_count > 0:
@@ -313,7 +278,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                             self._log(LogLevel.TRACE, f"Resolved parameter {arg.arg} : {resolved_type}")
                         else:
                             self._log(LogLevel.WARNING, f"Could not resolve type annotation for parameter '{arg.arg}'",
-                                         extra={'impact': 'Method calls on this parameter may fail'})
+                                extra={'impact': 'Method calls on this parameter may fail'})
                 except Exception as e:
                     self._log(LogLevel.ERROR, f"Error processing type for {arg.arg}: {e}")
             elif arg.arg in param_types_from_recon:
@@ -718,16 +683,25 @@ class AnalysisVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+def _run_analysis_pass_log_context(source: str) -> LogContext:
+    """Create standardized analysis context to eliminate repetitive LogContext creation."""
+    return LogContext(
+        phase=AnalysisPhase.ANALYSIS,
+        source=source,
+        module=None,
+        class_name=None,
+        function=None,
+    )
+
+
 def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute analysis pass with clean architecture and external library support."""
-    get_logger(__name__).info("Starting analysis pass",
-               context=_analysis_context("analysis"))
+    get_logger(__name__).info("Starting analysis pass", context=_run_analysis_pass_log_context(source=get_source()))
     
     atlas = {}
     
     for py_file in python_files:
-        get_logger(__name__).info(f"Analyzing file: {py_file.name}",
-                   context=_analysis_context("analysis", file_name=py_file.name))
+        get_logger(__name__).info(f"Analyzing file: {py_file.name}", context=_run_analysis_pass_log_context(source=get_source()))
         
         try:
             source_code = py_file.read_text(encoding='utf-8')
@@ -738,12 +712,10 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             visitor.visit(tree)
             
             atlas[py_file.name] = visitor.module_report
-            get_logger(__name__).info(f"File analysis complete: {py_file.name}",
-                       context=_analysis_context("analysis", file_name=py_file.name))
+            get_logger(__name__).info(f"File analysis complete: {py_file.name}", context=_run_analysis_pass_log_context(source=get_source()))
         
         except Exception as e:
-            get_logger(__name__).error(f"Failed to analyze {py_file.name}: {e}",
-                        context=_analysis_context("analysis", file_name=py_file.name))
+            get_logger(__name__).error(f"Failed to analyze {py_file.name}: {e}", context=_run_analysis_pass_log_context(source=get_source()))
             atlas[py_file.name] = {
                 "file_path": py_file.name,
                 "module_docstring": None,
@@ -754,7 +726,6 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             }
             continue
     
-    get_logger(__name__).info("Analysis pass complete",
-               context=_analysis_context("analysis"))
+    get_logger(__name__).info("Analysis pass complete", context=_run_analysis_pass_log_context(source=get_source()))
     
     return atlas

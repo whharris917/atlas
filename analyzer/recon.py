@@ -11,7 +11,7 @@ import pathlib
 from typing import Dict, List, Any, Optional
 
 from .type_inference import TypeInferenceEngine
-from .utils import EXTERNAL_LIBRARY_ALLOWLIST
+from .utils import EXTERNAL_LIBRARY_ALLOWLIST, get_source
 from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
 
 
@@ -30,23 +30,23 @@ class ReconVisitor(ast.NodeVisitor):
         self.external_classes = {}  # Track external classes from imports
         self.external_functions = {}  # Track external functions from imports
     
-    def _log(self, level: LogLevel, message: str, **extra):
+    def _log(
+            self, 
+            level: LogLevel, 
+            message: str,
+            extra: Optional[Dict[str, Any]] = None
+        ):
         """Consolidated logging with automatic source detection and context."""
-        try:
-            source_frame = inspect.currentframe().f_back
-            source_function = f"{self.__class__.__name__}.{source_frame.f_code.co_name}"
-        except Exception:
-            source_function = f"{self.__class__.__name__}.unknown"
         
         context = LogContext(
-            module="recon",
             phase=AnalysisPhase.RECONNAISSANCE,
-            source=source_function,
-            file_name=f"{self.module_name}.py",
-            **extra
+            source=get_source(),
+            module=self.module_name,
+            class_name=self.current_class,
+            function=None            
         )
         
-        getattr(get_logger(__name__), level.name.lower())(message, context=context)
+        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
     
     def _is_camel_case(self, name: str) -> bool:
         """Check if a name follows CamelCase convention (likely a class)."""
@@ -383,31 +383,31 @@ class ReconVisitor(ast.NodeVisitor):
 
 def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
     """Execute reconnaissance pass with inheritance tracking, attribute cataloging, parameter type extraction, and external library support."""
-    def _log(level: LogLevel, message: str, **extra):
+    def _log(
+            level: LogLevel, 
+            message: str,
+            extra: Optional[Dict[str, Any]] = None
+        ):
         """Consolidated logging for reconnaissance function."""
-        try:
-            source_frame = inspect.currentframe().f_back
-            source_function = f"run_reconnaissance_pass.{source_frame.f_code.co_name}" if source_frame else "run_reconnaissance_pass"
-        except Exception:
-            source_function = "run_reconnaissance_pass.unknown"
         
         context = LogContext(
-            module="recon",
             phase=AnalysisPhase.RECONNAISSANCE,
-            source=source_function,
-            **extra
+            source=get_source(),
+            module=None,
+            class_name=None,
+            function=None            
         )
         
-        getattr(get_logger(__name__), level.name.lower())(message, context=context)
+        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
     
     _log(LogLevel.INFO, "=== RECONNAISSANCE PASS ===")
     
     recon_data = {
-        "classes": {},  # Internal classes
-        "functions": {},  # Internal functions
-        "state": {},  # Internal state
-        "external_classes": {},  # External classes from approved libraries
-        "external_functions": {}  # External functions from approved libraries
+        "classes": {},              # Internal classes
+        "functions": {},            # Internal functions
+        "state": {},                # Internal state
+        "external_classes": {},     # External classes from approved libraries
+        "external_functions": {}    # External functions from approved libraries
     }
     
     # Collect all class information first

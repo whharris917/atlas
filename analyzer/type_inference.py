@@ -10,6 +10,7 @@ import inspect
 from typing import Dict, List, Optional, Any
 
 from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+from .utils import get_source
 
 
 class TypeInferenceEngine:
@@ -18,22 +19,23 @@ class TypeInferenceEngine:
     def __init__(self, recon_data: Dict[str, Any]):
         self.recon_data = recon_data
     
-    def _log(self, level: LogLevel, message: str, **extra):
+    def _log(
+            self, 
+            level: LogLevel, 
+            message: str, 
+            extra: Optional[Dict[str, Any]] = None
+        ):
         """Consolidated logging with automatic source detection and context."""
-        try:
-            source_frame = inspect.currentframe().f_back
-            source_function = f"{self.__class__.__name__}.{source_frame.f_code.co_name}"
-        except Exception:
-            source_function = f"{self.__class__.__name__}.unknown"
         
         context = LogContext(
-            module="type_inference",
             phase=AnalysisPhase.ANALYSIS,
-            source=source_function,
-            extra=extra
+            source=get_source(),
+            module=None,
+            class_name=None,
+            function=None            
         )
         
-        getattr(get_logger(__name__), level.name.lower())(message, context=context)
+        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
     
     def extract_core_type(self, type_string: str) -> Optional[str]:
         """Extract core type from generic annotations."""
@@ -45,19 +47,19 @@ class TypeInferenceEngine:
         # Handle common patterns
         if type_string.startswith("Optional[") and type_string.endswith("]"):
             core_type = type_string[9:-1].strip()
-            self._log(LogLevel.TRACE, f"Extracted core type from Optional: {core_type}", original_type=type_string)
+            self._log(LogLevel.TRACE, f"Extracted core type from Optional: {core_type}", extra={'original_type': type_string})
             return core_type
         if type_string.startswith("List[") and type_string.endswith("]"):
             core_type = type_string[5:-1].strip()
-            self._log(LogLevel.TRACE, f"Extracted core type from List: {core_type}", original_type=type_string)
+            self._log(LogLevel.TRACE, f"Extracted core type from List: {core_type}", extra={'original_type': type_string})
             return core_type
         if type_string.startswith("'") and type_string.endswith("'"):
             core_type = type_string[1:-1].strip()
-            self._log(LogLevel.TRACE, f"Extracted core type from quoted string: {core_type}", original_type=type_string)
+            self._log(LogLevel.TRACE, f"Extracted core type from quoted string: {core_type}", extra={'original_type': type_string})
             return core_type
         if type_string.startswith('"') and type_string.endswith('"'):
             core_type = type_string[1:-1].strip()
-            self._log(LogLevel.TRACE, f"Extracted core type from double-quoted string: {core_type}", original_type=type_string)
+            self._log(LogLevel.TRACE, f"Extracted core type from double-quoted string: {core_type}", extra={'original_type': type_string})
             return core_type
         
         self._log(LogLevel.TRACE, f"No core type extraction needed: {type_string}")
@@ -77,12 +79,12 @@ class TypeInferenceEngine:
             self._log(LogLevel.DEBUG, f"Could not resolve call FQN for type inference: {call_name}")
             return None
         
-        self._log(LogLevel.DEBUG, f"Call resolved to: {resolved_fqn}", original_call=call_name)
+        self._log(LogLevel.DEBUG, f"Call resolved to: {resolved_fqn}", extra={'original_call': call_name})
         
         # Class instantiation
         if (resolved_fqn in self.recon_data["classes"] or 
             resolved_fqn in self.recon_data.get("external_classes", {})):
-            self._log(LogLevel.DEBUG, f"Inferred type from class instantiation: {resolved_fqn}", inference_type='class_instantiation')
+            self._log(LogLevel.DEBUG, f"Inferred type from class instantiation: {resolved_fqn}", extra={'inference_type': 'class_instantiation'})
             return resolved_fqn
         
         # Function call - use return type
@@ -98,28 +100,28 @@ class TypeInferenceEngine:
             if func_info:
                 return_type = func_info.get("return_type")
                 if return_type:
-                    self._log(LogLevel.TRACE, f"Function has return type: {return_type}", function=resolved_fqn)
+                    self._log(LogLevel.TRACE, f"Function has return type: {return_type}", extra={'function': resolved_fqn})
                     core_type = self.extract_core_type(return_type)
                     if core_type:
                         # **ENHANCED: Resolve the return type to its full FQN**
                         resolved_return_type = self._resolve_return_type_to_fqn(core_type, context)
                         if resolved_return_type:
                             self._log(LogLevel.DEBUG, f"Resolved return type to FQN: {resolved_return_type}", 
-                                    function=resolved_fqn, original_return_type=return_type, inference_type='resolved_return_type')
+                                    extra={'function': resolved_fqn, 'original_return_type': return_type, 'inference_type': 'resolved_return_type'})
                             return resolved_return_type
                         else:
                             self._log(LogLevel.WARNING, f"Could not resolve return type '{core_type}' to FQN", 
-                                    function=resolved_fqn, return_type=core_type)
+                                    extra={'function': resolved_fqn, 'return_type': core_type})
                             # Fallback to the original core_type
                             self._log(LogLevel.DEBUG, f"Using unresolved return type: {core_type}", 
-                                    function=resolved_fqn, inference_type='unresolved_return_type')
+                                    extra={'function': resolved_fqn, 'inference_type': 'unresolved_return_type'})
                             return core_type
                     else:
-                        self._log(LogLevel.WARNING, f"Could not extract core type from '{return_type}'", function=resolved_fqn)
+                        self._log(LogLevel.WARNING, f"Could not extract core type from '{return_type}'", extra={'function': resolved_fqn})
                 else:
                     self._log(LogLevel.TRACE, f"Function has no return type annotation: {resolved_fqn}")
         
-        self._log(LogLevel.DEBUG, f"Could not infer type for call: {call_name}", resolved_fqn=resolved_fqn)
+        self._log(LogLevel.DEBUG, f"Could not infer type for call: {call_name}", extra={'resolved_fqn': resolved_fqn})
         return None
 
     def _resolve_return_type_to_fqn(self, return_type: str, context: Dict[str, Any]) -> Optional[str]:
@@ -140,19 +142,19 @@ class TypeInferenceEngine:
             candidate = f"{current_module}.{return_type}"
             
             if candidate in self.recon_data["classes"]:
-                self._log(LogLevel.TRACE, f"Found return type in current module: {candidate}", original_type=return_type)
+                self._log(LogLevel.TRACE, f"Found return type in current module: {candidate}", extra={'original_type': return_type})
                 return candidate
             
             # Search all modules for this class name
             for class_fqn in self.recon_data["classes"]:
                 if class_fqn.endswith(f".{return_type}"):
-                    self._log(LogLevel.TRACE, f"Found return type in other module: {class_fqn}", original_type=return_type)
+                    self._log(LogLevel.TRACE, f"Found return type in other module: {class_fqn}", extra={'original_type': return_type})
                     return class_fqn
             
             # Search external classes
             for class_fqn in self.recon_data.get("external_classes", {}):
                 if class_fqn.endswith(f".{return_type}"):
-                    self._log(LogLevel.TRACE, f"Found return type in external classes: {class_fqn}", original_type=return_type)
+                    self._log(LogLevel.TRACE, f"Found return type in external classes: {class_fqn}", extra={'original_type': return_type})
                     return class_fqn
             
             self._log(LogLevel.DEBUG, f"Class '{return_type}' not found in any module")
@@ -160,7 +162,7 @@ class TypeInferenceEngine:
         # Handle quoted strings like "'NetworkClient'"
         if return_type.startswith("'") and return_type.endswith("'"):
             unquoted = return_type[1:-1]
-            self._log(LogLevel.TRACE, f"Recursively resolving quoted return type: {unquoted}", quoted_type=return_type)
+            self._log(LogLevel.TRACE, f"Recursively resolving quoted return type: {unquoted}", extra={'quoted_type': return_type})
             return self._resolve_return_type_to_fqn(unquoted, context)
         
         self._log(LogLevel.DEBUG, f"Could not resolve return type to FQN: {return_type}")
@@ -211,7 +213,7 @@ class TypeInferenceEngine:
                 self._log(LogLevel.TRACE, f"Inferred type from attribute: {inferred_type}")
                 return inferred_type
         
-        self._log(LogLevel.TRACE, "Could not infer type from assignment value", node_type=type(value_node).__name__)
+        self._log(LogLevel.TRACE, "Could not infer type from assignment value", extra={'node_type': type(value_node).__name__})
         return None
     
     def _extract_name_parts(self, node: ast.AST) -> Optional[List[str]]:
@@ -222,5 +224,5 @@ class TypeInferenceEngine:
             parts = self._extract_name_parts(node.value)
             return parts + [node.attr] if parts else None
         
-        self._log(LogLevel.TRACE, "Could not extract name parts from node", node_type=type(node).__name__)
+        self._log(LogLevel.TRACE, "Could not extract name parts from node", extra={'node_type': type(node).__name__})
         return None
