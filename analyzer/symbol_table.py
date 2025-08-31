@@ -7,7 +7,7 @@ Manages symbol tables for tracking variable types in different scopes
 import inspect
 from typing import Optional, Dict, Any
 
-from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+from .logger import get_logger, AnalysisPhase, LogLevel
 from .utils import get_source
 
 
@@ -29,16 +29,8 @@ class SymbolTableManager:
             extra: Optional[Dict[str, Any]] = None
         ):
         """Consolidated logging with automatic source detection and context."""
-        
-        context = LogContext(
-            phase=AnalysisPhase.ANALYSIS,
-            source=get_source(),
-            module=None,
-            class_name=None,
-            function=None
-        )
-        
-        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
+    
+        getattr(get_logger(), level.name.lower())(message, get_source(), extra)
     
     def log_symbol_table_state(self, context_description: str):
         """Log current symbol table state for debugging."""

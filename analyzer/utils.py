@@ -11,7 +11,7 @@ import sys
 import inspect, os
 from typing import Dict, List, Any, Optional
 
-from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+from .logger import get_logger, AnalysisPhase, LogLevel
 
 # --- Configuration Constants ---
 
@@ -34,7 +34,7 @@ class ViolationType:
     MISSING_CLASS_ANNOTATION = "MISSING_CLASS_ANNOTATION"
 
 
-def _log(level: LogLevel, message: str, phase: AnalysisPhase, extra: Optional[Dict[str, Any]] = None):
+def _log(level: LogLevel, message: str, extra: Optional[Dict[str, Any]] = None):
     """Module-level consolidated logging for utils.py standalone functions."""
     try:
         source_frame = inspect.currentframe().f_back
@@ -42,16 +42,8 @@ def _log(level: LogLevel, message: str, phase: AnalysisPhase, extra: Optional[Di
         source_function = f"utils.{source_method_name}"
     except Exception as e:
         source_function = f"utils.unknown_error_{str(e)}"
-    
-    context = LogContext(
-        phase=phase,
-        source=source_function,
-        module=None,
-        class_name=None,
-        function=None
-    )
         
-    getattr(get_logger(__name__), level.name.lower())(message, context=context, extra=extra)
+    getattr(get_logger(), level.name.lower())(message, get_source(), extra=extra)
 
 # --- Helper Functions ---
 
@@ -60,21 +52,20 @@ def discover_python_files() -> List[pathlib.Path]:
     current_dir = pathlib.Path.cwd()
     script_name = "atlas.py"
 
-    _log(LogLevel.DEBUG, "Discovering Python files in current directory", phase=AnalysisPhase.DISCOVERY, extra={"directory": str(current_dir)})
+    _log(LogLevel.DEBUG, "Discovering Python files in current directory", extra={"directory": str(current_dir)})
 
     python_files = []
     for py_file in current_dir.glob("*.py"):
         if py_file.name != script_name:
             python_files.append(py_file)
-            _log(LogLevel.TRACE, f"Found Python file: {py_file.name}", phase=AnalysisPhase.DISCOVERY)
+            _log(LogLevel.TRACE, f"Found Python file: {py_file.name}")
     
     # Also discover files in subdirectories if needed (optional)
     # for py_file in current_dir.rglob("*.py"):
     #     if py_file.name != script_name:
     #         python_files.append(py_file)
 
-    _log(LogLevel.INFO, f"Discovered {len(python_files)} Python files for analysis", phase=AnalysisPhase.DISCOVERY, 
-        extra={"file_count": len(python_files), "excluded_script": script_name})
+    _log(LogLevel.INFO, f"Discovered {len(python_files)} Python files for analysis", extra={"file_count": len(python_files), "excluded_script": script_name})
 
     return python_files
 
@@ -82,7 +73,7 @@ def discover_python_files() -> List[pathlib.Path]:
 def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> None:
     """Generate final JSON report."""
     
-    _log(LogLevel.DEBUG, "Starting JSON report generation", phase=AnalysisPhase.REPORTING)
+    _log(LogLevel.DEBUG, "Starting JSON report generation")
     
     # Create comprehensive report structure
     report = {
@@ -107,7 +98,7 @@ def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> N
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
         
-        _log(LogLevel.INFO, f"Report generated successfully: {output_file}", phase=AnalysisPhase.REPORTING, 
+        _log(LogLevel.INFO, f"Report generated successfully: {output_file}",
             extra={
                 "output_file": output_file,
                 "report_size_kb": round(len(json.dumps(report)) / 1024, 2)
@@ -115,14 +106,14 @@ def generate_json_report(recon_data: Dict[str, Any], atlas: Dict[str, Any]) -> N
         )
 
     except Exception as e:
-        _log(LogLevel.ERROR, f"Failed to generate report: {e}", phase=AnalysisPhase.REPORTING, extra={"error": str(e)})
+        _log(LogLevel.ERROR, f"Failed to generate report: {e}", extra={"error": str(e)})
         raise
 
 
 def validate_python_version() -> None:
     """Validate Python version compatibility."""
     
-    _log(LogLevel.DEBUG, "Validating Python version compatibility", phase=AnalysisPhase.DISCOVERY)
+    _log(LogLevel.DEBUG, "Validating Python version compatibility")
     
     required_major = 3
     required_minor = 8
@@ -135,7 +126,7 @@ def validate_python_version() -> None:
     
     if current_major < required_major or (current_major == required_major and current_minor < required_minor):
         error_msg = f"Python {required_version}+ required, but {current_version} found"
-        _log(LogLevel.ERROR, error_msg, phase=AnalysisPhase.DISCOVERY,
+        _log(LogLevel.ERROR, error_msg,
             extra={
                 "current_version": current_version,
                 "required_version": required_version
@@ -143,7 +134,7 @@ def validate_python_version() -> None:
         )
         raise RuntimeError(error_msg)
     
-    _log(LogLevel.TRACE, f"Python version validation passed: {current_version}", phase=AnalysisPhase.DISCOVERY,
+    _log(LogLevel.TRACE, f"Python version validation passed: {current_version}",
         extra={
             "version_check": "passed", 
             "python_version": current_version

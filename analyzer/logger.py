@@ -31,73 +31,6 @@ class AnalysisPhase(Enum):
     REPORTING = auto()
 
 
-class LogContext:
-    """Enhanced context information for highly verbose structured logging."""
-    
-    def __init__(
-            self, 
-            phase: AnalysisPhase,
-            source: str,
-            module: Optional[str] = None,
-            class_name: Optional[str] = None,
-            function: Optional[str] = None
-        ):
-        self.phase = phase
-        self.source = source
-        self.module = module
-        self.class_name = class_name
-        self.function = function
-        self.indent_level = 0
-    
-    def with_source(self, source: str) -> 'LogContext':
-        """Create new context with different source function."""
-        new_context = LogContext(
-            self.phase, 
-            source,
-            self.module, 
-            self.class_name,
-            self.function
-        )
-        new_context.indent_level = self.indent_level
-        return new_context
-
-    def with_class(self, class_name: str) -> 'LogContext':
-        """Create new context with different class."""
-        new_context = LogContext(
-            self.phase, 
-            self.source,
-            self.module, 
-            class_name,
-            self.function 
-        )
-        new_context.indent_level = self.indent_level
-        return new_context
-    
-    def with_function(self, function: str) -> 'LogContext':
-        """Create new context with different function."""
-        new_context = LogContext(
-            self.phase,
-            self.source,
-            self.module, 
-            self.class_name,
-            function
-        )
-        new_context.indent_level = self.indent_level
-        return new_context
-
-    def with_indent(self, level: int) -> 'LogContext':
-        """Create new context with different indent level."""
-        new_context = LogContext(
-            self.phase, 
-            self.source,
-            self.module, 
-            self.class_name,
-            self.function
-        )
-        new_context.indent_level = level
-        return new_context
-
-
 class AtlasLogger:
     """Enhanced centralized logger with highly verbose context formatting."""
     
@@ -108,6 +41,12 @@ class AtlasLogger:
         ):
         self.level = level
         self.output_file = output_file
+
+        self.phase = None
+        self.module = None
+        self.class_name = None
+        self.function = None
+        self.indent_level = 0
         
         # Initialize file output if specified
         self.file_handle = None
@@ -125,7 +64,7 @@ class AtlasLogger:
             self, 
             level: LogLevel, 
             message: str, 
-            context: LogContext,
+            source: str,
             extra: Optional[Dict[str, Any]] = None
         ) -> str:
         """Enhanced format with highly verbose context breakdown - all fields always shown."""
@@ -136,27 +75,22 @@ class AtlasLogger:
         parts.append(f"[{level.name}]")
         
         # Phase - should never be None
-        phase_value = context.phase.name
-        parts.append(f"[phase:{phase_value}]")
+        parts.append(f"[phase:{self.phase}]")
 
         # Source - Atlas function generating this log - should never be None
-        source_value = context.source
-        parts.append(f"[source:{source_value}]")
+        parts.append(f"[source:{source}]")
         
         # Module being analyzed - can be None
-        module_value = context.module if context.module else "None"
-        parts.append(f"[module:{module_value}]")
+        parts.append(f"[module:{self.module}]")
         
         # Class being analyzed - can be None
-        class_value = context.class_name if context.class_name else "None"
-        parts.append(f"[class:{class_value}]")
+        parts.append(f"[class:{self.class_name}]")
         
         # Function being analyzed - can be None
-        function_value = context.function if context.function else "None"
-        parts.append(f"[function:{function_value}]")
+        parts.append(f"[function:{self.function}]")
         
         # Indentation
-        indent = "   " * context.indent_level
+        indent = "   " * self.indent_level
         if indent:
             parts.append(indent)
         
@@ -187,7 +121,7 @@ class AtlasLogger:
             self, 
             level: LogLevel, 
             message: str, 
-            context: LogContext,
+            source: str,
             extra: Optional[Dict[str, Any]] = None
         ):
         """Internal logging method."""
@@ -195,71 +129,71 @@ class AtlasLogger:
             return
         
         # Format and output
-        formatted = self._format_message(level, message, context, extra)
+        formatted = self._format_message(level, message, source, extra)
         self._output_message(formatted)
     
     def error(
             self, 
             message: str, 
-            context: LogContext,
+            source: str,
             extra: Optional[Dict[str, Any]] = None
         ):
         """Log error message."""
-        self._log(LogLevel.ERROR, message, context, extra)
+        self._log(LogLevel.ERROR, message, source, extra)
     
     def warning(
             self, 
             message: str, 
-            context: LogContext,
+            source: str,
             extra: Optional[Dict[str, Any]] = None
         ):
         """Log warning message."""
-        self._log(LogLevel.WARNING, message, context, extra)
+        self._log(LogLevel.WARNING, message, source, extra)
     
     def info(
             self, 
             message: str, 
-            context: LogContext,
+            source: str,
             extra: Optional[Dict[str, Any]] = None
         ):
         """Log info message."""
-        self._log(LogLevel.INFO, message, context, extra)
+        self._log(LogLevel.INFO, message, source, extra)
     
     def debug(
             self, 
             message: str, 
-            context: LogContext,
+            source: str,
             extra: Optional[Dict[str, Any]] = None
         ):
         """Log debug message."""
-        self._log(LogLevel.DEBUG, message, context, extra)
+        self._log(LogLevel.DEBUG, message, source, extra)
     
     def trace(
             self, 
             message: str, 
-            context: LogContext,
+            source: str,
             extra: Optional[Dict[str, Any]] = None
         ):
         """Log trace message."""
-        self._log(LogLevel.TRACE, message, context, extra)
+        self._log(LogLevel.TRACE, message, source, extra)
     
     def section_header(
             self, 
             title: str, 
-            context: LogContext
+            source: str
         ):
         """Log section header with visual formatting."""
         header = f"{'=' * 20} {title} {'=' * 20}"
-        self._log(LogLevel.INFO, header, context)
+        self._log(LogLevel.INFO, header, source)
     
     def section_footer(
             self,
             title: str,
-            context: LogContext
+            source: str,
         ):
         """Log section footer with visual formatting."""
         footer = f"{'=' * (42 + len(title))}"
-        self._log(LogLevel.INFO, footer, context)
+        self._log(LogLevel.INFO, footer, source)
 
 
 # Global logger instance
@@ -276,47 +210,8 @@ def configure_logger(
     return _logger
 
 
-def get_logger(module_name: str) -> AtlasLogger:
+def get_logger() -> AtlasLogger:
     """Get the global logger instance."""
     if _logger is None:
         configure_logger()
     return _logger
-
-
-if False:
-
-    # Convenience functions for common logging patterns
-
-    def log_error(message: str, context: Optional[LogContext] = None, extra: Optional[Dict[str, Any]] = None):
-        """Log error message using global logger."""
-        get_logger().error(message, context, extra)
-
-
-    def log_warning(message: str, context: Optional[LogContext] = None, extra: Optional[Dict[str, Any]] = None):
-        """Log warning message using global logger."""
-        get_logger().warning(message, context, extra)
-
-
-    def log_info(message: str, context: Optional[LogContext] = None, extra: Optional[Dict[str, Any]] = None):
-        """Log info message using global logger."""
-        get_logger().info(message, context, extra)
-
-
-    def log_debug(message: str, context: Optional[LogContext] = None, extra: Optional[Dict[str, Any]] = None):
-        """Log debug message using global logger."""
-        get_logger().debug(message, context, extra)
-
-
-    def log_trace(message: str, context: Optional[LogContext] = None, extra: Optional[Dict[str, Any]] = None):
-        """Log trace message using global logger."""
-        get_logger().trace(message, context, extra)
-
-
-    def log_section_start(title: str, context: Optional[LogContext] = None):
-        """Log section start using global logger."""
-        get_logger().section_header(title, context)
-
-
-    def log_section_end(title: str, context: Optional[LogContext] = None):
-        """Log section end using global logger."""
-        get_logger().section_footer(title, context)

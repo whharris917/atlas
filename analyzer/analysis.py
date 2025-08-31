@@ -15,16 +15,28 @@ from .type_inference import TypeInferenceEngine
 from .symbol_table import SymbolTableManager
 from .code_checker import CodeStandardChecker
 from .utils import EXTERNAL_LIBRARY_ALLOWLIST, get_source
-from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+from .logger import get_logger, AnalysisPhase, LogLevel
 
 
 class AnalysisVisitor(ast.NodeVisitor):
-    """Enhanced analysis visitor with automatic source tracking and verbose context."""
+    """Enhanced analysis visitor with automatic context propagation to logger."""
     
     def __init__(self, recon_data: Dict[str, Any], module_name: str):
         self.recon_data = recon_data
-        self.module_name = module_name
         self.import_map = {}
+        
+        # Initialize logger first
+        self.logger = get_logger()
+        
+        # Initialize tracked attributes (triggers context update via properties)
+        self._module_name = None
+        self._current_class = None
+        self._current_function_fqn = None
+        
+        # Set initial values through properties to trigger context updates
+        self.module_name = module_name
+        self.current_class = None
+        self.current_function_fqn = None
         
         # Core components
         self.name_resolver = NameResolver(recon_data)
@@ -33,9 +45,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         self.code_checker = CodeStandardChecker()
         
         # Context tracking
-        self.current_class = None
         self.current_function_report = None
-        self.current_function_fqn = None
         self.resolution_cache = {}
         
         # Output
@@ -48,6 +58,46 @@ class AnalysisVisitor(ast.NodeVisitor):
             "module_state": []
         }
     
+    @property
+    def module_name(self):
+        return self._module_name
+    
+    @module_name.setter
+    def module_name(self, value):
+        self._module_name = value
+        self._update_logger_context()
+    
+    @property
+    def current_class(self):
+        return self._current_class
+    
+    @current_class.setter
+    def current_class(self, value):
+        self._current_class = value
+        self._update_logger_context()
+    
+    @property
+    def current_function_fqn(self):
+        return self._current_function_fqn
+    
+    @current_function_fqn.setter
+    def current_function_fqn(self, value):
+        self._current_function_fqn = value
+        self._update_logger_context()
+    
+    def _update_logger_context(self):
+        """Update logger context whenever tracked attributes change."""
+        if hasattr(self, 'logger'):
+            self.logger.module = self._module_name
+            self.logger.class_name = self._current_class
+            self.logger.function = self._current_function_fqn
+
+    def get_current_context(self):
+        return {
+            "module": self.module_name,
+            "class": self.current_class,
+            "function": self.current_function_fqn
+        }
 
     def _log(
             self, 
@@ -56,16 +106,8 @@ class AnalysisVisitor(ast.NodeVisitor):
             extra: Optional[Dict[str, Any]] = None
         ):
         """Enhanced log with automatic source detection and correct module tracking."""
-        
-        context = LogContext(
-            phase=AnalysisPhase.ANALYSIS,
-            source=get_source(),
-            module=self.module_name,
-            class_name=self.current_class,
-            function=self.current_function_fqn
-        )
 
-        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
+        getattr(get_logger(), level.name.lower())(message, get_source(), extra)
 
     def _get_context(self) -> Dict[str, Any]:
         """Get current resolution context."""
@@ -141,7 +183,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         }
         
         old_class = self.current_class
-        self.current_class = class_fqn
+        self.current_class = class_fqn  # This triggers logger context update
         self.symbol_manager.enter_class_scope()
         
         try:
@@ -150,7 +192,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                     method_report = self._analyze_function(child)
                     class_report["methods"].append(method_report)
         finally:
-            self.current_class = old_class
+            self.current_class = old_class  # This triggers logger context update
             self.symbol_manager.exit_class_scope()
         
         self.module_report["classes"].append(class_report)
@@ -217,7 +259,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         old_report = self.current_function_report
         old_fqn = self.current_function_fqn
         self.current_function_report = function_report
-        self.current_function_fqn = function_fqn
+        self.current_function_fqn = function_fqn  # This triggers logger context update
         self.symbol_manager.enter_function_scope()
         self.resolution_cache = {}
 
@@ -231,7 +273,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         
         finally:
             self.current_function_report = old_report
-            self.current_function_fqn = old_fqn
+            self.current_function_fqn = old_fqn  # This triggers logger context update
         
         # Clean up empty emit_contexts to keep JSON clean
         if not function_report.get("emit_contexts"):
@@ -683,25 +725,14 @@ class AnalysisVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def _run_analysis_pass_log_context(source: str) -> LogContext:
-    """Create standardized analysis context to eliminate repetitive LogContext creation."""
-    return LogContext(
-        phase=AnalysisPhase.ANALYSIS,
-        source=source,
-        module=None,
-        class_name=None,
-        function=None,
-    )
-
-
 def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, Any]) -> Dict[str, Any]:
     """Execute analysis pass with clean architecture and external library support."""
-    get_logger(__name__).info("Starting analysis pass", context=_run_analysis_pass_log_context(source=get_source()))
+    get_logger().info("Starting analysis pass", source=get_source())
     
     atlas = {}
     
     for py_file in python_files:
-        get_logger(__name__).info(f"Analyzing file: {py_file.name}", context=_run_analysis_pass_log_context(source=get_source()))
+        get_logger().info(f"Analyzing file: {py_file.name}", source=get_source())
         
         try:
             source_code = py_file.read_text(encoding='utf-8')
@@ -712,10 +743,10 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             visitor.visit(tree)
             
             atlas[py_file.name] = visitor.module_report
-            get_logger(__name__).info(f"File analysis complete: {py_file.name}", context=_run_analysis_pass_log_context(source=get_source()))
+            get_logger().info(f"File analysis complete: {py_file.name}", source=get_source())
         
         except Exception as e:
-            get_logger(__name__).error(f"Failed to analyze {py_file.name}: {e}", context=_run_analysis_pass_log_context(source=get_source()))
+            get_logger().error(f"Failed to analyze {py_file.name}: {e}", source=get_source())
             atlas[py_file.name] = {
                 "file_path": py_file.name,
                 "module_docstring": None,
@@ -726,6 +757,6 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             }
             continue
     
-    get_logger(__name__).info("Analysis pass complete", context=_run_analysis_pass_log_context(source=get_source()))
+    get_logger().info("Analysis pass complete", source=get_source())
     
     return atlas

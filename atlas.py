@@ -12,7 +12,7 @@ import inspect
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from analyzer.logger import configure_logger, LogLevel, LogContext, AnalysisPhase, get_logger
+from analyzer.logger import configure_logger, LogLevel, AnalysisPhase, get_logger
 from analyzer.utils import (
     discover_python_files,
     validate_python_version,
@@ -24,37 +24,45 @@ from analyzer.analysis import run_analysis_pass
 
 
 class AtlasMain:
-    """Main application controller with consolidated logging."""
+    """Main application controller with automatic phase propagation to logger."""
     
     def __init__(self):
         self.logger = None
+        
+        # Initialize private phase attribute
+        self._phase = AnalysisPhase.DISCOVERY
+
+    @property
+    def phase(self):
+        return self._phase
     
+    @phase.setter
+    def phase(self, value):
+        self._phase = value
+        self._update_logger_phase()
+    
+    def _update_logger_phase(self):
+        """Update logger phase whenever phase attribute changes."""
+        if hasattr(self, 'logger') and self.logger is not None:
+            self.logger.phase = self._phase
+
     def _log(
             self, 
             level: LogLevel, 
             message: str, 
-            phase: AnalysisPhase, 
             extra: Optional[Dict[str, Any]] = None
         ):
         """Consolidated logging for main application functions."""
         
-        context = LogContext(
-            phase=phase,
-            source=get_source(),
-            module=None,
-            class_name=None,
-            function=None
-        )
-        
         logger_method = {
-            LogLevel.ERROR: get_logger(__name__).error,
-            LogLevel.WARNING: get_logger(__name__).warning,
-            LogLevel.INFO: get_logger(__name__).info,
-            LogLevel.DEBUG: get_logger(__name__).debug,
-            LogLevel.TRACE: get_logger(__name__).trace
+            LogLevel.ERROR: get_logger().error,
+            LogLevel.WARNING: get_logger().warning,
+            LogLevel.INFO: get_logger().info,
+            LogLevel.DEBUG: get_logger().debug,
+            LogLevel.TRACE: get_logger().trace
         }[level]
         
-        logger_method(message, context, extra)
+        logger_method(message, get_source(), extra)
     
     def parse_arguments(self):
         """Parse command line arguments."""
@@ -113,7 +121,10 @@ class AtlasMain:
             output_file=args.log_file
         )
         
-        self._log(LogLevel.DEBUG, "Logging system configured successfully", phase=AnalysisPhase.DISCOVERY,
+        # Set initial phase after logger is configured
+        self._update_logger_phase()
+        
+        self._log(LogLevel.DEBUG, "Logging system configured successfully",
             extra={
                 "configured_level": args.log_level, 
                 "file_output": args.log_file is not None
@@ -124,9 +135,11 @@ class AtlasMain:
     def run_analysis(self):
         """Main execution function with clean architecture and enhanced logging."""
         
-        self._log(LogLevel.INFO, "CODE ATLAS GENERATION", phase=AnalysisPhase.DISCOVERY)
-        self._log(LogLevel.INFO, "Enhanced Python Project Analysis Tool", phase=AnalysisPhase.DISCOVERY)
-        self._log(LogLevel.INFO, "Features: External Library Support, SocketIO Detection, Inheritance Analysis", phase=AnalysisPhase.DISCOVERY)
+        self.phase = AnalysisPhase.DISCOVERY  # This triggers logger phase update
+
+        self._log(LogLevel.INFO, "CODE ATLAS GENERATION")
+        self._log(LogLevel.INFO, "Enhanced Python Project Analysis Tool")
+        self._log(LogLevel.INFO, "Features: External Library Support, SocketIO Detection, Inheritance Analysis")
 
         try:
             validate_python_version()
@@ -134,43 +147,49 @@ class AtlasMain:
             python_files = discover_python_files()
 
             if not python_files:
-                self._log(LogLevel.ERROR, "No Python files found in current directory", phase=AnalysisPhase.DISCOVERY)
+                self._log(LogLevel.ERROR, "No Python files found in current directory")
                 sys.exit(1)
 
-            self._log(LogLevel.INFO, f"Discovered {len(python_files)} Python files to analyze:", phase=AnalysisPhase.DISCOVERY, extra={"file_count": len(python_files)})
+            self._log(LogLevel.INFO, f"Discovered {len(python_files)} Python files to analyze:", extra={"file_count": len(python_files)})
             
             for py_file in python_files:
-                self._log(LogLevel.INFO, f"- {py_file.name}", phase=AnalysisPhase.DISCOVERY)
+                self._log(LogLevel.INFO, f"- {py_file.name}")
+
+            self.phase = AnalysisPhase.RECONNAISSANCE  # This triggers logger phase update
 
             # Two-pass architecture with comprehensive analysis
-            self._log(LogLevel.INFO, "RECONNAISSANCE PASS", phase=AnalysisPhase.RECONNAISSANCE)
+            self._log(LogLevel.INFO, "RECONNAISSANCE PASS")
             recon_data = run_reconnaissance_pass(python_files)
-            self._log(LogLevel.INFO, "RECONNAISSANCE PASS COMPLETE", phase=AnalysisPhase.RECONNAISSANCE)
+            self._log(LogLevel.INFO, "RECONNAISSANCE PASS COMPLETE")
             
-            self._log(LogLevel.INFO, "ANALYSIS PASS", phase=AnalysisPhase.ANALYSIS)
-            atlas = run_analysis_pass(python_files, recon_data)
-            self._log(LogLevel.INFO, "ANALYSIS PASS COMPLETE", phase=AnalysisPhase.ANALYSIS)
-            
-            self._log(LogLevel.INFO, "REPORT GENERATION", phase=AnalysisPhase.REPORTING)
-            generate_json_report(recon_data, atlas)
-            self._log(LogLevel.INFO, "REPORT GENERATION COMPLETE", phase=AnalysisPhase.REPORTING)
+            self.phase = AnalysisPhase.ANALYSIS  # This triggers logger phase update
 
-            self._log(LogLevel.INFO, "CODE ATLAS GENERATION COMPLETE", phase=AnalysisPhase.REPORTING)
-            self._log(LogLevel.INFO, "Analysis successful! Check 'code_atlas_report.json' for results.", phase=AnalysisPhase.REPORTING)
+            self._log(LogLevel.INFO, "ANALYSIS PASS")
+            atlas = run_analysis_pass(python_files, recon_data)
+            self._log(LogLevel.INFO, "ANALYSIS PASS COMPLETE")
+            
+            self.phase = AnalysisPhase.REPORTING  # This triggers logger phase update
+
+            self._log(LogLevel.INFO, "REPORT GENERATION")
+            generate_json_report(recon_data, atlas)
+            self._log(LogLevel.INFO, "REPORT GENERATION COMPLETE")
+
+            self._log(LogLevel.INFO, "CODE ATLAS GENERATION COMPLETE")
+            self._log(LogLevel.INFO, "Analysis successful! Check 'code_atlas_report.json' for results.")
             
             # Print logging statistics if debug level or higher
             if self.logger and self.logger.level.value >= LogLevel.DEBUG.value:
-                self._log(LogLevel.DEBUG, "Session statistics available", phase=AnalysisPhase.REPORTING, extra={"statistics": "available"})
+                self._log(LogLevel.DEBUG, "Session statistics available", extra={"statistics": "available"})
 
         except KeyboardInterrupt:
-            self._log(LogLevel.ERROR, "Operation cancelled by user", phase=AnalysisPhase.REPORTING)
+            self._log(LogLevel.ERROR, "Operation cancelled by user")
             sys.exit(1)
 
         except Exception as e:
-            self._log(LogLevel.ERROR, f"FATAL ERROR: {e}", phase=AnalysisPhase.REPORTING, extra={"error": str(e)})
+            self._log(LogLevel.ERROR, f"FATAL ERROR: {e}", extra={"error": str(e)})
             if self.logger and self.logger.level.value >= LogLevel.DEBUG.value:
                 import traceback
-                self._log(LogLevel.ERROR, f"Traceback: {traceback.format_exc()}", phase=AnalysisPhase.REPORTING)
+                self._log(LogLevel.ERROR, f"Traceback: {traceback.format_exc()}")
             sys.exit(1)
 
 

@@ -9,7 +9,7 @@ import ast
 import inspect
 from typing import Dict, List, Optional, Any
 
-from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+from .logger import get_logger, AnalysisPhase, LogLevel
 from .utils import get_source
 
 
@@ -31,16 +31,8 @@ class ResolutionStrategy:
             extra: Optional[Dict[str, Any]] = None
         ):
         """Enhanced logging with automatic source detection."""
-
-        context = LogContext(
-            phase=AnalysisPhase.ANALYSIS,
-            source=get_source(),
-            module=None,
-            class_name=None,
-            function=None
-        )
         
-        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
+        getattr(get_logger(), level.name.lower())(message, get_source(), extra)
 
 
 class LocalVariableStrategy(ResolutionStrategy):
@@ -190,15 +182,7 @@ class NameResolver:
         ):
         """Enhanced logging with automatic source detection."""
         
-        context = LogContext(
-            phase=AnalysisPhase.ANALYSIS,
-            source=get_source(),
-            module=None,
-            class_name=None,
-            function=None
-        )
-        
-        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
+        getattr(get_logger(), level.name.lower())(message, get_source(), extra)
     
     def resolve_name(self, name_parts: List[str], context: Dict[str, Any]) -> Optional[str]:
         """Resolve name using layered strategies with comprehensive logging."""

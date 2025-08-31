@@ -10,7 +10,7 @@ import inspect
 from typing import List, Optional, Dict, Any
 
 from .utils import ViolationType, get_source
-from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+from .logger import get_logger, AnalysisPhase, LogLevel
 
 
 class CodeStandardChecker:
@@ -27,16 +27,8 @@ class CodeStandardChecker:
             extra: Optional[Dict[str, Any]] = None
         ):
         """Consolidated logging with automatic source detection and context."""
-
-        context = LogContext(
-            phase=AnalysisPhase.VALIDATION,
-            source=get_source(),
-            module=None,
-            class_name=None,
-            function=None
-        )
         
-        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
+        getattr(get_logger(), level.name.lower())(message, get_source(), extra)
     
     def check_function_type_hints(self, node: ast.FunctionDef, function_fqn: str) -> List[str]:
         """Check for missing type hints and report violations."""

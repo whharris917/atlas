@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 
 from .type_inference import TypeInferenceEngine
 from .utils import EXTERNAL_LIBRARY_ALLOWLIST, get_source
-from .logger import get_logger, LogContext, AnalysisPhase, LogLevel
+from .logger import get_logger, AnalysisPhase, LogLevel, AtlasLogger
 
 
 class ReconVisitor(ast.NodeVisitor):
@@ -38,15 +38,7 @@ class ReconVisitor(ast.NodeVisitor):
         ):
         """Consolidated logging with automatic source detection and context."""
         
-        context = LogContext(
-            phase=AnalysisPhase.RECONNAISSANCE,
-            source=get_source(),
-            module=self.module_name,
-            class_name=self.current_class,
-            function=None            
-        )
-        
-        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
+        getattr(get_logger(), level.name.lower())(message, get_source(), extra)
     
     def _is_camel_case(self, name: str) -> bool:
         """Check if a name follows CamelCase convention (likely a class)."""
@@ -390,15 +382,7 @@ def run_reconnaissance_pass(python_files: List[pathlib.Path]) -> Dict[str, Any]:
         ):
         """Consolidated logging for reconnaissance function."""
         
-        context = LogContext(
-            phase=AnalysisPhase.RECONNAISSANCE,
-            source=get_source(),
-            module=None,
-            class_name=None,
-            function=None            
-        )
-        
-        getattr(get_logger(__name__), level.name.lower())(message, context, extra)
+        getattr(get_logger(), level.name.lower())(message, get_source(), extra)
     
     _log(LogLevel.INFO, "=== RECONNAISSANCE PASS ===")
     
