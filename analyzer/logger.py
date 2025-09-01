@@ -43,10 +43,18 @@ class AtlasLogger:
         self.output_file = output_file
 
         self.phase = None
+        self.source = None
         self.module = None
         self.class_name = None
         self.function = None
         self.indent_level = 0
+
+        # Context change detection
+        self.prev_phase = None
+        self.prev_source = None  
+        self.prev_module = None
+        self.prev_class_name = None
+        self.prev_function = None
         
         # Initialize file output if specified
         self.file_handle = None
@@ -56,6 +64,35 @@ class AtlasLogger:
             except Exception as e:
                 print(f"Warning: Could not open log file {output_file}: {e}")
     
+    def _detect_context_changes(self, source: str) -> Dict[str, bool]:
+        """Detect which context fields changed since last message."""
+        changes = {
+            'phase': self.phase != self.prev_phase,
+            'source': source != self.prev_source,
+            'module': self.module != self.prev_module,
+            'class': self.class_name != self.prev_class_name,
+            'function': self.function != self.prev_function
+        }
+        return changes
+
+    def _calculate_context_depth(self) -> int:
+        """Calculate indentation based on context depth."""
+        depth = 0
+        if self.phase: depth += 1
+        if self.source: depth += 1  
+        if self.module: depth += 1
+        if self.class_name: depth += 1
+        if self.function: depth += 1
+        return depth
+
+    def _update_previous_context(self, source: str):
+        """Update previous context for next message comparison."""
+        self.prev_phase = self.phase
+        self.prev_source = source
+        self.prev_module = self.module
+        self.prev_class_name = self.class_name
+        self.prev_function = self.function
+
     def _calculate_indentation(self) -> int:
         """Calculate automatic indentation based on current context depth."""
         indent = 0
@@ -73,7 +110,20 @@ class AtlasLogger:
             indent = 2
             
         return indent
-    
+
+    def reset_context(self):
+        """Reset all context to None - used between module analysis."""
+        
+        # Explicitly reset all context to None
+        self.module = None
+        self.class_name = None
+        self.function = None
+        # Don't reset phase - that's managed by AtlasMain
+        
+        # Recalculate indentation (should be 0)
+        new_indent = self._calculate_indentation()
+        self.indent_level = new_indent
+
     def _update_context_and_indentation(self, module=None, class_name=None, function=None, phase=None):
         """Update context and automatically adjust indentation."""
         old_indent = self._calculate_indentation()
@@ -106,6 +156,60 @@ class AtlasLogger:
             source: str,
             extra: Optional[Dict[str, Any]] = None
         ) -> str:
+        """Format message with hierarchical context headers only when context changes."""
+        
+        changes = self._detect_context_changes(source)
+        parts = []
+        current_depth = 0
+        
+        # Show context headers only when they change
+        if changes['phase']:
+            parts.append(f"[phase:{self.phase}]")
+            current_depth += 1
+        
+        if changes['source']:
+            indent = "    " * current_depth
+            parts.append(f"{indent}[source:{source}]")
+            current_depth += 1
+        
+        if changes['module'] and self.module is not None:
+            indent = "    " * current_depth
+            parts.append(f"{indent}[module:{self.module}]")
+            current_depth += 1
+        
+        if changes['class'] and self.class_name is not None:
+            indent = "    " * current_depth
+            parts.append(f"{indent}[class:{self.class_name}]")
+            current_depth += 1
+        
+        if changes['function'] and self.function is not None:
+            indent = "    " * current_depth
+            parts.append(f"{indent}[function:{self.function}]")
+            current_depth += 1
+        
+        # Add the actual message at the current context depth
+        message_indent = "    " * self._calculate_context_depth()
+        message_part = f"{message_indent}[{level.name}] {message}"
+        
+        # Add extra data if present
+        if extra:
+            extra_str = " | ".join(f"{k}={v}" for k, v in extra.items())
+            message_part += f"  ({extra_str})"
+        
+        parts.append(message_part)
+        
+        # Update previous context for next comparison
+        self._update_previous_context(source)
+        
+        return "\n".join(parts)
+
+    def _format_message_old(
+            self, 
+            level: LogLevel, 
+            message: str, 
+            source: str,
+            extra: Optional[Dict[str, Any]] = None
+        ) -> str:
         """Enhanced format with automatic indentation based on context depth."""
 
         # Automatic indentation at the very beginning
@@ -113,15 +217,9 @@ class AtlasLogger:
         
         parts = []
         
-        # Level text
-        parts.append(f"[{level.name}]")
-        
         # Phase - should never be None
         parts.append(f"[phase:{self.phase}]")
 
-        # Source - Atlas function generating this log - should never be None
-        parts.append(f"[source:{source}]")
-        
         # Module being analyzed - can be None
         parts.append(f"[module:{self.module}]")
         
@@ -130,6 +228,12 @@ class AtlasLogger:
         
         # Function being analyzed - can be None
         parts.append(f"[function:{self.function}]")
+
+        # Source - Atlas function generating this log - should never be None
+        parts.append(f"[source:{source}]")
+
+        # Level text
+        parts.append(f"[{level.name}]")
         
         # Main message
         parts.append(message)
@@ -139,7 +243,8 @@ class AtlasLogger:
             extra_str = " | ".join(f"{k}={v}" for k, v in extra.items())
             parts.append(f" ({extra_str})")
         
-        return indent + " ".join(parts)
+        #return indent + " ".join(parts)
+        return " ".join(parts)
     
     def _output_message(self, formatted_message: str):
         """Output message to console and/or file."""

@@ -1,0 +1,108 @@
+[phase:AnalysisPhase.DISCOVERY] 
+    [source:atlas.AtlasMain.setup_logging] 
+        [DEBUG] Logging system configured successfully  (configured_level=trace | file_output=True)
+    [source:atlas.AtlasMain.run_analysis] 
+        [INFO] CODE ATLAS GENERATION
+        [INFO] Enhanced Python Project Analysis Tool
+        [INFO] Features: External Library Support, SocketIO Detection, Inheritance Analysis
+    [source:analyzer.utils.validate_python_version] 
+        [DEBUG] Validating Python version compatibility
+        [TRACE] Python version validation passed: 3.11  (version_check=passed | python_version=3.11)
+    [source:analyzer.utils.discover_python_files] 
+        [DEBUG] Discovering Python files in current directory  (directory=C:\Users\wilha\projects\PhoenixMegaproject\atlas\sample_files)
+        [TRACE] Found Python file: admin_manager.py
+        [TRACE] Found Python file: decorators.py
+        [TRACE] Found Python file: event_validator.py
+        [TRACE] Found Python file: inheritence_complex.py
+        [TRACE] Found Python file: proxy_handler.py
+        [TRACE] Found Python file: session_manager.py
+        [TRACE] Found Python file: socketio_events.py
+        [INFO] Discovered 8 Python files for analysis  (file_count=8 | excluded_script=atlas.py)
+    [source:atlas.AtlasMain.run_analysis] 
+        [INFO] Discovered 8 Python files to analyze:  (file_count=8)
+        [INFO] - admin_manager.py
+        [INFO] - database_manager.py
+        [INFO] - decorators.py
+        [INFO] - event_validator.py
+        [INFO] - inheritence_complex.py
+        [INFO] - proxy_handler.py
+        [INFO] - session_manager.py
+        [INFO] - socketio_events.py
+[phase:AnalysisPhase.RECONNAISSANCE]    
+    [source:atlas.AtlasMain.run_analysis] 
+        [INFO] RECONNAISSANCE PASS
+    [source:analyzer.recon.run_reconnaissance_pass] 
+        [INFO] === RECONNAISSANCE PASS ===
+        [INFO] Analyzing admin_manager.py
+    [source:analyzer.recon.ReconVisitor.visit_Import] 
+        [DEBUG] Direct module import: threading
+        [DEBUG] Direct module import: uuid
+...
+[phase:AnalysisPhase.ANALYSIS] 
+    [source:atlas.AtlasMain.run_analysis] 
+        [INFO] ANALYSIS PASS
+        [INFO] Starting analysis pass
+    [source:atlas.AtlasMain.run_analysis] 
+        [INFO] Analyzing file: admin_manager.py
+    [module:admin_manager]
+        [source:analyzer.resolver.NameResolver.__init__] 
+            [DEBUG] Name resolver initialized with 4 strategies  (strategy_count=4 | recon_classes=49 | recon_functions=232 | external_classes=2 | external_functions=4)
+        [source:analyzer.symbol_table.SymbolTableManager.__init__] 
+            [DEBUG] Symbol table manager initialized
+        [source:analyzer.code_checker.CodeStandardChecker.__init__] 
+            [DEBUG] Code standard checker initialized
+        [source:analyzer.analysis.AnalysisVisitor.visit_Module] 
+            [INFO] Starting module analysis: admin_manager
+        [source:analyzer.analysis.AnalysisVisitor.visit_ImportFrom] 
+            [DEBUG] From import: Any -> typing.Any
+            [DEBUG] From import: Dict -> typing.Dict
+            [DEBUG] From import: List -> typing.List
+            [DEBUG] From import: Optional -> typing.Optional
+            [DEBUG] From import: Set -> typing.Set
+            [DEBUG] From import: Union -> typing.Union
+            [DEBUG] From import: dataclass -> dataclasses.dataclass
+            [DEBUG] From import: field -> dataclasses.field
+            [DEBUG] From import: datetime -> datetime.datetime
+            [DEBUG] From import: timedelta -> datetime.timedelta
+            [DEBUG] From import: Enum -> enum.Enum
+            [DEBUG] From import: auto -> enum.auto
+        [source:analyzer.analysis.AnalysisVisitor.visit_Import] 
+            [DEBUG] Import: logging -> logging
+            [DEBUG] Import: threading -> threading
+            [DEBUG] Import: uuid -> uuid
+        [source:analyzer.analysis.AnalysisVisitor.visit_ClassDef] 
+            [DEBUG] Analyzing class: OperationType
+        [class:admin_manager.OperationType]
+            [source:analyzer.symbol_table.SymbolTableManager.enter_class_scope] 
+                [DEBUG] Entered class scope
+            [source:analyzer.symbol_table.SymbolTableManager.exit_class_scope] 
+                [DEBUG] Exited class scope (0 symbols cleared)  (cleared_symbols=0)
+            [source:analyzer.analysis.AnalysisVisitor.visit_ClassDef] 
+                [DEBUG] Analyzing class: OperationStatus
+            [source:analyzer.symbol_table.SymbolTableManager.enter_class_scope] 
+                [DEBUG] Entered class scope
+            [source:analyzer.symbol_table.SymbolTableManager.exit_class_scope] 
+                [DEBUG] Exited class scope (0 symbols cleared)  (cleared_symbols=0)
+            [source:analyzer.analysis.AnalysisVisitor.visit_ClassDef] 
+                [DEBUG] Analyzing class: OperationResult
+            [source:analyzer.symbol_table.SymbolTableManager.enter_class_scope] 
+                [DEBUG] Entered class scope
+            [source:analyzer.analysis.AnalysisVisitor._analyze_function]   
+                [DEBUG] Starting function analysis: admin_manager.OperationResult.get_duration
+            [source:analyzer.code_checker.CodeStandardChecker.check_function_type_hints] 
+                [TRACE] Checking type hints for function: admin_manager.OperationResult.get_duration  (function=admin_manager.OperationResult.get_duration | arg_count=1)
+                [TRACE] No type hint violations found in admin_manager.OperationResult.get_duration  (function=admin_manager.OperationResult.get_duration)
+            [function:admin_manager.OperationResult.get_duration]
+                [source:analyzer.symbol_table.SymbolTableManager.enter_function_scope]
+                    [DEBUG] Entered function scope
+            [source:analyzer.analysis.AnalysisVisitor._populate_symbols_from_args] 
+                [TRACE] Processing 1 function arguments
+            [source:analyzer.resolver.NameResolver.resolve_name] 
+                [DEBUG] Resolving name: self.end_time  (name_parts=['self', 'end_time'] | parts_count=2)
+                [TRACE] Complex chain resolution needed: self.end_time  (resolution_type=chain | input=self.end_time)
+            [source:analyzer.resolver.NameResolver._resolve_chain] 
+                [TRACE] Resolving chain base: self  (chain_step=base | base_name=self | full_chain=['self', 'end_time'])
+            [source:analyzer.resolver.NameResolver._resolve_simple] 
+                [TRACE] Resolving simple name: self  (resolution_method=simple | name=self)
+                [TRACE] Trying strategy 1: LocalVariableStrategy  (strategy_index=0 | strategy=LocalVariableStrategy | name=self)
+...

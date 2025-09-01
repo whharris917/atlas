@@ -145,6 +145,10 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def visit_Module(self, node: ast.Module):
         """Process module."""
+        # Reset context for clean module analysis
+        self.current_class = None
+        self.current_function_fqn = None
+
         self._log(LogLevel.INFO, f"Starting module analysis: {self.module_name}")
         
         if (node.body and isinstance(node.body[0], ast.Expr) and 
@@ -746,6 +750,9 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             atlas[py_file.name] = visitor.module_report
             get_logger().info(f"File analysis complete: {py_file.name}", source=get_source())
         
+            # RESET CONTEXT after module analysis completes
+            get_logger().reset_context()
+
         except Exception as e:
             get_logger().error(f"Failed to analyze {py_file.name}: {e}", source=get_source())
             atlas[py_file.name] = {
