@@ -2,8 +2,8 @@
 """
 Enhanced Logging System - Code Atlas
 
-Centralized logging with highly verbose structured output, automatic source detection,
-automatic indentation based on context, and comprehensive context tracking for detailed debugging visibility.
+Centralized logging with hierarchical tree-structured display, automatic context 
+change detection, and consistent indentation for detailed debugging visibility.
 """
 
 
@@ -32,7 +32,7 @@ class AnalysisPhase(Enum):
 
 
 class AtlasLogger:
-    """Enhanced centralized logger with automatic indentation based on context."""
+    """Enhanced centralized logger with hierarchical tree-structured output."""
     
     def __init__(
             self, 
@@ -42,14 +42,14 @@ class AtlasLogger:
         self.level = level
         self.output_file = output_file
 
+        # Current context
         self.phase = None
         self.source = None
         self.module = None
         self.class_name = None
         self.function = None
-        self.indent_level = 0
 
-        # Context change detection
+        # Context change detection for hierarchical display
         self.prev_phase = None
         self.prev_source = None  
         self.prev_module = None
@@ -64,86 +64,40 @@ class AtlasLogger:
             except Exception as e:
                 print(f"Warning: Could not open log file {output_file}: {e}")
     
-    def _detect_context_changes(self, source: str) -> Dict[str, bool]:
+    def _detect_context_changes(self) -> Dict[str, bool]:
         """Detect which context fields changed since last message."""
         changes = {
             'phase': self.phase != self.prev_phase,
-            'source': source != self.prev_source,
+            'source': self.source != self.prev_source,
             'module': self.module != self.prev_module,
             'class': self.class_name != self.prev_class_name,
             'function': self.function != self.prev_function
         }
         return changes
 
-    def _calculate_context_depth(self) -> int:
-        """Calculate indentation based on context depth."""
-        depth = 0
-        if self.phase: depth += 1
-        if self.source: depth += 1  
-        if self.module: depth += 1
-        if self.class_name: depth += 1
-        if self.function: depth += 1
-        return depth
-
-    def _update_previous_context(self, source: str):
+    def _update_previous_context(self):
         """Update previous context for next message comparison."""
         self.prev_phase = self.phase
-        self.prev_source = source
+        self.prev_source = self.source
         self.prev_module = self.module
         self.prev_class_name = self.class_name
         self.prev_function = self.function
-
-    def _calculate_indentation(self) -> int:
-        """Calculate automatic indentation based on current context depth."""
-        indent = 0
-        
-        # Module level = 0 indentation
-        if self.module:
-            indent = 0
-            
-        # Class adds 1 level  
-        if self.class_name:
-            indent = 1
-            
-        # Function adds 1 more level
-        if self.function:
-            indent = 2
-            
-        return indent
 
     def reset_context(self):
         """Reset all context to None - used between module analysis."""
         
         # Explicitly reset all context to None
+        self.source = None
         self.module = None
         self.class_name = None
         self.function = None
         # Don't reset phase - that's managed by AtlasMain
         
-        # Recalculate indentation (should be 0)
-        new_indent = self._calculate_indentation()
-        self.indent_level = new_indent
-
-    def _update_context_and_indentation(self, module=None, class_name=None, function=None, phase=None):
-        """Update context and automatically adjust indentation."""
-        old_indent = self._calculate_indentation()
-        
-        # Update context
-        if module is not None:
-            self.module = module
-        if class_name is not None:
-            self.class_name = class_name  
-        if function is not None:
-            self.function = function
-        if phase is not None:
-            self.phase = phase
-        
-        # Calculate new indentation
-        new_indent = self._calculate_indentation()
-        
-        # Update indentation level
-        if new_indent != old_indent:
-            self.indent_level = new_indent
+        # Reset previous context tracking
+        self.prev_source = None
+        self.prev_module = None
+        self.prev_class_name = None
+        self.prev_function = None
     
     def _should_log(self, level: LogLevel) -> bool:
         """Check if message should be logged based on current level."""
@@ -156,39 +110,64 @@ class AtlasLogger:
             source: str,
             extra: Optional[Dict[str, Any]] = None
         ) -> str:
-        """Format message with hierarchical context headers only when context changes."""
+        """Format message with hierarchical context headers and consistent indentation."""
         
-        changes = self._detect_context_changes(source)
+        # Update source context before detecting changes
+        self.source = source
+        
+        changes = self._detect_context_changes()
         parts = []
         current_depth = 0
         
-        # Show context headers only when they change
-        if changes['phase']:
-            parts.append(f"[phase:{self.phase}]")
-            current_depth += 1
-        
-        if changes['source']:
+        # Show context headers only when they change, building depth progressively
+        # All context fields are now treated consistently for indentation
+        if changes['phase'] and self.phase is not None:
             indent = "    " * current_depth
-            parts.append(f"{indent}[source:{source}]")
+            parts.append(f"{indent}[phase:{self.phase}]")
             current_depth += 1
+        elif self.phase is not None:
+            # Phase exists but unchanged - only count if it was previously shown
+            if self.prev_phase is not None:
+                current_depth += 1
+        
+        if changes['source'] and self.source is not None:
+            indent = "    " * current_depth
+            parts.append(f"{indent}[source:{self.source}]")
+            current_depth += 1
+        elif self.source is not None:
+            # Source exists but unchanged - only count if it was previously shown
+            if self.prev_source is not None:
+                current_depth += 1
         
         if changes['module'] and self.module is not None:
             indent = "    " * current_depth
             parts.append(f"{indent}[module:{self.module}]")
             current_depth += 1
+        elif self.module is not None:
+            # Module exists but unchanged - only count if it was previously shown
+            if self.prev_module is not None:
+                current_depth += 1
         
         if changes['class'] and self.class_name is not None:
             indent = "    " * current_depth
             parts.append(f"{indent}[class:{self.class_name}]")
             current_depth += 1
+        elif self.class_name is not None:
+            # Class exists but unchanged - only count if it was previously shown
+            if self.prev_class_name is not None:
+                current_depth += 1
         
         if changes['function'] and self.function is not None:
             indent = "    " * current_depth
             parts.append(f"{indent}[function:{self.function}]")
             current_depth += 1
+        elif self.function is not None:
+            # Function exists but unchanged - only count if it was previously shown
+            if self.prev_function is not None:
+                current_depth += 1
         
         # Add the actual message at the current context depth
-        message_indent = "    " * self._calculate_context_depth()
+        message_indent = "    " * current_depth
         message_part = f"{message_indent}[{level.name}] {message}"
         
         # Add extra data if present
@@ -199,146 +178,104 @@ class AtlasLogger:
         parts.append(message_part)
         
         # Update previous context for next comparison
-        self._update_previous_context(source)
+        self._update_previous_context()
         
         return "\n".join(parts)
 
-    def _format_message_old(
-            self, 
-            level: LogLevel, 
-            message: str, 
-            source: str,
-            extra: Optional[Dict[str, Any]] = None
-        ) -> str:
-        """Enhanced format with automatic indentation based on context depth."""
-
-        # Automatic indentation at the very beginning
-        indent = "    " * self.indent_level
+    def _output(self, message: str):
+        """Output message to console and file if configured."""
+        print(message)
         
-        parts = []
-        
-        # Phase - should never be None
-        parts.append(f"[phase:{self.phase}]")
-
-        # Module being analyzed - can be None
-        parts.append(f"[module:{self.module}]")
-        
-        # Class being analyzed - can be None
-        parts.append(f"[class:{self.class_name}]")
-        
-        # Function being analyzed - can be None
-        parts.append(f"[function:{self.function}]")
-
-        # Source - Atlas function generating this log - should never be None
-        parts.append(f"[source:{source}]")
-
-        # Level text
-        parts.append(f"[{level.name}]")
-        
-        # Main message
-        parts.append(message)
-        
-        # Extra data
-        if extra:
-            extra_str = " | ".join(f"{k}={v}" for k, v in extra.items())
-            parts.append(f" ({extra_str})")
-        
-        #return indent + " ".join(parts)
-        return " ".join(parts)
-    
-    def _output_message(self, formatted_message: str):
-        """Output message to console and/or file."""
-        # Console output
-        print(formatted_message)
-        
-        # File output
         if self.file_handle:
             try:
-                self.file_handle.write(formatted_message + "\n")
+                self.file_handle.write(message + '\n')
                 self.file_handle.flush()
             except Exception as e:
                 print(f"Warning: Could not write to log file: {e}")
-    
-    def _log(
-            self, 
-            level: LogLevel, 
-            message: str, 
-            source: str,
-            extra: Optional[Dict[str, Any]] = None
-        ):
-        """Internal logging method."""
-        if not self._should_log(level):
-            return
-        
-        # Format and output
-        formatted = self._format_message(level, message, source, extra)
-        self._output_message(formatted)
-    
-    def error(
-            self, 
-            message: str, 
-            source: str,
-            extra: Optional[Dict[str, Any]] = None
-        ):
+
+    def close(self):
+        """Close file handle if open."""
+        if self.file_handle:
+            try:
+                self.file_handle.close()
+                self.file_handle = None
+            except Exception as e:
+                print(f"Warning: Error closing log file: {e}")
+
+    # Context management properties
+    @property
+    def current_module(self) -> Optional[str]:
+        """Get current module context."""
+        return self.module
+
+    @current_module.setter  
+    def current_module(self, value: Optional[str]):
+        """Set current module context."""
+        self.module = value
+
+    @property
+    def current_class(self) -> Optional[str]:
+        """Get current class context."""
+        return self.class_name
+
+    @current_class.setter
+    def current_class(self, value: Optional[str]):
+        """Set current class context."""
+        self.class_name = value
+
+    @property
+    def current_function(self) -> Optional[str]:
+        """Get current function context.""" 
+        return self.function
+
+    @current_function.setter
+    def current_function(self, value: Optional[str]):
+        """Set current function context."""
+        self.function = value
+
+    @property
+    def current_phase(self) -> Optional[AnalysisPhase]:
+        """Get current analysis phase."""
+        return self.phase
+
+    @current_phase.setter
+    def current_phase(self, value: Optional[AnalysisPhase]):
+        """Set current analysis phase."""
+        self.phase = value
+
+    # Logging methods - keep original interface with source parameter
+    def error(self, message: str, source: str = "Unknown", extra: Optional[Dict[str, Any]] = None):
         """Log error message."""
-        self._log(LogLevel.ERROR, message, source, extra)
-    
-    def warning(
-            self, 
-            message: str, 
-            source: str,
-            extra: Optional[Dict[str, Any]] = None
-        ):
+        if self._should_log(LogLevel.ERROR):
+            formatted = self._format_message(LogLevel.ERROR, message, source, extra)
+            self._output(formatted)
+
+    def warning(self, message: str, source: str = "Unknown", extra: Optional[Dict[str, Any]] = None):
         """Log warning message."""
-        self._log(LogLevel.WARNING, message, source, extra)
-    
-    def info(
-            self, 
-            message: str, 
-            source: str,
-            extra: Optional[Dict[str, Any]] = None
-        ):
+        if self._should_log(LogLevel.WARNING):
+            formatted = self._format_message(LogLevel.WARNING, message, source, extra)
+            self._output(formatted)
+
+    def info(self, message: str, source: str = "Unknown", extra: Optional[Dict[str, Any]] = None):
         """Log info message."""
-        self._log(LogLevel.INFO, message, source, extra)
-    
-    def debug(
-            self, 
-            message: str, 
-            source: str,
-            extra: Optional[Dict[str, Any]] = None
-        ):
+        if self._should_log(LogLevel.INFO):
+            formatted = self._format_message(LogLevel.INFO, message, source, extra)
+            self._output(formatted)
+
+    def debug(self, message: str, source: str = "Unknown", extra: Optional[Dict[str, Any]] = None):
         """Log debug message."""
-        self._log(LogLevel.DEBUG, message, source, extra)
-    
-    def trace(
-            self, 
-            message: str, 
-            source: str,
-            extra: Optional[Dict[str, Any]] = None
-        ):
+        if self._should_log(LogLevel.DEBUG):
+            formatted = self._format_message(LogLevel.DEBUG, message, source, extra)
+            self._output(formatted)
+
+    def trace(self, message: str, source: str = "Unknown", extra: Optional[Dict[str, Any]] = None):
         """Log trace message."""
-        self._log(LogLevel.TRACE, message, source, extra)
-    
-    def section_header(
-            self, 
-            title: str, 
-            source: str
-        ):
-        """Log section header with visual formatting."""
-        header = f"{'=' * 20} {title} {'=' * 20}"
-        self._log(LogLevel.INFO, header, source)
-    
-    def section_footer(
-            self,
-            title: str,
-            source: str,
-        ):
-        """Log section footer with visual formatting."""
-        footer = f"{'=' * (42 + len(title))}"
-        self._log(LogLevel.INFO, footer, source)
+        if self._should_log(LogLevel.TRACE):
+            formatted = self._format_message(LogLevel.TRACE, message, source, extra)
+            self._output(formatted)
 
 
-# Global logger instance
+# Global logger instance management
 _logger: Optional[AtlasLogger] = None
 
 

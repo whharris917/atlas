@@ -87,11 +87,9 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def _update_logger_context(self):
         """Update logger context with automatic indentation whenever tracked attributes change."""
-        self.logger._update_context_and_indentation(
-            module=self.module_name,
-            class_name=self.current_class,  
-            function=self.current_function_fqn
-        )
+        self.logger.module = self.module_name
+        self.logger.class_name = self.current_class
+        self.logger.function = self.current_function_fqn
 
     def get_current_context(self):
         return {
