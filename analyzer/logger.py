@@ -1,19 +1,18 @@
-#!/usr/bin/env python3
 """
-Enhanced Logging System - Code Atlas
+Enhanced logging system for Atlas - Code Atlas
 
-Centralized logging with hierarchical tree-structured display, automatic context 
-change detection, and consistent indentation for detailed debugging visibility.
+Provides hierarchical, context-aware logging with automatic indentation,
+configurable output levels, and structured formatting for debugging.
 """
 
-
-from enum import Enum, auto
-from typing import Optional, Dict, Any
+from enum import Enum
 from pathlib import Path
+from typing import Optional, Dict, Any
+import sys
 
 
 class LogLevel(Enum):
-    """Log level enumeration for type safety."""
+    """Logging levels in order of verbosity (lower values = more important)."""
     SILENT = 0
     ERROR = 1
     WARNING = 2
@@ -23,60 +22,86 @@ class LogLevel(Enum):
 
 
 class AnalysisPhase(Enum):
-    """Analysis phase enumeration for context."""
-    DISCOVERY = auto()
-    RECONNAISSANCE = auto()
-    ANALYSIS = auto()
-    VALIDATION = auto()
-    REPORTING = auto()
+    """Analysis phases for context tracking."""
+    DISCOVERY = "DISCOVERY"
+    RECONNAISSANCE = "RECONNAISSANCE"
+    ANALYSIS = "ANALYSIS"
+    VALIDATION = "VALIDATION"
+    REPORTING = "REPORTING"
 
 
 class AtlasLogger:
-    """Enhanced centralized logger with hierarchical tree-structured output."""
+    """
+    Hierarchical logger with automatic context-aware indentation.
     
-    def __init__(
-            self, 
-            level: LogLevel = LogLevel.INFO,
-            output_file: Optional[Path] = None
-        ):
+    Provides structured logging with phase, module, class, function, and source
+    context tracking. Automatically displays hierarchical headers when context
+    changes and properly indents messages based on their context depth.
+    """
+    
+    def __init__(self, level: LogLevel = LogLevel.INFO, output_file: Optional[Path] = None):
+        """Initialize logger with level and optional file output."""
         self.level = level
-        self.output_file = output_file
-
-        # Current context
-        self.phase = None
-        self.source = None
-        self.module = None
-        self.class_name = None
-        self.function = None
-
-        # Context change detection for hierarchical display
-        self.prev_phase = None
-        self.prev_source = None  
-        self.prev_module = None
-        self.prev_class_name = None
-        self.prev_function = None
-        
-        # Initialize file output if specified
         self.file_handle = None
+        
+        # Context state
+        self.phase: Optional[AnalysisPhase] = None
+        self.source: Optional[str] = None
+        self.module: Optional[str] = None
+        self.class_name: Optional[str] = None
+        self.function: Optional[str] = None
+        
+        # Previous context for change detection
+        self.prev_phase: Optional[AnalysisPhase] = None
+        self.prev_source: Optional[str] = None
+        self.prev_module: Optional[str] = None
+        self.prev_class_name: Optional[str] = None
+        self.prev_function: Optional[str] = None
+        
+        # Configure file output if specified
         if output_file:
             try:
                 self.file_handle = open(output_file, 'w', encoding='utf-8')
             except Exception as e:
                 print(f"Warning: Could not open log file {output_file}: {e}")
-    
+
     def _detect_context_changes(self) -> Dict[str, bool]:
-        """Detect which context fields changed since last message."""
-        changes = {
+        """Detect which context fields have changed since last message."""
+        return {
             'phase': self.phase != self.prev_phase,
             'source': self.source != self.prev_source,
             'module': self.module != self.prev_module,
             'class': self.class_name != self.prev_class_name,
             'function': self.function != self.prev_function
         }
-        return changes
+
+    def _invalidate_lower_rank_context(self, changes: Dict[str, bool]):
+        """Invalidate lower-rank prev_* values when higher-rank context changes."""
+        # Hierarchy: phase, module, class, function, source (highest to lowest)
+        hierarchy = ['phase', 'module', 'class', 'function', 'source']
+        
+        # Find the highest-rank change
+        highest_changed_index = None
+        for i, level in enumerate(hierarchy):
+            if changes[level]:
+                highest_changed_index = i
+                break
+        
+        # If any level changed, invalidate all lower-rank prev_* values
+        if highest_changed_index is not None:
+            for i in range(highest_changed_index + 1, len(hierarchy)):
+                level = hierarchy[i]
+                if level == 'module':
+                    self.prev_module = None
+                elif level == 'class':
+                    self.prev_class_name = None
+                elif level == 'function':
+                    self.prev_function = None
+                elif level == 'source':
+                    self.prev_source = None
 
     def _update_previous_context(self):
-        """Update previous context for next message comparison."""
+        """Update previous context tracking for next comparison."""
         self.prev_phase = self.phase
         self.prev_source = self.source
         self.prev_module = self.module
@@ -110,63 +135,65 @@ class AtlasLogger:
             source: str,
             extra: Optional[Dict[str, Any]] = None
         ) -> str:
-        """Format message with hierarchical context headers and consistent indentation."""
+        """Format message with hierarchical context headers and proper invalidation."""
         
-        # Update source context before detecting changes
+        # 1. Update current context
         self.source = source
         
+        # 2. Detect what changed
         changes = self._detect_context_changes()
+        
+        # 3. Invalidate lower-rank prev_* values based on changes
+        self._invalidate_lower_rank_context(changes)
+        
+        # 4. Re-detect changes (now includes invalidated contexts)
+        changes = self._detect_context_changes()
+        
         parts = []
         current_depth = 0
         
-        # Show context headers only when they change, building depth progressively
-        # All context fields are now treated consistently for indentation
+        # 5. Show context headers when they change (includes invalidated contexts)
         if changes['phase'] and self.phase is not None:
             indent = "    " * current_depth
             parts.append(f"{indent}[phase:{self.phase}]")
             current_depth += 1
         elif self.phase is not None:
-            # Phase exists but unchanged - only count if it was previously shown
-            if self.prev_phase is not None:
-                current_depth += 1
-        
-        if changes['source'] and self.source is not None:
-            indent = "    " * current_depth
-            parts.append(f"{indent}[source:{self.source}]")
+            # Phase exists and unchanged, count for depth
             current_depth += 1
-        elif self.source is not None:
-            # Source exists but unchanged - only count if it was previously shown
-            if self.prev_source is not None:
-                current_depth += 1
         
         if changes['module'] and self.module is not None:
             indent = "    " * current_depth
             parts.append(f"{indent}[module:{self.module}]")
             current_depth += 1
         elif self.module is not None:
-            # Module exists but unchanged - only count if it was previously shown
-            if self.prev_module is not None:
-                current_depth += 1
+            # Module exists and unchanged, count for depth
+            current_depth += 1
         
         if changes['class'] and self.class_name is not None:
             indent = "    " * current_depth
             parts.append(f"{indent}[class:{self.class_name}]")
             current_depth += 1
         elif self.class_name is not None:
-            # Class exists but unchanged - only count if it was previously shown
-            if self.prev_class_name is not None:
-                current_depth += 1
+            # Class exists and unchanged, count for depth
+            current_depth += 1
         
         if changes['function'] and self.function is not None:
             indent = "    " * current_depth
             parts.append(f"{indent}[function:{self.function}]")
             current_depth += 1
         elif self.function is not None:
-            # Function exists but unchanged - only count if it was previously shown
-            if self.prev_function is not None:
-                current_depth += 1
+            # Function exists and unchanged, count for depth
+            current_depth += 1
         
-        # Add the actual message at the current context depth
+        if changes['source'] and self.source is not None:
+            indent = "    " * current_depth
+            parts.append(f"{indent}[source:{self.source}]")
+            current_depth += 1
+        elif self.source is not None:
+            # Source exists and unchanged, count for depth
+            current_depth += 1
+        
+        # 6. Add the actual message at the current context depth
         message_indent = "    " * current_depth
         message_part = f"{message_indent}[{level.name}] {message}"
         
@@ -177,7 +204,7 @@ class AtlasLogger:
         
         parts.append(message_part)
         
-        # Update previous context for next comparison
+        # 7. Update previous context for next comparison
         self._update_previous_context()
         
         return "\n".join(parts)
