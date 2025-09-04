@@ -159,13 +159,14 @@ class NameResolver:
     """Core name resolution engine with inheritance-aware method resolution, attribute support, and external library support."""
     
     def __init__(self, recon_data: Dict[str, Any]):
-        self.recon_data = recon_data
+        self.recon_data = recon_data  # Keep for strategy initialization and context creation
         self.strategies = [
             LocalVariableStrategy(),
             SelfStrategy(),
             ImportStrategy(recon_data),
             ModuleStrategy()
         ]
+        self.context = None  # Will be set when resolution is called
         
         self._log(LogLevel.DEBUG, f"Name resolver initialized with {len(self.strategies)} strategies",
                   extra={'strategy_count': len(self.strategies),
@@ -190,6 +191,15 @@ class NameResolver:
             self._log(LogLevel.DEBUG, "Resolution failed: No name parts provided")
             return None
         
+        # Create ResolutionContext for this resolution call
+        self.context = ResolutionContext(
+            symbol_manager=context.get('symbol_manager'),
+            current_class=context.get('current_class'),
+            current_module=context.get('current_module', ''),
+            recon_data=self.recon_data,
+            type_inference=context.get('type_inference')
+        )
+
         name_str = '.'.join(name_parts)
         self._log(LogLevel.DEBUG, f"Resolving name: {name_str}",
                   extra={'name_parts': name_parts, 'parts_count': len(name_parts)})
@@ -265,7 +275,7 @@ class NameResolver:
         for i, attr in enumerate(name_parts[1:], 1):
             self._log(LogLevel.TRACE, f"Chain step {i}: Resolving {current_fqn}.{attr}",
                       extra={'chain_step': i, 'current_fqn': current_fqn, 'attr': attr})
-            current_fqn = self._resolve_attribute(current_fqn, attr, context)
+            current_fqn = self._resolve_attribute(current_fqn, attr)
             if not current_fqn:
                 self._log(LogLevel.TRACE, f"Chain resolution failed at step {i}: .{attr}",
                           extra={'chain_failure': 'attribute_resolution', 'step': i, 'attr': attr})
@@ -275,38 +285,38 @@ class NameResolver:
         
         return current_fqn
     
-    def _resolve_attribute(self, context_fqn: str, attr: str, context: Dict[str, Any]) -> Optional[str]:
+    def _resolve_attribute(self, context_fqn: str, attr: str) -> Optional[str]:
         """Resolve attribute in context of given FQN with inheritance, attribute support, and external library support."""
         candidate = f"{context_fqn}.{attr}"
         self._log(LogLevel.TRACE, f"Resolving attribute: {context_fqn}.{attr}",
                   extra={'context_fqn': context_fqn, 'attr': attr, 'candidate': candidate})
         
         # Check if context is a state variable - resolve through its type
-        if context_fqn in self.recon_data["state"]:
+        if context_fqn in self.context.recon_data["state"]:
             self._log(LogLevel.TRACE, "Context is state variable, resolving through type",
                       extra={'context_fqn': context_fqn, 'resolution_method': 'state_type'})
             state_type = self._get_state_type(context_fqn)
             if state_type:
                 self._log(LogLevel.TRACE, f"State type resolved: {state_type}",
                           extra={'state_fqn': context_fqn, 'state_type': state_type})
-                return self._resolve_attribute(state_type, attr, context)
+                return self._resolve_attribute(state_type, attr)
             else:
                 self._log(LogLevel.TRACE, "Could not resolve state type",
                           extra={'state_fqn': context_fqn})
         
         # Check if context is an internal class - look for methods and attributes with inheritance
-        if context_fqn in self.recon_data["classes"]:
+        if context_fqn in self.context.recon_data["classes"]:
             self._log(LogLevel.TRACE, "Context is internal class, checking for method/attribute",
                       extra={'class_fqn': context_fqn, 'resolution_method': 'class_member'})
             
             # First check direct method
-            if candidate in self.recon_data["functions"]:
+            if candidate in self.context.recon_data["functions"]:
                 self._log(LogLevel.TRACE, f"Found direct method: {candidate}",
                           extra={'method_fqn': candidate, 'resolution_type': 'direct_method'})
                 return candidate
             
             # Check for class attribute
-            class_info = self.recon_data["classes"][context_fqn]
+            class_info = self.context.recon_data["classes"][context_fqn]
             class_attributes = class_info.get("attributes", {})
             if attr in class_attributes:
                 attr_type = class_attributes[attr].get("type")
@@ -314,7 +324,7 @@ class NameResolver:
                     self._log(LogLevel.TRACE, f"Found class attribute: {attr} of type {attr_type}",
                               extra={'class_fqn': context_fqn, 'attr': attr, 'attr_type': attr_type})
                     # Resolve the attribute type to its FQN
-                    resolved_type = self._resolve_attribute_type(attr_type, context)
+                    resolved_type = self._resolve_attribute_type(attr_type)
                     if resolved_type:
                         self._log(LogLevel.TRACE, f"Attribute type resolved to: {resolved_type}",
                                   extra={'attr_type': attr_type, 'resolved_type': resolved_type})
@@ -326,7 +336,7 @@ class NameResolver:
             # Then check inheritance chain
             self._log(LogLevel.TRACE, "Checking inheritance for method/attribute",
                       extra={'class_fqn': context_fqn, 'attr': attr})
-            inherited_result = self._resolve_inherited_method_or_attribute(context_fqn, attr, context)
+            inherited_result = self._resolve_inherited_method_or_attribute(context_fqn, attr)
             if inherited_result:
                 self._log(LogLevel.TRACE, f"Found in inheritance chain: {inherited_result}",
                           extra={'class_fqn': context_fqn, 'attr': attr, 'inherited_result': inherited_result})
@@ -336,7 +346,7 @@ class NameResolver:
                       extra={'class_fqn': context_fqn, 'attr': attr, 'candidate': candidate})
         
         # Check if context is an external class
-        elif context_fqn in self.recon_data.get("external_classes", {}):
+        elif context_fqn in self.context.recon_data.get("external_classes", {}):
             self._log(LogLevel.TRACE, "Context is external class, checking for common methods",
                       extra={'external_class_fqn': context_fqn, 'attr': attr})
             
@@ -354,33 +364,33 @@ class NameResolver:
                 return external_method_fqn
         
         # Check if context is a function - use return type
-        if (context_fqn in self.recon_data["functions"] or 
-            context_fqn in self.recon_data.get("external_functions", {})):
+        if (context_fqn in self.context.recon_data["functions"] or 
+            context_fqn in self.context.recon_data.get("external_functions", {})):
             self._log(LogLevel.TRACE, "Context is function, using return type",
                       extra={'function_fqn': context_fqn, 'resolution_method': 'return_type'})
             
             func_info = None
-            if context_fqn in self.recon_data["functions"]:
-                func_info = self.recon_data["functions"][context_fqn]
-            elif context_fqn in self.recon_data.get("external_functions", {}):
-                func_info = self.recon_data["external_functions"][context_fqn]
+            if context_fqn in self.context.recon_data["functions"]:
+                func_info = self.context.recon_data["functions"][context_fqn]
+            elif context_fqn in self.context.recon_data.get("external_functions", {}):
+                func_info = self.context.recon_data["external_functions"][context_fqn]
             
             if func_info:
                 return_type = func_info.get("return_type")
                 if return_type:
                     self._log(LogLevel.TRACE, f"Function return type: {return_type}",
                               extra={'function_fqn': context_fqn, 'return_type': return_type})
-                    type_inference = context.get('type_inference')
-                    if type_inference:
-                        core_type = type_inference.extract_core_type(return_type)
+                    
+                    if self.context.type_inference:
+                        core_type = self.context.type_inference.extract_core_type(return_type)
                         if core_type:
                             self._log(LogLevel.TRACE, f"Core type extracted: {core_type}",
                                       extra={'return_type': return_type, 'core_type': core_type})
-                            resolved_type = self._resolve_type_name(core_type, context)
+                            resolved_type = self._resolve_type_name(core_type)
                             if resolved_type:
                                 self._log(LogLevel.TRACE, f"Type name resolved: {resolved_type}",
                                           extra={'core_type': core_type, 'resolved_type': resolved_type})
-                                return self._resolve_attribute(resolved_type, attr, context)
+                                return self._resolve_attribute(resolved_type, attr)
                             else:
                                 self._log(LogLevel.TRACE, "Could not resolve type name",
                                           extra={'core_type': core_type})
@@ -420,17 +430,17 @@ class NameResolver:
         
         return False
     
-    def _resolve_inherited_method_or_attribute(self, class_fqn: str, attr_name: str, context: Dict[str, Any]) -> Optional[str]:
+    def _resolve_inherited_method_or_attribute(self, class_fqn: str, attr_name: str) -> Optional[str]:
         """Resolve method or attribute through inheritance chain."""
         self._log(LogLevel.TRACE, f"Checking inheritance chain for {class_fqn}.{attr_name}",
                   extra={'class_fqn': class_fqn, 'attr_name': attr_name})
         
-        if class_fqn not in self.recon_data["classes"]:
+        if class_fqn not in self.context.recon_data["classes"]:
             self._log(LogLevel.TRACE, f"Class {class_fqn} not found in catalog",
                       extra={'class_fqn': class_fqn})
             return None
         
-        class_info = self.recon_data["classes"][class_fqn]
+        class_info = self.context.recon_data["classes"][class_fqn]
         parents = class_info.get("parents", [])
         
         self._log(LogLevel.TRACE, f"Parents of {class_fqn}: {parents}",
@@ -442,26 +452,26 @@ class NameResolver:
             self._log(LogLevel.TRACE, f"Checking parent method: {method_candidate}",
                       extra={'parent_fqn': parent_fqn, 'method_candidate': method_candidate})
             
-            if method_candidate in self.recon_data["functions"]:
+            if method_candidate in self.context.recon_data["functions"]:
                 self._log(LogLevel.TRACE, f"Found inherited method: {method_candidate}",
                           extra={'inherited_method': method_candidate})
                 return method_candidate
             
             # Check for attribute in parent
-            if parent_fqn in self.recon_data["classes"]:
-                parent_info = self.recon_data["classes"][parent_fqn]
+            if parent_fqn in self.context.recon_data["classes"]:
+                parent_info = self.context.recon_data["classes"][parent_fqn]
                 parent_attributes = parent_info.get("attributes", {})
                 if attr_name in parent_attributes:
                     attr_type = parent_attributes[attr_name].get("type")
                     if attr_type and attr_type != "Unknown":
                         self._log(LogLevel.TRACE, f"Found inherited attribute: {attr_name} of type {attr_type}",
                                   extra={'parent_fqn': parent_fqn, 'attr_name': attr_name, 'attr_type': attr_type})
-                        resolved_type = self._resolve_attribute_type(attr_type, context)
+                        resolved_type = self._resolve_attribute_type(attr_type)
                         if resolved_type:
                             return resolved_type
             
             # Recursive check up the inheritance chain
-            inherited = self._resolve_inherited_method_or_attribute(parent_fqn, attr_name, context)
+            inherited = self._resolve_inherited_method_or_attribute(parent_fqn, attr_name)
             if inherited:
                 self._log(LogLevel.TRACE, f"Found in grandparent: {inherited}",
                           extra={'grandparent_result': inherited, 'parent_fqn': parent_fqn})
@@ -471,32 +481,31 @@ class NameResolver:
                   extra={'class_fqn': class_fqn, 'attr_name': attr_name})
         return None
     
-    def _resolve_attribute_type(self, attr_type: str, context: Dict[str, Any]) -> Optional[str]:
+    def _resolve_attribute_type(self, attr_type: str) -> Optional[str]:
         """Resolve attribute type string to FQN, including external classes."""
         # Handle simple class names
         if "." not in attr_type:
-            current_module = context.get('current_module', '')
-            candidate = f"{current_module}.{attr_type}"
+            candidate = f"{self.context.current_module}.{attr_type}"
             
             # Check internal classes first
-            if candidate in self.recon_data["classes"]:
+            if candidate in self.context.recon_data["classes"]:
                 return candidate
             
             # Check external classes
-            for ext_class_fqn in self.recon_data.get("external_classes", {}):
+            for ext_class_fqn in self.context.recon_data.get("external_classes", {}):
                 if ext_class_fqn.endswith(f".{attr_type}"):
                     return ext_class_fqn
             
             # Search all internal classes for matching name
-            for class_fqn in self.recon_data["classes"]:
+            for class_fqn in self.context.recon_data["classes"]:
                 if class_fqn.endswith(f".{attr_type}"):
                     return class_fqn
         
         # Handle already qualified names or complex expressions
-        if attr_type in self.recon_data["classes"]:
+        if attr_type in self.context.recon_data["classes"]:
             return attr_type
         
-        if attr_type in self.recon_data.get("external_classes", {}):
+        if attr_type in self.context.recon_data.get("external_classes", {}):
             return attr_type
         
         # For complex expressions like "SAMPLE_RATES.get", return as-is
@@ -505,10 +514,10 @@ class NameResolver:
     
     def _get_state_type(self, state_fqn: str) -> Optional[str]:
         """Get type of state variable."""
-        if state_fqn not in self.recon_data["state"]:
+        if state_fqn not in self.context.recon_data["state"]:
             return None
         
-        state_info = self.recon_data["state"][state_fqn]
+        state_info = self.context.recon_data["state"][state_fqn]
         type_value = state_info.get("type")
         
         if not type_value:
@@ -519,28 +528,26 @@ class NameResolver:
             module_name = state_fqn.rsplit(".", 1)[0]
             if "." not in type_value:
                 candidate = f"{module_name}.{type_value}"
-                if (candidate in self.recon_data["classes"] or 
-                    candidate in self.recon_data.get("external_classes", {})):
+                if (candidate in self.context.recon_data["classes"] or 
+                    candidate in self.context.recon_data.get("external_classes", {})):
                     return candidate
         
         return type_value
     
-    def _resolve_type_name(self, type_name: str, context: Dict[str, Any]) -> Optional[str]:
+    def _resolve_type_name(self, type_name: str) -> Optional[str]:
         """Resolve type name to FQN."""
-        current_module = context.get('current_module', '')
-        
         # Try current module first
-        candidate = f"{current_module}.{type_name}"
-        if candidate in self.recon_data["classes"]:
+        candidate = f"{self.context.current_module}.{type_name}"
+        if candidate in self.context.recon_data["classes"]:
             return candidate
         
         # Search all internal classes
-        for class_fqn in self.recon_data["classes"]:
+        for class_fqn in self.context.recon_data["classes"]:
             if class_fqn.endswith(f".{type_name}"):
                 return class_fqn
         
         # Search external classes
-        for class_fqn in self.recon_data.get("external_classes", {}):
+        for class_fqn in self.context.recon_data.get("external_classes", {}):
             if class_fqn.endswith(f".{type_name}"):
                 return class_fqn
         
@@ -548,11 +555,11 @@ class NameResolver:
     
     def _validate_resolution(self, fqn: str) -> bool:
         """Validate that resolved FQN exists in reconnaissance data (including external libraries)."""
-        exists = (fqn in self.recon_data["classes"] or 
-                 fqn in self.recon_data["functions"] or 
-                 fqn in self.recon_data["state"] or
-                 fqn in self.recon_data.get("external_classes", {}) or
-                 fqn in self.recon_data.get("external_functions", {}))
+        exists = (fqn in self.context.recon_data["classes"] or 
+                 fqn in self.context.recon_data["functions"] or 
+                 fqn in self.context.recon_data["state"] or
+                 fqn in self.context.recon_data.get("external_classes", {}) or
+                 fqn in self.context.recon_data.get("external_functions", {}))
         
         self._log(LogLevel.TRACE, f"Validation check: {fqn} {'EXISTS' if exists else 'NOT_FOUND'}",
                   extra={'fqn': fqn, 'exists': exists})
@@ -568,3 +575,16 @@ class NameResolver:
         elif isinstance(node, ast.Call):
             return self.extract_name_parts(node.func)
         return None
+
+
+class ResolutionContext:
+    """Encapsulates all context needed for name resolution."""
+    
+    def __init__(self, symbol_manager, current_class: Optional[str], 
+                 current_module: str, recon_data: Dict[str, Any], 
+                 type_inference=None):
+        self.symbol_manager = symbol_manager
+        self.current_class = current_class
+        self.current_module = current_module
+        self.recon_data = recon_data
+        self.type_inference = type_inference
