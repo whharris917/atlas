@@ -8,7 +8,6 @@ configurable output levels, and structured formatting for debugging.
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Dict, Any
-import sys
 
 
 class LogLevel(Enum):

@@ -15,7 +15,7 @@ from .type_inference import TypeInferenceEngine
 from .symbol_table import SymbolTableManager
 from .code_checker import CodeStandardChecker
 from .utils import EXTERNAL_LIBRARY_ALLOWLIST, get_source
-from .logger import get_logger, AnalysisPhase, LogLevel
+from .logger import get_logger, LogLevel
 
 
 class AnalysisVisitor(ast.NodeVisitor):
