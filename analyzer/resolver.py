@@ -131,16 +131,6 @@ class NameResolver:
             self.context.type_inference
         )
 
-    def _resolve_attribute(self, context_fqn: str, attr: str) -> Optional[str]:
-        """Resolve attribute using extracted attribute resolution functions."""
-        return resolve_attribute(
-            context_fqn, 
-            attr, 
-            self.context.recon_data, 
-            self.context.current_module, 
-            self.context.type_inference
-        )
-
     def extract_name_parts(self, node: ast.AST) -> Optional[List[str]]:
         """Extract name parts from AST node."""
         if isinstance(node, ast.Name):
