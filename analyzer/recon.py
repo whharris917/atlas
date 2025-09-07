@@ -216,8 +216,8 @@ class ReconVisitor(ast.NodeVisitor):
                             resolved_type = param_types[stmt.value.id]
                             self._log(LogLevel.TRACE, f"{attr_name} = {stmt.value.id} : {resolved_type}")
                         else:
-                            # Fallback to value-based inference
-                            resolved_type = self._infer_init_attribute_type(stmt.value)
+                            # REFACTORED: Consistently use the TypeInferenceEngine for all value-based inference.
+                            resolved_type = self.type_inference.infer_from_assignment_value(stmt.value)
                             self._log(LogLevel.TRACE, f"{attr_name} inferred as: {resolved_type}")
                         
                         self.current_class_attributes[attr_name] = {
@@ -247,57 +247,16 @@ class ReconVisitor(ast.NodeVisitor):
                             type_annotation = param_types[stmt.value.id]
                             self._log(LogLevel.TRACE, f"{attr_name} from param {stmt.value.id} : {type_annotation}")
                         elif stmt.value:
-                            type_annotation = self._infer_init_attribute_type(stmt.value)
+                            # REFACTORED: Consistently use the TypeInferenceEngine.
+                            type_annotation = self.type_inference.infer_from_assignment_value(stmt.value)
                             self._log(LogLevel.TRACE, f"{attr_name} inferred as: {type_annotation}")
                     
                     self.current_class_attributes[attr_name] = {
                         "type": type_annotation or "Unknown"
                     }
-    
-    def _infer_init_attribute_type(self, value_node: ast.AST) -> str:
-        """Infer type of attribute from its initialization value in __init__."""
-        if isinstance(value_node, ast.Call):
-            # Direct instantiation: self.attr = ClassName()
-            if isinstance(value_node.func, ast.Name):
-                return value_node.func.id
-            elif isinstance(value_node.func, ast.Attribute):
-                # Module.ClassName() pattern
-                parts = []
-                current = value_node.func
-                while isinstance(current, ast.Attribute):
-                    parts.insert(0, current.attr)
-                    current = current.value
-                if isinstance(current, ast.Name):
-                    parts.insert(0, current.id)
-                    return ".".join(parts)
-        
-        elif isinstance(value_node, ast.Name):
-            # Assignment from parameter: self.attr = param
-            return value_node.id
-        
-        elif isinstance(value_node, ast.Constant):
-            # Literal assignment: self.attr = "string" or self.attr = 42
-            if isinstance(value_node.value, str):
-                return "str"
-            elif isinstance(value_node.value, int):
-                return "int"
-            elif isinstance(value_node.value, float):
-                return "float"
-            elif isinstance(value_node.value, bool):
-                return "bool"
-        
-        elif isinstance(value_node, ast.List):
-            return "list"
-        elif isinstance(value_node, ast.Dict):
-            return "dict"
-        elif isinstance(value_node, ast.Subscript):
-            # Handle subscript access like: self.attr = some_dict[key]
-            try:
-                return ast.unparse(value_node)
-            except Exception:
-                pass
-        
-        return None
+
+    # REMOVED: The _infer_init_attribute_type method was here. It has been
+    # removed as its logic is now centralized in the TypeInferenceEngine.
     
     def visit_Assign(self, node: ast.Assign):
         """Process assignments for state variables and class attributes."""
