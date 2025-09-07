@@ -3282,7 +3282,8 @@
           "instantiations": [],
           "accessed_state": [
             "decorators.TRACE_LOCK",
-            "decorators._decorator_registry"
+            "decorators._decorator_registry",
+            "decorators.PERFORMANCE_METRICS"
           ],
           "decorators": [
             "@wraps(f)"
@@ -3307,7 +3308,9 @@
           "docstring": null,
           "calls": [],
           "instantiations": [],
-          "accessed_state": [],
+          "accessed_state": [
+            "decorators.PERFORMANCE_METRICS"
+          ],
           "decorators": [
             "@wraps(f)"
           ]
