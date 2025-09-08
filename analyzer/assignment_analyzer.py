@@ -52,6 +52,7 @@ class AssignmentAnalyzer:
                             if var_type:
                                 self.visitor.symbol_manager.update_variable_type(target.id, var_type)
                                 self._log(LogLevel.TRACE, f"Variable assignment with type inference: {target.id} = {var_type}")
+                                self._log(LogLevel.TRACE, f"Symbol table updated: {target.id} : {var_type}")
                             else:
                                 self._log(LogLevel.TRACE, f"Could not infer type for assignment: {target.id}")
                         else:

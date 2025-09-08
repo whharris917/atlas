@@ -83,6 +83,8 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     @current_class.setter
     def current_class(self, value):
+        if value:
+            self._log(LogLevel.DEBUG, f"Entering class context: {value}")
         self._current_class = value
         self._update_logger_context()
     
@@ -92,6 +94,8 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     @current_function_fqn.setter
     def current_function_fqn(self, value):
+        if value:
+            self._log(LogLevel.DEBUG, f"Entering function context: {value}")
         self._current_function_fqn = value
         self._update_logger_context()
     
@@ -131,6 +135,7 @@ class AnalysisVisitor(ast.NodeVisitor):
             self._log(LogLevel.TRACE, f"Cache hit: {'.'.join(name_parts)} -> {cached_result}")
             return cached_result
         
+        self._log(LogLevel.TRACE, f"Cache miss: {'.'.join(name_parts)}. Invoking resolver.")
         result = self.name_resolver.resolve_name(name_parts, context)
         self.resolution_cache[cache_key] = result
         return result
