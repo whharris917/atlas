@@ -194,7 +194,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         }
         
         old_class = self.current_class
-        self.current_class = class_fqn  # This triggers logger context update
+        self.current_class = class_fqn
         self.symbol_manager.enter_class_scope()
         
         try:
@@ -203,7 +203,7 @@ class AnalysisVisitor(ast.NodeVisitor):
                     method_report = self.function_analyzer.analyze_function(child)
                     class_report["methods"].append(method_report)
         finally:
-            self.current_class = old_class  # This triggers logger context update
+            self.current_class = old_class
             self.symbol_manager.exit_class_scope()
         
         self.module_report["classes"].append(class_report)
@@ -215,9 +215,6 @@ class AnalysisVisitor(ast.NodeVisitor):
             self._log(LogLevel.DEBUG, f"Analyzing function: {node.name}")
             function_report = self.function_analyzer.analyze_function(node)
             self.module_report["functions"].append(function_report)
-        
-        # Nested functions are now handled entirely within FunctionAnalyzer.
-        # Class methods are handled by visit_ClassDef.
     
     def visit_Call(self, node: ast.Call):
         self.call_analyzer.analyze_call(node)
@@ -260,7 +257,7 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             atlas[py_file.name] = visitor.module_report
             get_logger().info(f"File analysis complete: {py_file.name}", source=get_source())
         
-            # RESET CONTEXT after module analysis completes
+            # Reset context after module analysis completes
             get_logger().reset_context()
 
         except Exception as e:

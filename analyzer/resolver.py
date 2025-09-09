@@ -31,12 +31,7 @@ class NameResolver:
         ]
         self.context = None  # Will be set when resolution is called
         
-        self._log(LogLevel.DEBUG, f"Name resolver initialized with {len(self.strategies)} strategies",
-                  extra={'strategy_count': len(self.strategies),
-                         'recon_classes': len(recon_data.get("classes", {})),
-                         'recon_functions': len(recon_data.get("functions", {})),
-                         'external_classes': len(recon_data.get("external_classes", {})),
-                         'external_functions': len(recon_data.get("external_functions", {}))})
+        self._log(LogLevel.DEBUG, f"Name resolver initialized with {len(self.strategies)} strategies")
     
     def _log(
             self, 
