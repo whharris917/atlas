@@ -11,6 +11,8 @@ from typing import Dict, Any, Optional
 
 from .logger import get_logger, LogLevel
 from .utils import get_source
+# --- NEW ---
+from .unified_dispatcher import UnifiedResolutionDispatcher
 
 
 class AssignmentAnalyzer:
@@ -18,8 +20,15 @@ class AssignmentAnalyzer:
 
     def __init__(self, recon_data: Dict[str, Any], visitor):
         self.recon_data = recon_data
-        self.visitor = visitor  # The main AnalysisVisitor instance
+        self.visitor = visitor
         self.logger = get_logger()
+        # --- NEW: Instantiate our new engine ---
+        self.unified_dispatcher = UnifiedResolutionDispatcher(
+            self.recon_data,
+            self.visitor.name_resolver,
+            self.visitor.type_inference
+        )
+
 
     def _log(self, level: LogLevel, message: str, extra: Optional[Dict[str, Any]] = None):
         """Enhanced log with automatic source detection and correct module tracking."""
@@ -27,7 +36,7 @@ class AssignmentAnalyzer:
 
     def analyze_assignment(self, node: ast.Assign):
         """Process assignments for both module state and local variables."""
-        if not self.visitor.current_class and not self.visitor.current_function_report:
+        if not self.visitor._get_current_class_fqn() and not self.visitor.current_function_report:
             # Module-level state
             for target in node.targets:
                 if isinstance(target, ast.Name):
@@ -48,7 +57,18 @@ class AssignmentAnalyzer:
                         if isinstance(node.value, ast.Call):
                             # This is a function call assignment
                             context = self.visitor._get_context()
-                            var_type = self.visitor.type_inference.infer_from_call(node.value, self.visitor.name_resolver, context)
+                            
+                            # --- The Refactoring Junction ---
+                            USE_UNIFIED_DISPATCHER = True
+                            var_type = None
+
+                            if USE_UNIFIED_DISPATCHER:
+                                # New, elegant, unified way
+                                var_type = self.unified_dispatcher.resolve_node_type(node.value, context)
+                            else:
+                                # Old, brittle, special-cased way
+                                var_type = self.visitor.type_inference.infer_from_call(node.value, self.visitor.name_resolver, context)
+
                             if var_type:
                                 self.visitor.symbol_manager.update_variable_type(target.id, var_type)
                                 self._log(LogLevel.TRACE, f"Variable assignment with type inference: {target.id} = {var_type}")
@@ -62,7 +82,7 @@ class AssignmentAnalyzer:
     
     def analyze_annotated_assignment(self, node: ast.AnnAssign):
         """Process annotated assignments."""
-        if (not self.visitor.current_class and not self.visitor.current_function_report and
+        if (not self.visitor._get_current_class_fqn() and not self.visitor.current_function_report and
             isinstance(node.target, ast.Name)):
             try:
                 state_entry = {

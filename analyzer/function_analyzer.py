@@ -27,10 +27,9 @@ class FunctionAnalyzer:
 
     def analyze_function(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Analyze function with clean separation of concerns."""
-        if self.visitor.current_class:
-            function_fqn = f"{self.visitor.current_class}.{node.name}"
-        else:
-            function_fqn = f"{self.visitor.module_name}.{node.name}"
+        
+        parent_scope = self.visitor.scope_stack[-1]
+        function_fqn = f"{parent_scope}.{node.name}"
         
         self._log(LogLevel.DEBUG, f"Starting function analysis: {function_fqn}")
         
@@ -61,9 +60,8 @@ class FunctionAnalyzer:
         
         # Set up function context
         old_report = self.visitor.current_function_report
-        old_fqn = self.visitor.current_function_fqn
         self.visitor.current_function_report = function_report
-        self.visitor.current_function_fqn = function_fqn  # This triggers logger context update
+        self.visitor._enter_scope(function_fqn)
         self.visitor.symbol_manager.enter_function_scope()
         self.visitor.resolution_cache = {}
 
@@ -73,22 +71,12 @@ class FunctionAnalyzer:
             
             # Analyze function body
             for child in node.body:
-                if isinstance(child, ast.FunctionDef):
-                    # This is the restored logic for handling nested functions directly.
-                    self._log(LogLevel.TRACE, f"Analyzing nested function: {child.name}")
-                    self.visitor.symbol_manager.enter_nested_scope()
-                    try:
-                        self._populate_symbols_from_args(child.args)
-                        for nested_child in child.body:
-                            self.visitor.visit(nested_child)
-                    finally:
-                        self.visitor.symbol_manager.exit_nested_scope()
-                else:
-                    self.visitor.visit(child)
+                self.visitor.visit(child)
         
         finally:
             self.visitor.current_function_report = old_report
-            self.visitor.current_function_fqn = old_fqn  # This triggers logger context update
+            self.visitor._exit_scope()
+            self.visitor.symbol_manager.exit_function_scope()
         
         # Clean up empty emit_contexts to keep JSON clean
         if not function_report.get("emit_contexts"):
@@ -113,8 +101,9 @@ class FunctionAnalyzer:
         
         # Try to get parameter types from recon_data if available
         param_types_from_recon = {}
-        if self.visitor.current_function_fqn and self.visitor.current_function_fqn in self.recon_data["functions"]:
-            func_info = self.recon_data["functions"][self.visitor.current_function_fqn]
+        current_function_fqn = self.visitor._get_current_function_fqn()
+        if current_function_fqn and current_function_fqn in self.recon_data["functions"]:
+            func_info = self.recon_data["functions"][current_function_fqn]
             param_types_from_recon = func_info.get("param_types", {})
             if param_types_from_recon:
                 self._log(LogLevel.TRACE, f"Found parameter types in recon data: {param_types_from_recon}")

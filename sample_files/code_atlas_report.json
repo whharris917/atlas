@@ -2547,7 +2547,6 @@
               ],
               "docstring": "Execute an administrative operation.\nThis is the main entry point called by the decorator in decorators.py.",
               "calls": [
-                "admin_manager.OperationResult.add_error",
                 "admin_manager.AdminManager._result_to_dict",
                 "admin_manager.AdminManager._execute_specific_operation",
                 "admin_manager.AdminManager._add_audit_entry"
@@ -2555,7 +2554,9 @@
               "instantiations": [
                 "admin_manager.OperationResult"
               ],
-              "accessed_state": [],
+              "accessed_state": [
+                "admin_manager.result"
+              ],
               "decorators": []
             },
             {
@@ -3075,9 +3076,7 @@
           ],
           "docstring": "Context manager for easy transaction handling.",
           "calls": [
-            "database_manager.create_transaction_manager",
-            "database_manager.TransactionManager.transaction_context",
-            "database_manager.TransactionManager.close_connection"
+            "database_manager.create_transaction_manager"
           ],
           "instantiations": [],
           "accessed_state": [],
@@ -3198,16 +3197,27 @@
               "decorators": []
             },
             {
+              "name": "wrapper",
+              "args": [],
+              "docstring": null,
+              "calls": [
+                "decorators.ClassBasedDecorator._validate_arguments",
+                "decorators.ClassBasedDecorator._transform_result"
+              ],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": [
+                "@wraps(func)"
+              ]
+            },
+            {
               "name": "__call__",
               "args": [
                 "self",
                 "func"
               ],
               "docstring": null,
-              "calls": [
-                "decorators.ClassBasedDecorator._validate_arguments",
-                "decorators.ClassBasedDecorator._transform_result"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -3259,6 +3269,29 @@
               "decorators": []
             },
             {
+              "name": "getter",
+              "args": [
+                "instance"
+              ],
+              "docstring": null,
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "setter",
+              "args": [
+                "instance",
+                "value"
+              ],
+              "docstring": null,
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
               "name": "__call__",
               "args": [
                 "self",
@@ -3290,6 +3323,19 @@
           ]
         },
         {
+          "name": "decorator",
+          "args": [
+            "f"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [
+            "decorators._decorator_registry"
+          ],
+          "decorators": []
+        },
+        {
           "name": "trace",
           "args": [
             "func"
@@ -3297,9 +3343,7 @@
           "docstring": "Advanced tracing decorator with optional parameters.\nTests parameterized decorator analysis.",
           "calls": [],
           "instantiations": [],
-          "accessed_state": [
-            "decorators._decorator_registry"
-          ],
+          "accessed_state": [],
           "decorators": []
         },
         {
@@ -3314,6 +3358,17 @@
           "decorators": [
             "@wraps(f)"
           ]
+        },
+        {
+          "name": "decorator",
+          "args": [
+            "f"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
         },
         {
           "name": "monitor_performance",
@@ -3332,7 +3387,6 @@
           "docstring": null,
           "calls": [
             "session_manager.get_current_session",
-            "session_manager.UserSession.is_valid",
             "session_manager.get_current_user"
           ],
           "instantiations": [],
@@ -3342,6 +3396,17 @@
           "decorators": [
             "@wraps(func)"
           ]
+        },
+        {
+          "name": "decorator",
+          "args": [
+            "func"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
         },
         {
           "name": "validate_auth",
@@ -3371,6 +3436,17 @@
           ]
         },
         {
+          "name": "decorator",
+          "args": [
+            "func"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
+        },
+        {
           "name": "rate_limit",
           "args": [
             "calls",
@@ -3396,14 +3472,11 @@
           ]
         },
         {
-          "name": "create_custom_decorator",
+          "name": "decorator",
           "args": [
-            "name",
-            "pre_hook",
-            "post_hook",
-            "error_hook"
+            "func"
           ],
-          "docstring": "Factory for creating custom decorators with hooks.\nTests complex decorator factory patterns.",
+          "docstring": null,
           "calls": [
             "decorators.DecoratorRegistry.register_decorator"
           ],
@@ -3414,9 +3487,45 @@
           "decorators": []
         },
         {
+          "name": "create_custom_decorator",
+          "args": [
+            "name",
+            "pre_hook",
+            "post_hook",
+            "error_hook"
+          ],
+          "docstring": "Factory for creating custom decorators with hooks.\nTests complex decorator factory patterns.",
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
+        },
+        {
+          "name": "decorator",
+          "args": [
+            "func"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
+        },
+        {
           "name": "multi_decorator",
           "args": [],
           "docstring": "Apply multiple decorators in sequence.\nTests complex decorator chaining analysis.",
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
+        },
+        {
+          "name": "decorator_wrapper",
+          "args": [
+            "func"
+          ],
+          "docstring": null,
           "calls": [],
           "instantiations": [],
           "accessed_state": [],
@@ -3446,6 +3555,17 @@
           ]
         },
         {
+          "name": "decorator",
+          "args": [
+            "func"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
+        },
+        {
           "name": "advanced_cache",
           "args": [
             "ttl",
@@ -3471,6 +3591,17 @@
           ]
         },
         {
+          "name": "monitor_decorator",
+          "args": [
+            "func"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
+        },
+        {
           "name": "create_monitoring_decorator",
           "args": [
             "metrics_collector"
@@ -3486,11 +3617,7 @@
           "args": [],
           "docstring": null,
           "calls": [
-            "database_manager.get_db_connection",
-            "database_manager.TransactionManager.begin_transaction",
-            "database_manager.TransactionManager.commit_transaction",
-            "database_manager.TransactionManager.rollback_transaction",
-            "database_manager.TransactionManager.close_connection"
+            "database_manager.get_db_connection"
           ],
           "instantiations": [
             "database_manager.TransactionManager"
@@ -3499,6 +3626,17 @@
           "decorators": [
             "@wraps(func)"
           ]
+        },
+        {
+          "name": "decorator",
+          "args": [
+            "func"
+          ],
+          "docstring": null,
+          "calls": [],
+          "instantiations": [],
+          "accessed_state": [],
+          "decorators": []
         },
         {
           "name": "transaction_decorator",
@@ -3534,9 +3672,7 @@
             "parameters"
           ],
           "docstring": "Admin operation with complex decorator stack.",
-          "calls": [
-            "admin_manager.AdminManager.execute_operation"
-          ],
+          "calls": [],
           "instantiations": [
             "admin_manager.AdminManager"
           ],
@@ -3794,8 +3930,7 @@
               ],
               "docstring": "Main validation method with error handling.",
               "calls": [
-                "event_validator.BaseValidationRule._validate_implementation",
-                "event_validator.ValidationReport.add_error"
+                "event_validator.BaseValidationRule._validate_implementation"
               ],
               "instantiations": [
                 "event_validator.ValidationReport"
@@ -3842,9 +3977,7 @@
                 "context"
               ],
               "docstring": "Validate required fields.",
-              "calls": [
-                "event_validator.ValidationReport.add_error"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -3877,9 +4010,7 @@
                 "context"
               ],
               "docstring": "Validate data types.",
-              "calls": [
-                "event_validator.ValidationReport.add_error"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -3912,9 +4043,7 @@
                 "context"
               ],
               "docstring": "Validate regex patterns.",
-              "calls": [
-                "event_validator.ValidationReport.add_error"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4154,7 +4283,6 @@
               "docstring": "Validate event data with type-specific rules.",
               "calls": [
                 "event_validator.ValidationEngine.validate",
-                "event_validator.ValidationReport.is_valid",
                 "event_validator.ValidationEngine._merge_reports"
               ],
               "instantiations": [],
@@ -4654,7 +4782,9 @@
               "instantiations": [
                 "inheritence_complex.ProcessingResult"
               ],
-              "accessed_state": [],
+              "accessed_state": [
+                "inheritence_complex.result"
+              ],
               "decorators": [
                 "@trace",
                 "@monitor_performance"
@@ -5002,9 +5132,7 @@
             "processor_configs"
           ],
           "docstring": "Factory function creating complex processor hierarchies.",
-          "calls": [
-            "inheritence_complex.ValidatedMixin.add_validation_rule"
-          ],
+          "calls": [],
           "instantiations": [
             "inheritence_complex.BasicDataProcessor",
             "inheritence_complex.AdvancedProcessor",
@@ -5185,6 +5313,19 @@
               ]
             },
             {
+              "name": "proxy_wrapper",
+              "args": [],
+              "docstring": null,
+              "calls": [
+                "proxy_handler.BaseProxy._proxy_method_call"
+              ],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": [
+                "@wraps(original_method)"
+              ]
+            },
+            {
               "name": "_create_proxy_method",
               "args": [
                 "self",
@@ -5192,9 +5333,7 @@
                 "original_method"
               ],
               "docstring": "Create a proxy wrapper for a method.",
-              "calls": [
-                "proxy_handler.BaseProxy._proxy_method_call"
-              ],
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": []
@@ -6151,7 +6290,9 @@
           "instantiations": [
             "session_manager.SessionManager"
           ],
-          "accessed_state": [],
+          "accessed_state": [
+            "session_manager._global_session_manager"
+          ],
           "decorators": []
         },
         {
@@ -6245,13 +6386,9 @@
               "decorators": []
             },
             {
-              "name": "register_dynamic_event",
-              "args": [
-                "self",
-                "event_name",
-                "handler"
-              ],
-              "docstring": "Register event handler dynamically with full decorator chain.",
+              "name": "wrapped_handler",
+              "args": [],
+              "docstring": "Dynamically created handler with full middleware.",
               "calls": [
                 "flask_socketio.SocketIO.emit::event_received",
                 "session_manager.SessionManager.get_current_timestamp",
@@ -6261,6 +6398,24 @@
                 "event_validator.EventValidator.get_validation_details",
                 "session_manager.SessionManager.get_user_room"
               ],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": [
+                "@self.socketio.on(event_name)",
+                "@trace",
+                "@validate_auth",
+                "@rate_limit(calls=10, period=60)"
+              ]
+            },
+            {
+              "name": "register_dynamic_event",
+              "args": [
+                "self",
+                "event_name",
+                "handler"
+              ],
+              "docstring": "Register event handler dynamically with full decorator chain.",
+              "calls": [],
               "instantiations": [],
               "accessed_state": [],
               "decorators": [
@@ -6300,12 +6455,11 @@
               "decorators": []
             },
             {
-              "name": "_create_room_handler",
+              "name": "room_handler",
               "args": [
-                "self",
-                "config"
+                "data"
               ],
-              "docstring": "Create room-based handler with complex SocketIO operations.",
+              "docstring": "Handle room-based events with multiple SocketIO calls.",
               "calls": [
                 "session_manager.SessionManager.validate_room_access",
                 "flask_socketio.join_room::$room_name",
@@ -6318,7 +6472,9 @@
               "accessed_state": [
                 "socketio_events.ACTIVE_ROOMS"
               ],
-              "decorators": [],
+              "decorators": [
+                "@trace"
+              ],
               "emit_contexts": {
                 "flask_socketio.SocketIO.emit::user_joined_room_context": {
                   "room": "$room_name"
@@ -6329,12 +6485,23 @@
               }
             },
             {
-              "name": "_create_broadcast_handler",
+              "name": "_create_room_handler",
               "args": [
                 "self",
                 "config"
               ],
-              "docstring": "Create broadcast handler with complex emit patterns.",
+              "docstring": "Create room-based handler with complex SocketIO operations.",
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "broadcast_handler",
+              "args": [
+                "data"
+              ],
+              "docstring": "Handle broadcast events with multiple emit strategies.",
               "calls": [
                 "event_validator.MessageValidator.validate_message",
                 "flask_socketio.SocketIO.emit::global_message",
@@ -6346,7 +6513,10 @@
               ],
               "instantiations": [],
               "accessed_state": [],
-              "decorators": [],
+              "decorators": [
+                "@monitor_performance",
+                "@validate_auth"
+              ],
               "emit_contexts": {
                 "flask_socketio.SocketIO.emit::global_message_context": {
                   "broadcast": true
@@ -6355,11 +6525,151 @@
                   "room": "$user_room"
                 }
               }
+            },
+            {
+              "name": "_create_broadcast_handler",
+              "args": [
+                "self",
+                "config"
+              ],
+              "docstring": "Create broadcast handler with complex emit patterns.",
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
             }
           ]
         }
       ],
       "functions": [
+        {
+          "name": "handle_connect",
+          "args": [
+            "auth"
+          ],
+          "docstring": "Handle client connection with complex authentication and session setup.",
+          "calls": [
+            "socketio.emit::runner_connected",
+            "flask_socketio.join_room::runners",
+            "socketio.emit::runner_room_joined",
+            "socketio.emit::connection_established",
+            "flask_socketio.join_room::$user_room",
+            "socketio.emit::user_connected",
+            "socketio.emit::guest_connected"
+          ],
+          "instantiations": [],
+          "accessed_state": [
+            "socketio_events._session_manager",
+            "socketio_events._haven_proxy"
+          ],
+          "decorators": [
+            "@socketio.on('connect')",
+            "@trace",
+            "@monitor_performance"
+          ],
+          "emit_contexts": {
+            "socketio.emit::runner_room_joined_context": {
+              "room": "runners"
+            },
+            "socketio.emit::user_connected_context": {
+              "broadcast": true
+            }
+          }
+        },
+        {
+          "name": "handle_disconnect",
+          "args": [],
+          "docstring": "Handle client disconnection with cleanup and notifications.",
+          "calls": [
+            "socketio.emit::user_disconnected",
+            "flask_socketio.leave_room::$room",
+            "socketio.emit::user_left_room"
+          ],
+          "instantiations": [],
+          "accessed_state": [
+            "socketio_events._session_manager"
+          ],
+          "decorators": [
+            "@socketio.on('disconnect')",
+            "@trace"
+          ],
+          "emit_contexts": {
+            "socketio.emit::user_disconnected_context": {
+              "broadcast": true
+            },
+            "socketio.emit::user_left_room_context": {
+              "room": "$room"
+            }
+          }
+        },
+        {
+          "name": "handle_join_room",
+          "args": [
+            "data"
+          ],
+          "docstring": "Handle room joining with complex validation and notifications.",
+          "calls": [
+            "flask_socketio.join_room::$room_name",
+            "socketio.emit::room_joined",
+            "socketio.emit::new_room_member",
+            "socketio.emit::room_stats_updated"
+          ],
+          "instantiations": [],
+          "accessed_state": [
+            "socketio_events._session_manager",
+            "socketio_events._haven_proxy"
+          ],
+          "decorators": [
+            "@socketio.on('join_room')",
+            "@trace",
+            "@validate_auth",
+            "@rate_limit(calls=5, period=30)"
+          ],
+          "emit_contexts": {
+            "socketio.emit::new_room_member_context": {
+              "room": "$room_name"
+            },
+            "socketio.emit::room_stats_updated_context": {
+              "room": "$room_name"
+            }
+          }
+        },
+        {
+          "name": "handle_send_message",
+          "args": [
+            "data"
+          ],
+          "docstring": "Handle message sending with complex routing and validation.",
+          "calls": [
+            "socketio.emit::message_rejected",
+            "socketio.emit::room_message",
+            "socketio.emit::direct_message",
+            "socketio.emit::message_delivered",
+            "socketio.emit::broadcast_message"
+          ],
+          "instantiations": [],
+          "accessed_state": [
+            "socketio_events._session_manager",
+            "socketio_events._haven_proxy"
+          ],
+          "decorators": [
+            "@socketio.on('send_message')",
+            "@trace",
+            "@validate_auth",
+            "@rate_limit(calls=20, period=60)"
+          ],
+          "emit_contexts": {
+            "socketio.emit::room_message_context": {
+              "room": "$target"
+            },
+            "socketio.emit::direct_message_context": {
+              "room": "$target_room"
+            },
+            "socketio.emit::broadcast_message_context": {
+              "broadcast": true
+            }
+          }
+        },
         {
           "name": "register_events",
           "args": [
@@ -6369,35 +6679,6 @@
           "docstring": "Primary event registration function with complex SocketIO patterns.\nUltimate stress test for decorator analysis and SocketIO emit tracking.",
           "calls": [
             "socketio_events.SocketIOEventRegistry::$socketio",
-            "session_manager.SessionManager.create_session",
-            "flask_socketio.SocketIO.emit::runner_connected",
-            "session_manager.SessionManager.get_current_timestamp",
-            "flask_socketio.join_room::runners",
-            "flask_socketio.SocketIO.emit::runner_room_joined",
-            "session_manager.SessionManager.create_user_session",
-            "flask_socketio.SocketIO.emit::connection_established",
-            "flask_socketio.join_room::$user_room",
-            "flask_socketio.SocketIO.emit::user_connected",
-            "flask_socketio.SocketIO.emit::guest_connected",
-            "session_manager.SessionManager.get_current_session_id",
-            "session_manager.SessionManager.get_current_user_id",
-            "session_manager.SessionManager.cleanup_user_session",
-            "flask_socketio.SocketIO.emit::user_disconnected",
-            "session_manager.SessionManager.get_user_rooms",
-            "flask_socketio.leave_room::$room",
-            "flask_socketio.SocketIO.emit::user_left_room",
-            "session_manager.SessionManager.destroy_session",
-            "flask_socketio.join_room::$room_name",
-            "flask_socketio.SocketIO.emit::room_joined",
-            "flask_socketio.SocketIO.emit::new_room_member",
-            "flask_socketio.SocketIO.emit::room_stats_updated",
-            "flask_socketio.SocketIO.emit::message_rejected",
-            "flask_socketio.SocketIO.emit::room_message",
-            "flask_socketio.SocketIO.emit::direct_message",
-            "flask_socketio.SocketIO.emit::message_delivered",
-            "flask_socketio.SocketIO.emit::broadcast_message",
-            "socketio_events.SocketIOEventRegistry.batch_register_events::$dynamic_events",
-            "socketio_events.SocketIOEventRegistry.register_dynamic_event::$event_name",
             "socketio_events.create_dynamic_handler::$event_name"
           ],
           "instantiations": [
@@ -6405,38 +6686,30 @@
           ],
           "accessed_state": [
             "socketio_events._socketio_instance",
-            "socketio_events._haven_proxy"
+            "socketio_events._haven_proxy",
+            "socketio_events._session_manager"
           ],
           "decorators": [
             "@trace"
+          ]
+        },
+        {
+          "name": "dynamic_handler",
+          "args": [
+            "data"
           ],
+          "docstring": "Dynamically created handler with complex SocketIO emit patterns.",
+          "calls": [
+            "_socketio_instance.emit::unknown_event"
+          ],
+          "instantiations": [],
+          "accessed_state": [
+            "socketio_events._socketio_instance"
+          ],
+          "decorators": [],
           "emit_contexts": {
-            "flask_socketio.SocketIO.emit::runner_room_joined_context": {
-              "room": "runners"
-            },
-            "flask_socketio.SocketIO.emit::user_connected_context": {
-              "broadcast": true
-            },
-            "flask_socketio.SocketIO.emit::user_disconnected_context": {
-              "broadcast": true
-            },
-            "flask_socketio.SocketIO.emit::user_left_room_context": {
-              "room": "$room"
-            },
-            "flask_socketio.SocketIO.emit::new_room_member_context": {
+            "_socketio_instance.emit::unknown_event_context": {
               "room": "$room_name"
-            },
-            "flask_socketio.SocketIO.emit::room_stats_updated_context": {
-              "room": "$room_name"
-            },
-            "flask_socketio.SocketIO.emit::room_message_context": {
-              "room": "$target"
-            },
-            "flask_socketio.SocketIO.emit::direct_message_context": {
-              "room": "$target_room"
-            },
-            "flask_socketio.SocketIO.emit::broadcast_message_context": {
-              "broadcast": true
             }
           }
         },
@@ -6448,26 +6721,13 @@
             "session_manager"
           ],
           "docstring": "Factory function creating dynamic handlers with embedded SocketIO calls.",
-          "calls": [
-            "session_manager.SessionManager.get_current_user_id",
-            "proxy_handler.HavenProxy.validate_event_data",
-            "proxy_handler.HavenProxy.process_event",
-            "_socketio_instance.emit::unknown_event",
-            "session_manager.SessionManager.get_current_timestamp"
-          ],
+          "calls": [],
           "instantiations": [],
-          "accessed_state": [
-            "socketio_events._socketio_instance"
-          ],
+          "accessed_state": [],
           "decorators": [
             "@trace",
             "@monitor_performance"
-          ],
-          "emit_contexts": {
-            "_socketio_instance.emit::unknown_event_context": {
-              "room": "$room_name"
-            }
-          }
+          ]
         },
         {
           "name": "emergency_broadcast",

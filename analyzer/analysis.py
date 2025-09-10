@@ -29,19 +29,14 @@ class AnalysisVisitor(ast.NodeVisitor):
         self.recon_data = recon_data
         self.import_map = {}
         
-        # Initialize logger first
+        # Initialize logger
         self.logger = get_logger()
         
-        # Initialize tracked attributes (triggers context update via properties)
-        self._module_name = None
-        self._current_class = None
-        self._current_function_fqn = None
-        
-        # Set initial values through properties to trigger context updates
+        # Scope management
+        self.scope_stack: List[str] = [module_name]
         self.module_name = module_name
-        self.current_class = None
-        self.current_function_fqn = None
-        
+        self._update_logger_context()
+
         # Core components
         self.name_resolver = NameResolver(recon_data)
         self.type_inference = TypeInferenceEngine(recon_data)
@@ -56,6 +51,7 @@ class AnalysisVisitor(ast.NodeVisitor):
         
         # Context tracking
         self.current_function_report = None
+        self.current_class_report = None 
         self.resolution_cache = {}
         
         # Output
@@ -67,50 +63,50 @@ class AnalysisVisitor(ast.NodeVisitor):
             "functions": [],
             "module_state": []
         }
-    
+
     @property
-    def module_name(self):
-        return self._module_name
-    
-    @module_name.setter
-    def module_name(self, value):
-        self._module_name = value
+    def current_scope_fqn(self) -> str:
+        """The FQN of the current function, method, or module."""
+        return self.scope_stack[-1]
+
+    def _enter_scope(self, fqn: str):
+        """Pushes a new lexical scope onto the stack."""
+        self.scope_stack.append(fqn)
+        self._log(LogLevel.DEBUG, f"Entering scope: {fqn}")
         self._update_logger_context()
-    
-    @property
-    def current_class(self):
-        return self._current_class
-    
-    @current_class.setter
-    def current_class(self, value):
-        if value:
-            self._log(LogLevel.DEBUG, f"Entering class context: {value}")
-        self._current_class = value
+
+    def _exit_scope(self):
+        """Pops the current lexical scope from the stack."""
+        exited_scope = self.scope_stack.pop()
+        self._log(LogLevel.DEBUG, f"Exiting scope: {exited_scope}")
         self._update_logger_context()
-    
-    @property
-    def current_function_fqn(self):
-        return self._current_function_fqn
-    
-    @current_function_fqn.setter
-    def current_function_fqn(self, value):
-        if value:
-            self._log(LogLevel.DEBUG, f"Entering function context: {value}")
-        self._current_function_fqn = value
-        self._update_logger_context()
+
+    def _get_current_class_fqn(self) -> Optional[str]:
+        """Derives the current class FQN by inspecting the scope stack."""
+        for scope in reversed(self.scope_stack):
+            if scope in self.recon_data["classes"]:
+                return scope
+        return None
+
+    def _get_current_function_fqn(self) -> Optional[str]:
+        """Derives the current function FQN from the scope stack."""
+        current_scope = self.current_scope_fqn
+        if current_scope in self.recon_data.get("functions", {}):
+            return current_scope
+        return None
     
     def _update_logger_context(self):
         """Update logger context with automatic indentation whenever tracked attributes change."""
         self.logger.module = self.module_name
-        self.logger.class_name = self.current_class
-        self.logger.function = self.current_function_fqn
+        self.logger.class_name = self._get_current_class_fqn()
+        self.logger.function = self._get_current_function_fqn()
 
     def _get_context(self) -> Dict[str, Any]:
         """Get current resolution context."""
         return {
             'current_module': self.module_name,
-            'current_class': self.current_class,
-            'current_function_fqn': self.current_function_fqn,
+            'current_class': self._get_current_class_fqn(),
+            'current_function_fqn': self._get_current_function_fqn(),
             'import_map': self.import_map,
             'symbol_manager': self.symbol_manager,
             'type_inference': self.type_inference
@@ -123,7 +119,6 @@ class AnalysisVisitor(ast.NodeVisitor):
             extra: Optional[Dict[str, Any]] = None
         ):
         """Enhanced log with automatic source detection and correct module tracking."""
-
         getattr(get_logger(), level.name.lower())(message, get_source(), extra)
     
     def _cached_resolve_name(self, name_parts: List[str], context: Dict[str, Any]) -> Optional[str]:
@@ -151,10 +146,6 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def visit_Module(self, node: ast.Module):
         """Process module."""
-        # Reset context for clean module analysis
-        self.current_class = None
-        self.current_function_fqn = None
-
         self._log(LogLevel.INFO, f"Starting module analysis: {self.module_name}")
         
         if (node.body and isinstance(node.body[0], ast.Expr) and 
@@ -185,7 +176,6 @@ class AnalysisVisitor(ast.NodeVisitor):
     def visit_ClassDef(self, node: ast.ClassDef):
         """Process class definitions."""
         class_fqn = f"{self.module_name}.{node.name}"
-        self._log(LogLevel.DEBUG, f"Analyzing class: {node.name}")
         
         class_report = {
             "name": node.name,
@@ -193,31 +183,33 @@ class AnalysisVisitor(ast.NodeVisitor):
             "methods": []
         }
         
-        old_class = self.current_class
-        self.current_class = class_fqn
+        old_class_report = self.current_class_report
+        self.current_class_report = class_report
+        
+        self._enter_scope(class_fqn)
         self.symbol_manager.enter_class_scope()
         
         try:
-            for child in node.body:
-                if isinstance(child, ast.FunctionDef):
-                    method_report = self.function_analyzer.analyze_function(child)
-                    class_report["methods"].append(method_report)
+            self.generic_visit(node)
         finally:
-            self.current_class = old_class
+            self._exit_scope()
             self.symbol_manager.exit_class_scope()
+            self.current_class_report = old_class_report
         
         self.module_report["classes"].append(class_report)
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        """Process function definitions and handle nested functions properly."""
-        if not self.current_class:
-            # Top-level function
-            self._log(LogLevel.DEBUG, f"Analyzing function: {node.name}")
-            function_report = self.function_analyzer.analyze_function(node)
+        """Process all function and method definitions."""
+        function_report = self.function_analyzer.analyze_function(node)
+        
+        if self.current_class_report is not None:
+            self.current_class_report["methods"].append(function_report)
+        else:
             self.module_report["functions"].append(function_report)
     
     def visit_Call(self, node: ast.Call):
         self.call_analyzer.analyze_call(node)
+        # FIX: Ensure that child nodes of the call (like arguments) are also visited.
         self.generic_visit(node)
     
     def visit_Assign(self, node: ast.Assign):
