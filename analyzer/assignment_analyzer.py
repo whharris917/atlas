@@ -59,7 +59,7 @@ class AssignmentAnalyzer:
                             context = self.visitor._get_context()
                             
                             # --- The Refactoring Junction ---
-                            USE_UNIFIED_DISPATCHER = True
+                            USE_UNIFIED_DISPATCHER = False
                             var_type = None
 
                             if USE_UNIFIED_DISPATCHER:

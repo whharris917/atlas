@@ -2547,6 +2547,7 @@
               ],
               "docstring": "Execute an administrative operation.\nThis is the main entry point called by the decorator in decorators.py.",
               "calls": [
+                "admin_manager.OperationResult.add_error",
                 "admin_manager.AdminManager._result_to_dict",
                 "admin_manager.AdminManager._execute_specific_operation",
                 "admin_manager.AdminManager._add_audit_entry"
@@ -2554,9 +2555,7 @@
               "instantiations": [
                 "admin_manager.OperationResult"
               ],
-              "accessed_state": [
-                "admin_manager.result"
-              ],
+              "accessed_state": [],
               "decorators": []
             },
             {
@@ -3076,7 +3075,9 @@
           ],
           "docstring": "Context manager for easy transaction handling.",
           "calls": [
-            "database_manager.create_transaction_manager"
+            "database_manager.create_transaction_manager",
+            "database_manager.TransactionManager.transaction_context",
+            "database_manager.TransactionManager.close_connection"
           ],
           "instantiations": [],
           "accessed_state": [],
@@ -3387,6 +3388,7 @@
           "docstring": null,
           "calls": [
             "session_manager.get_current_session",
+            "session_manager.UserSession.is_valid",
             "session_manager.get_current_user"
           ],
           "instantiations": [],
@@ -3617,7 +3619,11 @@
           "args": [],
           "docstring": null,
           "calls": [
-            "database_manager.get_db_connection"
+            "database_manager.get_db_connection",
+            "database_manager.TransactionManager.begin_transaction",
+            "database_manager.TransactionManager.commit_transaction",
+            "database_manager.TransactionManager.rollback_transaction",
+            "database_manager.TransactionManager.close_connection"
           ],
           "instantiations": [
             "database_manager.TransactionManager"
@@ -3672,7 +3678,9 @@
             "parameters"
           ],
           "docstring": "Admin operation with complex decorator stack.",
-          "calls": [],
+          "calls": [
+            "admin_manager.AdminManager.execute_operation"
+          ],
           "instantiations": [
             "admin_manager.AdminManager"
           ],
@@ -3930,7 +3938,8 @@
               ],
               "docstring": "Main validation method with error handling.",
               "calls": [
-                "event_validator.BaseValidationRule._validate_implementation"
+                "event_validator.BaseValidationRule._validate_implementation",
+                "event_validator.ValidationReport.add_error"
               ],
               "instantiations": [
                 "event_validator.ValidationReport"
@@ -3977,7 +3986,9 @@
                 "context"
               ],
               "docstring": "Validate required fields.",
-              "calls": [],
+              "calls": [
+                "event_validator.ValidationReport.add_error"
+              ],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4010,7 +4021,9 @@
                 "context"
               ],
               "docstring": "Validate data types.",
-              "calls": [],
+              "calls": [
+                "event_validator.ValidationReport.add_error"
+              ],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4043,7 +4056,9 @@
                 "context"
               ],
               "docstring": "Validate regex patterns.",
-              "calls": [],
+              "calls": [
+                "event_validator.ValidationReport.add_error"
+              ],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4283,6 +4298,7 @@
               "docstring": "Validate event data with type-specific rules.",
               "calls": [
                 "event_validator.ValidationEngine.validate",
+                "event_validator.ValidationReport.is_valid",
                 "event_validator.ValidationEngine._merge_reports"
               ],
               "instantiations": [],
@@ -4782,9 +4798,7 @@
               "instantiations": [
                 "inheritence_complex.ProcessingResult"
               ],
-              "accessed_state": [
-                "inheritence_complex.result"
-              ],
+              "accessed_state": [],
               "decorators": [
                 "@trace",
                 "@monitor_performance"
@@ -5132,7 +5146,9 @@
             "processor_configs"
           ],
           "docstring": "Factory function creating complex processor hierarchies.",
-          "calls": [],
+          "calls": [
+            "inheritence_complex.ValidatedMixin.add_validation_rule"
+          ],
           "instantiations": [
             "inheritence_complex.BasicDataProcessor",
             "inheritence_complex.AdvancedProcessor",
@@ -6290,9 +6306,7 @@
           "instantiations": [
             "session_manager.SessionManager"
           ],
-          "accessed_state": [
-            "session_manager._global_session_manager"
-          ],
+          "accessed_state": [],
           "decorators": []
         },
         {
