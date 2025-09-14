@@ -50,9 +50,11 @@ class CallAnalyzer:
             # **FIXED: Always resolve the complete call first**
             resolved_fqn = self.visitor._cached_resolve_name(name_parts, context)
             
+            """
             # **ENHANCED: Track intermediate calls in method chains**
             if len(name_parts) > 1 and resolved_fqn:
                 self._track_intermediate_chain_calls(name_parts, context, resolved_fqn)
+            """
             
             if resolved_fqn:
                 self._log(LogLevel.TRACE, f"Resolved call: {raw_name} -> {resolved_fqn}")

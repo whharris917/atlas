@@ -1,0 +1,253 @@
+{
+  "metadata": {
+    "version": "2.1",
+    "generated_by": "Atlas Code Analysis Tool",
+    "analysis_phases": [
+      "reconnaissance",
+      "analysis"
+    ],
+    "features": [
+      "External Library Support",
+      "SocketIO Detection",
+      "Inheritance Analysis",
+      "Method Chain Tracking",
+      "Type Inference"
+    ]
+  },
+  "reconnaissance_data": {
+    "classes": {
+      "main.App": {
+        "parents": [],
+        "attributes": {
+          "a": {
+            "type": "ServiceA"
+          },
+          "user": {
+            "type": "User"
+          }
+        }
+      },
+      "models.ServiceC": {
+        "parents": [],
+        "attributes": {}
+      },
+      "models.ServiceB": {
+        "parents": [],
+        "attributes": {
+          "_service_c": {
+            "type": "ServiceC"
+          }
+        }
+      },
+      "models.ServiceA": {
+        "parents": [],
+        "attributes": {
+          "_service_b": {
+            "type": "ServiceB"
+          }
+        }
+      }
+    },
+    "functions": {
+      "main.App.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "main.App.run_complex_chain": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "main.App.run_simple_logic": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "main.run_main_logic": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "models.ServiceC.d": {
+        "return_type": "str",
+        "param_types": {}
+      },
+      "models.ServiceB.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "models.ServiceB.c": {
+        "return_type": "ServiceC",
+        "param_types": {}
+      },
+      "models.ServiceA.__init__": {
+        "return_type": null,
+        "param_types": {}
+      },
+      "models.ServiceA.b": {
+        "return_type": "ServiceB",
+        "param_types": {}
+      }
+    },
+    "state": {},
+    "external_classes": {},
+    "external_functions": {}
+  },
+  "analysis_data": {
+    "main.py": {
+      "file_path": "main.py",
+      "module_docstring": "\nThe main entry point for the application.\n",
+      "imports": {
+        "User": "models.User",
+        "ServiceA": "models.ServiceA"
+      },
+      "classes": [
+        {
+          "name": "App",
+          "docstring": "A simple application class to provide a 'self' context.",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "docstring": "Initializes the app and the first service.",
+              "calls": [],
+              "instantiations": [
+                "models.ServiceA"
+              ],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "run_complex_chain",
+              "args": [
+                "self"
+              ],
+              "docstring": "Executes the self.a.b().c().d() chain.",
+              "calls": [
+                "models.ServiceC.d",
+                "models.ServiceB.c",
+                "models.ServiceA.b"
+              ],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "run_simple_logic",
+              "args": [
+                "self"
+              ],
+              "docstring": "Runs the original, simpler logic.",
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "run_main_logic",
+          "args": [],
+          "docstring": "Contains the main logic for the script.",
+          "calls": [
+            "main.App.run_simple_logic",
+            "main.App.run_complex_chain"
+          ],
+          "instantiations": [
+            "main.App"
+          ],
+          "accessed_state": [],
+          "decorators": []
+        }
+      ],
+      "module_state": []
+    },
+    "models.py": {
+      "file_path": "models.py",
+      "module_docstring": "\nA simple module to define data models for testing complex method chains.\n",
+      "imports": {},
+      "classes": [
+        {
+          "name": "ServiceC",
+          "docstring": "The third object in the chain, with the final method.",
+          "methods": [
+            {
+              "name": "d",
+              "args": [
+                "self"
+              ],
+              "docstring": "The final method in the self.a.b().c().d() chain.",
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        },
+        {
+          "name": "ServiceB",
+          "docstring": "The second object in the chain.",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "docstring": null,
+              "calls": [],
+              "instantiations": [
+                "models.ServiceC"
+              ],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "c",
+              "args": [
+                "self"
+              ],
+              "docstring": "Returns the object that has method d().",
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        },
+        {
+          "name": "ServiceA",
+          "docstring": "The first object in the chain, stored as attribute 'a'.",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "docstring": null,
+              "calls": [],
+              "instantiations": [
+                "models.ServiceB"
+              ],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "b",
+              "args": [
+                "self"
+              ],
+              "docstring": "Returns the object that has method c().",
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        }
+      ],
+      "functions": [],
+      "module_state": []
+    }
+  }
+}
