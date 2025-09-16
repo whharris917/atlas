@@ -150,10 +150,7 @@
           "name": "run_main_logic",
           "args": [],
           "docstring": "Contains the main logic for the script.",
-          "calls": [
-            "main.App.run_simple_logic",
-            "main.App.run_complex_chain"
-          ],
+          "calls": [],
           "instantiations": [
             "main.App"
           ],

@@ -2547,7 +2547,6 @@
               ],
               "docstring": "Execute an administrative operation.\nThis is the main entry point called by the decorator in decorators.py.",
               "calls": [
-                "admin_manager.OperationResult.add_error",
                 "admin_manager.AdminManager._result_to_dict",
                 "admin_manager.AdminManager._execute_specific_operation",
                 "admin_manager.AdminManager._add_audit_entry"
@@ -2555,7 +2554,9 @@
               "instantiations": [
                 "admin_manager.OperationResult"
               ],
-              "accessed_state": [],
+              "accessed_state": [
+                "admin_manager.result"
+              ],
               "decorators": []
             },
             {
@@ -3075,9 +3076,7 @@
           ],
           "docstring": "Context manager for easy transaction handling.",
           "calls": [
-            "database_manager.create_transaction_manager",
-            "database_manager.TransactionManager.transaction_context",
-            "database_manager.TransactionManager.close_connection"
+            "database_manager.create_transaction_manager"
           ],
           "instantiations": [],
           "accessed_state": [],
@@ -3388,7 +3387,6 @@
           "docstring": null,
           "calls": [
             "session_manager.get_current_session",
-            "session_manager.UserSession.is_valid",
             "session_manager.get_current_user"
           ],
           "instantiations": [],
@@ -3619,11 +3617,7 @@
           "args": [],
           "docstring": null,
           "calls": [
-            "database_manager.get_db_connection",
-            "database_manager.TransactionManager.begin_transaction",
-            "database_manager.TransactionManager.commit_transaction",
-            "database_manager.TransactionManager.rollback_transaction",
-            "database_manager.TransactionManager.close_connection"
+            "database_manager.get_db_connection"
           ],
           "instantiations": [
             "database_manager.TransactionManager"
@@ -3678,9 +3672,7 @@
             "parameters"
           ],
           "docstring": "Admin operation with complex decorator stack.",
-          "calls": [
-            "admin_manager.AdminManager.execute_operation"
-          ],
+          "calls": [],
           "instantiations": [
             "admin_manager.AdminManager"
           ],
@@ -3938,8 +3930,7 @@
               ],
               "docstring": "Main validation method with error handling.",
               "calls": [
-                "event_validator.BaseValidationRule._validate_implementation",
-                "event_validator.ValidationReport.add_error"
+                "event_validator.BaseValidationRule._validate_implementation"
               ],
               "instantiations": [
                 "event_validator.ValidationReport"
@@ -3986,9 +3977,7 @@
                 "context"
               ],
               "docstring": "Validate required fields.",
-              "calls": [
-                "event_validator.ValidationReport.add_error"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4021,9 +4010,7 @@
                 "context"
               ],
               "docstring": "Validate data types.",
-              "calls": [
-                "event_validator.ValidationReport.add_error"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4056,9 +4043,7 @@
                 "context"
               ],
               "docstring": "Validate regex patterns.",
-              "calls": [
-                "event_validator.ValidationReport.add_error"
-              ],
+              "calls": [],
               "instantiations": [
                 "event_validator.ValidationReport"
               ],
@@ -4283,8 +4268,7 @@
                 "event_validator.ValidationRuleBuilder.build",
                 "event_validator.ValidationRuleBuilder.field_types",
                 "event_validator.ValidationRuleBuilder.require_fields",
-                "event_validator.ValidationEngine.create_rule_builder",
-                "event_validator.ValidationRuleBuilder.field_patterns"
+                "event_validator.ValidationEngine.create_rule_builder"
               ],
               "instantiations": [
                 "event_validator.ValidationEngine"
@@ -4301,7 +4285,6 @@
               "docstring": "Validate event data with type-specific rules.",
               "calls": [
                 "event_validator.ValidationEngine.validate",
-                "event_validator.ValidationReport.is_valid",
                 "event_validator.ValidationEngine._merge_reports"
               ],
               "instantiations": [],
@@ -4801,7 +4784,9 @@
               "instantiations": [
                 "inheritence_complex.ProcessingResult"
               ],
-              "accessed_state": [],
+              "accessed_state": [
+                "inheritence_complex.result"
+              ],
               "decorators": [
                 "@trace",
                 "@monitor_performance"
@@ -5149,9 +5134,7 @@
             "processor_configs"
           ],
           "docstring": "Factory function creating complex processor hierarchies.",
-          "calls": [
-            "inheritence_complex.ValidatedMixin.add_validation_rule"
-          ],
+          "calls": [],
           "instantiations": [
             "inheritence_complex.BasicDataProcessor",
             "inheritence_complex.AdvancedProcessor",
@@ -6309,7 +6292,9 @@
           "instantiations": [
             "session_manager.SessionManager"
           ],
-          "accessed_state": [],
+          "accessed_state": [
+            "session_manager._global_session_manager"
+          ],
           "decorators": []
         },
         {
@@ -6566,12 +6551,9 @@
           ],
           "docstring": "Handle client connection with complex authentication and session setup.",
           "calls": [
-            "session_manager.SessionManager.create_session",
             "flask_socketio.SocketIO.emit::runner_connected",
-            "session_manager.SessionManager.get_current_timestamp",
             "flask_socketio.join_room::runners",
             "flask_socketio.SocketIO.emit::runner_room_joined",
-            "session_manager.SessionManager.create_user_session",
             "flask_socketio.SocketIO.emit::connection_established",
             "flask_socketio.join_room::$user_room",
             "flask_socketio.SocketIO.emit::user_connected",
@@ -6579,6 +6561,7 @@
           ],
           "instantiations": [],
           "accessed_state": [
+            "socketio_events._session_manager",
             "socketio_events._haven_proxy"
           ],
           "decorators": [
@@ -6600,18 +6583,14 @@
           "args": [],
           "docstring": "Handle client disconnection with cleanup and notifications.",
           "calls": [
-            "session_manager.SessionManager.get_current_session_id",
-            "session_manager.SessionManager.get_current_user_id",
-            "session_manager.SessionManager.cleanup_user_session",
             "flask_socketio.SocketIO.emit::user_disconnected",
-            "session_manager.SessionManager.get_current_timestamp",
-            "session_manager.SessionManager.get_user_rooms",
             "flask_socketio.leave_room::$room",
-            "flask_socketio.SocketIO.emit::user_left_room",
-            "session_manager.SessionManager.destroy_session"
+            "flask_socketio.SocketIO.emit::user_left_room"
           ],
           "instantiations": [],
-          "accessed_state": [],
+          "accessed_state": [
+            "socketio_events._session_manager"
+          ],
           "decorators": [
             "@socketio.on('disconnect')",
             "@trace"
@@ -6632,15 +6611,14 @@
           ],
           "docstring": "Handle room joining with complex validation and notifications.",
           "calls": [
-            "session_manager.SessionManager.get_current_user_id",
             "flask_socketio.join_room::$room_name",
             "flask_socketio.SocketIO.emit::room_joined",
-            "session_manager.SessionManager.get_current_timestamp",
             "flask_socketio.SocketIO.emit::new_room_member",
             "flask_socketio.SocketIO.emit::room_stats_updated"
           ],
           "instantiations": [],
           "accessed_state": [
+            "socketio_events._session_manager",
             "socketio_events._haven_proxy"
           ],
           "decorators": [
@@ -6665,9 +6643,7 @@
           ],
           "docstring": "Handle message sending with complex routing and validation.",
           "calls": [
-            "session_manager.SessionManager.get_current_user_id",
             "flask_socketio.SocketIO.emit::message_rejected",
-            "session_manager.SessionManager.get_current_timestamp",
             "flask_socketio.SocketIO.emit::room_message",
             "flask_socketio.SocketIO.emit::direct_message",
             "flask_socketio.SocketIO.emit::message_delivered",
@@ -6675,6 +6651,7 @@
           ],
           "instantiations": [],
           "accessed_state": [
+            "socketio_events._session_manager",
             "socketio_events._haven_proxy"
           ],
           "decorators": [
@@ -6704,8 +6681,6 @@
           "docstring": "Primary event registration function with complex SocketIO patterns.\nUltimate stress test for decorator analysis and SocketIO emit tracking.",
           "calls": [
             "socketio_events.SocketIOEventRegistry::$socketio",
-            "socketio_events.SocketIOEventRegistry.batch_register_events::$dynamic_events",
-            "socketio_events.SocketIOEventRegistry.register_dynamic_event::$event_name",
             "socketio_events.create_dynamic_handler::$event_name"
           ],
           "instantiations": [
@@ -6713,7 +6688,8 @@
           ],
           "accessed_state": [
             "socketio_events._socketio_instance",
-            "socketio_events._haven_proxy"
+            "socketio_events._haven_proxy",
+            "socketio_events._session_manager"
           ],
           "decorators": [
             "@trace"
