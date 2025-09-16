@@ -201,8 +201,8 @@ class CallAnalyzer:
                 if core_type:
                     resolved_type_fqn = self.visitor.type_inference._resolve_return_type_to_fqn(core_type, context)
                     if resolved_type_fqn:
-                        # Update symbol table for next resolution step
-                        self.visitor.symbol_manager.update_variable_type(base_name, resolved_type_fqn)
+                        # CHANGE: Update scope manager instead of symbol manager
+                        self.visitor.scope_manager.update_variable_type(base_name, resolved_type_fqn)
                         self._log(LogLevel.TRACE, f"Updated chain context: {base_name} -> {resolved_type_fqn}")
 
     def _handle_emit_call(self, node: ast.Call, resolved_fqn: str):

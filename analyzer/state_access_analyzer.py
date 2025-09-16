@@ -3,6 +3,8 @@ State Access Analyzer - Code Atlas
 
 Handles the analysis of `ast.Name` and `ast.Attribute` nodes to detect
 access to module-level state variables.
+
+UPDATED: Integrated with enhanced ScopeManager for unified scope management.
 """
 
 import ast
@@ -34,8 +36,8 @@ class StateAccessAnalyzer:
             resolved_fqn = self.visitor._cached_resolve_name([node.id], context)
             
             if resolved_fqn and resolved_fqn in self.recon_data["state"]:
-                # Shadow check
-                if not self.visitor.symbol_manager.get_variable_type(node.id):
+                # Shadow check using scope manager instead of symbol manager
+                if not self.visitor.scope_manager.get_variable_type(node.id):
                     if resolved_fqn not in self.visitor.current_function_report["accessed_state"]:
                         self.visitor.current_function_report["accessed_state"].append(resolved_fqn)
                     self._log(LogLevel.DEBUG, f"State access: {resolved_fqn}")
@@ -60,9 +62,9 @@ class StateAccessAnalyzer:
             resolved_fqn = self.visitor._cached_resolve_name(name_parts, context)
             
             if resolved_fqn and resolved_fqn in self.recon_data["state"]:
-                # Shadow check on base
+                # Shadow check on base using scope manager instead of symbol manager
                 base_name = name_parts[0]
-                if not self.visitor.symbol_manager.get_variable_type(base_name):
+                if not self.visitor.scope_manager.get_variable_type(base_name):
                     if resolved_fqn not in self.visitor.current_function_report["accessed_state"]:
                         self.visitor.current_function_report["accessed_state"].append(resolved_fqn)
                     self._log(LogLevel.DEBUG, f"Attribute state access: {resolved_fqn}")

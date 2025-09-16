@@ -4,6 +4,8 @@ Assignment Analyzer - Code Atlas
 Handles the logic for processing `ast.Assign` and `ast.AnnAssign` nodes.
 This module is responsible for identifying module-level state, class attributes,
 and local variable assignments, and for triggering type inference where appropriate.
+
+UPDATED: Integrated with enhanced ScopeManager for unified scope management.
 """
 
 import ast
@@ -11,8 +13,6 @@ from typing import Dict, Any, Optional
 
 from .logger import get_logger, LogLevel
 from .utils import get_source
-# --- NEW ---
-from .unified_dispatcher import UnifiedResolutionDispatcher
 
 
 class AssignmentAnalyzer:
@@ -22,13 +22,6 @@ class AssignmentAnalyzer:
         self.recon_data = recon_data
         self.visitor = visitor
         self.logger = get_logger()
-        # --- NEW: Instantiate our new engine ---
-        self.unified_dispatcher = UnifiedResolutionDispatcher(
-            self.recon_data,
-            self.visitor.name_resolver,
-            self.visitor.type_inference
-        )
-
 
     def _log(self, level: LogLevel, message: str, extra: Optional[Dict[str, Any]] = None):
         """Enhanced log with automatic source detection and correct module tracking."""
@@ -36,7 +29,12 @@ class AssignmentAnalyzer:
 
     def analyze_assignment(self, node: ast.Assign):
         """Process assignments for both module state and local variables."""
-        if not self.visitor._get_current_class_fqn() and not self.visitor.current_function_report:
+        
+        # Check if we're in module scope (no class or function context)
+        current_class = self.visitor.scope_manager.get_current_class_fqn()
+        is_in_function = self.visitor.current_function_report is not None
+        
+        if not current_class and not is_in_function:
             # Module-level state
             for target in node.targets:
                 if isinstance(target, ast.Name):
@@ -49,30 +47,22 @@ class AssignmentAnalyzer:
                         self._log(LogLevel.DEBUG, f"Module state assignment: {target.id} = {state_entry['value']}")
                     except Exception:
                         pass
-        elif self.visitor.current_function_report:
-            # Function-level assignments - update symbol table
+        elif is_in_function:
+            # Function-level assignments - update scope manager
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     try:
                         if isinstance(node.value, ast.Call):
-                            # This is a function call assignment
+                            # This is a function call assignment - use type inference
                             context = self.visitor._get_context()
-                            
-                            # --- The Refactoring Junction ---
-                            USE_UNIFIED_DISPATCHER = False
-                            var_type = None
-
-                            if USE_UNIFIED_DISPATCHER:
-                                # New, elegant, unified way
-                                var_type = self.unified_dispatcher.resolve_node_type(node.value, context)
-                            else:
-                                # Old, brittle, special-cased way
-                                var_type = self.visitor.type_inference.infer_from_call(node.value, self.visitor.name_resolver, context)
+                            var_type = self.visitor.type_inference.infer_from_call(
+                                node.value, self.visitor.name_resolver, context
+                            )
 
                             if var_type:
-                                self.visitor.symbol_manager.update_variable_type(target.id, var_type)
+                                # Use scope manager instead of symbol manager
+                                self.visitor.scope_manager.update_variable_type(target.id, var_type)
                                 self._log(LogLevel.TRACE, f"Variable assignment with type inference: {target.id} = {var_type}")
-                                self._log(LogLevel.TRACE, f"Symbol table updated: {target.id} : {var_type}")
                             else:
                                 self._log(LogLevel.TRACE, f"Could not infer type for assignment: {target.id}")
                         else:
@@ -82,8 +72,14 @@ class AssignmentAnalyzer:
     
     def analyze_annotated_assignment(self, node: ast.AnnAssign):
         """Process annotated assignments."""
-        if (not self.visitor._get_current_class_fqn() and not self.visitor.current_function_report and
+        
+        # Check if we're in module scope (no class or function context)
+        current_class = self.visitor.scope_manager.get_current_class_fqn()
+        is_in_function = self.visitor.current_function_report is not None
+        
+        if (not current_class and not is_in_function and
             isinstance(node.target, ast.Name)):
+            # Module-level annotated assignment
             try:
                 state_entry = {
                     "name": node.target.id,
@@ -94,18 +90,21 @@ class AssignmentAnalyzer:
                 self._log(LogLevel.DEBUG, f"Module annotated assignment: {node.target.id} : {annotation_str} = {state_entry['value']}")
             except Exception:
                 pass
-        elif self.visitor.current_function_report and isinstance(node.target, ast.Name):
+        elif is_in_function and isinstance(node.target, ast.Name):
+            # Function-level annotated assignment
             try:
                 if node.annotation:
                     annotation_str = ast.unparse(node.annotation)
                     self._log(LogLevel.TRACE, f"Annotated assignment: {node.target.id} : {annotation_str}")
+                    
                     context = self.visitor._get_context()
                     type_parts = self.visitor.name_resolver.extract_name_parts(node.annotation)
                     if type_parts:
                         resolved_type = self.visitor._cached_resolve_name(type_parts, context)
                         if resolved_type:
-                            self.visitor.symbol_manager.update_variable_type(node.target.id, resolved_type)
-                            self._log(LogLevel.TRACE, f"Symbol table updated: {node.target.id} : {resolved_type}")
+                            # Use scope manager instead of symbol manager
+                            self.visitor.scope_manager.update_variable_type(node.target.id, resolved_type)
+                            self._log(LogLevel.TRACE, f"Scope updated: {node.target.id} : {resolved_type}")
                         else:
                             self._log(LogLevel.WARNING, f"Could not resolve type annotation: {annotation_str}")
             except Exception as e:

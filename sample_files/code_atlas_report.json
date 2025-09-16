@@ -6566,17 +6566,19 @@
           ],
           "docstring": "Handle client connection with complex authentication and session setup.",
           "calls": [
-            "socketio.emit::runner_connected",
+            "session_manager.SessionManager.create_session",
+            "flask_socketio.SocketIO.emit::runner_connected",
+            "session_manager.SessionManager.get_current_timestamp",
             "flask_socketio.join_room::runners",
-            "socketio.emit::runner_room_joined",
-            "socketio.emit::connection_established",
+            "flask_socketio.SocketIO.emit::runner_room_joined",
+            "session_manager.SessionManager.create_user_session",
+            "flask_socketio.SocketIO.emit::connection_established",
             "flask_socketio.join_room::$user_room",
-            "socketio.emit::user_connected",
-            "socketio.emit::guest_connected"
+            "flask_socketio.SocketIO.emit::user_connected",
+            "flask_socketio.SocketIO.emit::guest_connected"
           ],
           "instantiations": [],
           "accessed_state": [
-            "socketio_events._session_manager",
             "socketio_events._haven_proxy"
           ],
           "decorators": [
@@ -6585,10 +6587,10 @@
             "@monitor_performance"
           ],
           "emit_contexts": {
-            "socketio.emit::runner_room_joined_context": {
+            "flask_socketio.SocketIO.emit::runner_room_joined_context": {
               "room": "runners"
             },
-            "socketio.emit::user_connected_context": {
+            "flask_socketio.SocketIO.emit::user_connected_context": {
               "broadcast": true
             }
           }
@@ -6598,23 +6600,27 @@
           "args": [],
           "docstring": "Handle client disconnection with cleanup and notifications.",
           "calls": [
-            "socketio.emit::user_disconnected",
+            "session_manager.SessionManager.get_current_session_id",
+            "session_manager.SessionManager.get_current_user_id",
+            "session_manager.SessionManager.cleanup_user_session",
+            "flask_socketio.SocketIO.emit::user_disconnected",
+            "session_manager.SessionManager.get_current_timestamp",
+            "session_manager.SessionManager.get_user_rooms",
             "flask_socketio.leave_room::$room",
-            "socketio.emit::user_left_room"
+            "flask_socketio.SocketIO.emit::user_left_room",
+            "session_manager.SessionManager.destroy_session"
           ],
           "instantiations": [],
-          "accessed_state": [
-            "socketio_events._session_manager"
-          ],
+          "accessed_state": [],
           "decorators": [
             "@socketio.on('disconnect')",
             "@trace"
           ],
           "emit_contexts": {
-            "socketio.emit::user_disconnected_context": {
+            "flask_socketio.SocketIO.emit::user_disconnected_context": {
               "broadcast": true
             },
-            "socketio.emit::user_left_room_context": {
+            "flask_socketio.SocketIO.emit::user_left_room_context": {
               "room": "$room"
             }
           }
@@ -6626,14 +6632,15 @@
           ],
           "docstring": "Handle room joining with complex validation and notifications.",
           "calls": [
+            "session_manager.SessionManager.get_current_user_id",
             "flask_socketio.join_room::$room_name",
-            "socketio.emit::room_joined",
-            "socketio.emit::new_room_member",
-            "socketio.emit::room_stats_updated"
+            "flask_socketio.SocketIO.emit::room_joined",
+            "session_manager.SessionManager.get_current_timestamp",
+            "flask_socketio.SocketIO.emit::new_room_member",
+            "flask_socketio.SocketIO.emit::room_stats_updated"
           ],
           "instantiations": [],
           "accessed_state": [
-            "socketio_events._session_manager",
             "socketio_events._haven_proxy"
           ],
           "decorators": [
@@ -6643,10 +6650,10 @@
             "@rate_limit(calls=5, period=30)"
           ],
           "emit_contexts": {
-            "socketio.emit::new_room_member_context": {
+            "flask_socketio.SocketIO.emit::new_room_member_context": {
               "room": "$room_name"
             },
-            "socketio.emit::room_stats_updated_context": {
+            "flask_socketio.SocketIO.emit::room_stats_updated_context": {
               "room": "$room_name"
             }
           }
@@ -6658,15 +6665,16 @@
           ],
           "docstring": "Handle message sending with complex routing and validation.",
           "calls": [
-            "socketio.emit::message_rejected",
-            "socketio.emit::room_message",
-            "socketio.emit::direct_message",
-            "socketio.emit::message_delivered",
-            "socketio.emit::broadcast_message"
+            "session_manager.SessionManager.get_current_user_id",
+            "flask_socketio.SocketIO.emit::message_rejected",
+            "session_manager.SessionManager.get_current_timestamp",
+            "flask_socketio.SocketIO.emit::room_message",
+            "flask_socketio.SocketIO.emit::direct_message",
+            "flask_socketio.SocketIO.emit::message_delivered",
+            "flask_socketio.SocketIO.emit::broadcast_message"
           ],
           "instantiations": [],
           "accessed_state": [
-            "socketio_events._session_manager",
             "socketio_events._haven_proxy"
           ],
           "decorators": [
@@ -6676,13 +6684,13 @@
             "@rate_limit(calls=20, period=60)"
           ],
           "emit_contexts": {
-            "socketio.emit::room_message_context": {
+            "flask_socketio.SocketIO.emit::room_message_context": {
               "room": "$target"
             },
-            "socketio.emit::direct_message_context": {
+            "flask_socketio.SocketIO.emit::direct_message_context": {
               "room": "$target_room"
             },
-            "socketio.emit::broadcast_message_context": {
+            "flask_socketio.SocketIO.emit::broadcast_message_context": {
               "broadcast": true
             }
           }
@@ -6696,6 +6704,8 @@
           "docstring": "Primary event registration function with complex SocketIO patterns.\nUltimate stress test for decorator analysis and SocketIO emit tracking.",
           "calls": [
             "socketio_events.SocketIOEventRegistry::$socketio",
+            "socketio_events.SocketIOEventRegistry.batch_register_events::$dynamic_events",
+            "socketio_events.SocketIOEventRegistry.register_dynamic_event::$event_name",
             "socketio_events.create_dynamic_handler::$event_name"
           ],
           "instantiations": [
@@ -6703,8 +6713,7 @@
           ],
           "accessed_state": [
             "socketio_events._socketio_instance",
-            "socketio_events._haven_proxy",
-            "socketio_events._session_manager"
+            "socketio_events._haven_proxy"
           ],
           "decorators": [
             "@trace"
@@ -6717,7 +6726,11 @@
           ],
           "docstring": "Dynamically created handler with complex SocketIO emit patterns.",
           "calls": [
-            "_socketio_instance.emit::unknown_event"
+            "session_manager.SessionManager.get_current_user_id",
+            "proxy_handler.HavenProxy.validate_event_data",
+            "proxy_handler.HavenProxy.process_event",
+            "_socketio_instance.emit::unknown_event",
+            "session_manager.SessionManager.get_current_timestamp"
           ],
           "instantiations": [],
           "accessed_state": [

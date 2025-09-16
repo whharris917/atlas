@@ -4,11 +4,14 @@ Function Analyzer - Code Atlas
 Handles the analysis of a single function or method definition (`ast.FunctionDef`).
 It is responsible for creating and populating the 'function report' dictionary
 that appears in the final analysis output.
+
+UPDATED: Integrated with enhanced ScopeManager for unified scope management.
 """
 
 import ast
 from typing import Dict, Any, Optional
 
+from .scope_manager import ScopeType
 from .logger import get_logger, LogLevel
 from .utils import get_source
 
@@ -26,10 +29,11 @@ class FunctionAnalyzer:
         getattr(get_logger(), level.name.lower())(message, get_source(), extra)
 
     def analyze_function(self, node: ast.FunctionDef) -> Dict[str, Any]:
-        """Analyze function with clean separation of concerns."""
+        """Analyze function with enhanced scope management."""
         
-        parent_scope = self.visitor.scope_stack[-1]
-        function_fqn = f"{parent_scope}.{node.name}"
+        # Get parent scope from scope manager instead of manually tracking
+        parent_scope_fqn = self.visitor.scope_manager.get_current_scope_fqn()
+        function_fqn = f"{parent_scope_fqn}.{node.name}"
         
         self._log(LogLevel.DEBUG, f"Starting function analysis: {function_fqn}")
         
@@ -61,8 +65,9 @@ class FunctionAnalyzer:
         # Set up function context
         old_report = self.visitor.current_function_report
         self.visitor.current_function_report = function_report
-        self.visitor._enter_scope(function_fqn)
-        self.visitor.symbol_manager.enter_function_scope()
+        
+        # Use enhanced scope management - this automatically updates logger context
+        self.visitor.scope_manager.enter_scope(function_fqn, ScopeType.FUNCTION)
         self.visitor.resolution_cache = {}
 
         try:
@@ -75,8 +80,8 @@ class FunctionAnalyzer:
         
         finally:
             self.visitor.current_function_report = old_report
-            self.visitor._exit_scope()
-            self.visitor.symbol_manager.exit_function_scope()
+            # Exit scope - this automatically updates logger context
+            self.visitor.scope_manager.exit_scope()
         
         # Clean up empty emit_contexts to keep JSON clean
         if not function_report.get("emit_contexts"):
@@ -96,31 +101,29 @@ class FunctionAnalyzer:
 
     def _populate_symbols_from_args(self, args: ast.arguments):
         """Populate symbol table from function arguments with violation checking and parameter type lookup."""
-        context = self.visitor._get_context()
-        self._log(LogLevel.TRACE, f"Processing {len(args.args)} function arguments")
         
-        # Try to get parameter types from recon_data if available
+        # Get function FQN for recon data lookup
+        function_fqn = self.visitor.scope_manager.get_current_scope_fqn()
+        
+        # Extract parameter types from recon data
         param_types_from_recon = {}
-        current_function_fqn = self.visitor._get_current_function_fqn()
-        if current_function_fqn and current_function_fqn in self.recon_data["functions"]:
-            func_info = self.recon_data["functions"][current_function_fqn]
-            param_types_from_recon = func_info.get("param_types", {})
-            if param_types_from_recon:
-                self._log(LogLevel.TRACE, f"Found parameter types in recon data: {param_types_from_recon}")
+        if function_fqn in self.recon_data.get("functions", {}):
+            param_types_from_recon = self.recon_data["functions"][function_fqn].get("param_types", {})
+        
+        context = self.visitor._get_context()
         
         for arg in args.args:
-            if arg.arg == 'self':
-                continue
-                
             if arg.annotation:
-                # Type hint present - process normally
+                # Direct type annotation available
                 try:
+                    # Extract type parts and resolve
                     type_parts = self.visitor.name_resolver.extract_name_parts(arg.annotation)
                     if type_parts:
                         self._log(LogLevel.TRACE, f"Processing type annotation for {arg.arg}: {'.'.join(type_parts)}")
                         resolved_type = self.visitor._cached_resolve_name(type_parts, context)
                         if resolved_type:
-                            self.visitor.symbol_manager.update_variable_type(arg.arg, resolved_type)
+                            # Use scope manager instead of symbol manager
+                            self.visitor.scope_manager.update_variable_type(arg.arg, resolved_type)
                             self._log(LogLevel.TRACE, f"Resolved parameter {arg.arg} : {resolved_type}")
                         else:
                             self._log(LogLevel.WARNING, f"Could not resolve type annotation for parameter '{arg.arg}'",
@@ -140,20 +143,21 @@ class FunctionAnalyzer:
                     if type_parts:
                         resolved_type = self.visitor._cached_resolve_name(type_parts, context)
                         if resolved_type:
-                            self.visitor.symbol_manager.update_variable_type(arg.arg, resolved_type)
+                            # Use scope manager instead of symbol manager
+                            self.visitor.scope_manager.update_variable_type(arg.arg, resolved_type)
                             self._log(LogLevel.TRACE, f"Resolved parameter {arg.arg} : {resolved_type} (from recon)")
                         else:
                             # Fallback to the original string
-                            self.visitor.symbol_manager.update_variable_type(arg.arg, param_type_str)
+                            self.visitor.scope_manager.update_variable_type(arg.arg, param_type_str)
                             self._log(LogLevel.TRACE, f"Fallback parameter {arg.arg} : {param_type_str} (from recon)")
                     else:
                         # Simple type, use as-is
-                        self.visitor.symbol_manager.update_variable_type(arg.arg, param_type_str)
+                        self.visitor.scope_manager.update_variable_type(arg.arg, param_type_str)
                         self._log(LogLevel.TRACE, f"Simple parameter {arg.arg} : {param_type_str} (from recon)")
                 except Exception as e:
                     self._log(LogLevel.ERROR, f"Error processing recon type for {arg.arg}: {e}")
                     # Still use the string as fallback
-                    self.visitor.symbol_manager.update_variable_type(arg.arg, param_type_str)
+                    self.visitor.scope_manager.update_variable_type(arg.arg, param_type_str)
             else:
                 # Missing type hint and no recon data
                 self._log(LogLevel.TRACE, f"No type hint or recon data for parameter '{arg.arg}'")

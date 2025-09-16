@@ -4,6 +4,8 @@ Analysis Pass - Code Atlas
 Contains the AnalysisVisitor, the central dispatcher for the second pass of
 the analysis. This visitor coordinates a set of specialized analyzer components
 to resolve relationships, track calls, and build the final analysis report.
+
+UPDATED: Integrated with enhanced ScopeManager for unified scope/context management.
 """
 
 import ast
@@ -12,7 +14,7 @@ from typing import Dict, List, Any, Optional
 
 from .resolver import NameResolver
 from .type_inference import TypeInferenceEngine
-from .symbol_table import SymbolTableManager
+from .scope_manager import ScopeManager, ScopeType
 from .code_checker import CodeStandardChecker
 from .call_analyzer import CallAnalyzer
 from .function_analyzer import FunctionAnalyzer
@@ -23,7 +25,7 @@ from .logger import get_logger, LogLevel
 
 
 class AnalysisVisitor(ast.NodeVisitor):
-    """Enhanced analysis visitor with automatic context propagation to logger."""
+    """Enhanced analysis visitor with unified scope and context management."""
     
     def __init__(self, recon_data: Dict[str, Any], module_name: str):
         self.recon_data = recon_data
@@ -32,15 +34,16 @@ class AnalysisVisitor(ast.NodeVisitor):
         # Initialize logger
         self.logger = get_logger()
         
-        # Scope management
-        self.scope_stack: List[str] = [module_name]
+        # Enhanced scope management - replaces both scope_stack and SymbolTableManager
+        self.scope_manager = ScopeManager(recon_data)
         self.module_name = module_name
-        self._update_logger_context()
+        
+        # Enter initial module scope
+        self.scope_manager.enter_scope(module_name, ScopeType.MODULE)
 
         # Core components
         self.name_resolver = NameResolver(recon_data)
         self.type_inference = TypeInferenceEngine(recon_data)
-        self.symbol_manager = SymbolTableManager()
         self.code_checker = CodeStandardChecker()
         
         # Specialized analyzer components for delegation
@@ -64,51 +67,14 @@ class AnalysisVisitor(ast.NodeVisitor):
             "module_state": []
         }
 
-    @property
-    def current_scope_fqn(self) -> str:
-        """The FQN of the current function, method, or module."""
-        return self.scope_stack[-1]
-
-    def _enter_scope(self, fqn: str):
-        """Pushes a new lexical scope onto the stack."""
-        self.scope_stack.append(fqn)
-        self._log(LogLevel.DEBUG, f"Entering scope: {fqn}")
-        self._update_logger_context()
-
-    def _exit_scope(self):
-        """Pops the current lexical scope from the stack."""
-        exited_scope = self.scope_stack.pop()
-        self._log(LogLevel.DEBUG, f"Exiting scope: {exited_scope}")
-        self._update_logger_context()
-
-    def _get_current_class_fqn(self) -> Optional[str]:
-        """Derives the current class FQN by inspecting the scope stack."""
-        for scope in reversed(self.scope_stack):
-            if scope in self.recon_data["classes"]:
-                return scope
-        return None
-
-    def _get_current_function_fqn(self) -> Optional[str]:
-        """Derives the current function FQN from the scope stack."""
-        current_scope = self.current_scope_fqn
-        if current_scope in self.recon_data.get("functions", {}):
-            return current_scope
-        return None
-    
-    def _update_logger_context(self):
-        """Update logger context with automatic indentation whenever tracked attributes change."""
-        self.logger.module = self.module_name
-        self.logger.class_name = self._get_current_class_fqn()
-        self.logger.function = self._get_current_function_fqn()
-
     def _get_context(self) -> Dict[str, Any]:
-        """Get current resolution context."""
+        """Get current resolution context using scope manager."""
         return {
-            'current_module': self.module_name,
-            'current_class': self._get_current_class_fqn(),
-            'current_function_fqn': self._get_current_function_fqn(),
+            'current_module': self.scope_manager.get_current_module(),
+            'current_class': self.scope_manager.get_current_class_fqn(),
+            'current_function_fqn': self.scope_manager.get_current_function_fqn(),
             'import_map': self.import_map,
-            'symbol_manager': self.symbol_manager,
+            'symbol_manager': self.scope_manager,  # Pass scope_manager as symbol_manager
             'type_inference': self.type_inference
         }
 
@@ -142,7 +108,8 @@ class AnalysisVisitor(ast.NodeVisitor):
     
     def _log_code_violation(self, violation_type: str, details: str, impact: str):
         """Log code standard violations using centralized logging."""
-        self._log(LogLevel.WARNING, f"Code violation - {violation_type}: {details}", extra={'impact': impact, 'violation_type': violation_type})
+        self._log(LogLevel.WARNING, f"Code violation - {violation_type}: {details}", 
+                  extra={'impact': impact, 'violation_type': violation_type})
     
     def visit_Module(self, node: ast.Module):
         """Process module."""
@@ -174,8 +141,10 @@ class AnalysisVisitor(ast.NodeVisitor):
                 self._log(LogLevel.DEBUG, f"From import: {key} -> {node.module}.{alias.name}")
     
     def visit_ClassDef(self, node: ast.ClassDef):
-        """Process class definitions."""
+        """Process class definitions with unified scope management."""
         class_fqn = f"{self.module_name}.{node.name}"
+        
+        self._log(LogLevel.DEBUG, f"Analyzing class: {class_fqn}")
         
         class_report = {
             "name": node.name,
@@ -183,20 +152,25 @@ class AnalysisVisitor(ast.NodeVisitor):
             "methods": []
         }
         
+        # Save previous class context
         old_class_report = self.current_class_report
         self.current_class_report = class_report
         
-        self._enter_scope(class_fqn)
-        self.symbol_manager.enter_class_scope()
+        # Enter class scope - this automatically updates logger context
+        self.scope_manager.enter_scope(class_fqn, ScopeType.CLASS)
         
         try:
+            # Process class body - all nested functions will be properly scoped
             self.generic_visit(node)
         finally:
-            self._exit_scope()
-            self.symbol_manager.exit_class_scope()
+            # Exit scope and restore context - logger context automatically updated
+            self.scope_manager.exit_scope()
             self.current_class_report = old_class_report
         
+        # Add completed class to module report
         self.module_report["classes"].append(class_report)
+        
+        self._log(LogLevel.DEBUG, f"Class analysis complete: {class_fqn}")
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """Process all function and method definitions."""
@@ -250,7 +224,7 @@ def run_analysis_pass(python_files: List[pathlib.Path], recon_data: Dict[str, An
             get_logger().info(f"File analysis complete: {py_file.name}", source=get_source())
         
             # Reset context after module analysis completes
-            get_logger().reset_context()
+            visitor.scope_manager.reset_context()
 
         except Exception as e:
             get_logger().error(f"Failed to analyze {py_file.name}: {e}", source=get_source())
