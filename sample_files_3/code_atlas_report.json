@@ -1,0 +1,206 @@
+{
+  "metadata": {
+    "version": "2.1",
+    "generated_by": "Atlas Code Analysis Tool",
+    "analysis_phases": [
+      "reconnaissance",
+      "analysis"
+    ],
+    "features": [
+      "External Library Support",
+      "SocketIO Detection",
+      "Inheritance Analysis",
+      "Method Chain Tracking",
+      "Type Inference"
+    ]
+  },
+  "reconnaissance_data": {
+    "classes": {
+      "sample.DatabaseConnection": {
+        "parents": [],
+        "attributes": {}
+      },
+      "sample.UserManager": {
+        "parents": [],
+        "attributes": {
+          "users": {
+            "type": "list"
+          }
+        }
+      },
+      "sample.AdminPanel": {
+        "parents": [],
+        "attributes": {
+          "permissions": {
+            "type": "list"
+          }
+        }
+      },
+      "sample.ApplicationService": {
+        "parents": [],
+        "attributes": {
+          "db_connection": {
+            "type": "DatabaseConnection"
+          }
+        }
+      }
+    },
+    "functions": {
+      "sample.DatabaseConnection.get_user_manager": {
+        "return_type": "'UserManager'",
+        "param_types": {}
+      },
+      "sample.UserManager.__init__": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "sample.UserManager.get_admin_panel": {
+        "return_type": "'AdminPanel'",
+        "param_types": {}
+      },
+      "sample.AdminPanel.__init__": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "sample.ApplicationService.__init__": {
+        "return_type": "None",
+        "param_types": {}
+      },
+      "sample.ApplicationService.handle_admin_request": {
+        "return_type": "'AdminPanel'",
+        "param_types": {}
+      },
+      "sample.process_data": {
+        "return_type": "'UserManager'",
+        "param_types": {}
+      }
+    },
+    "state": {},
+    "external_classes": {},
+    "external_functions": {}
+  },
+  "analysis_data": {
+    "sample.py": {
+      "file_path": "sample.py",
+      "module_docstring": null,
+      "imports": {},
+      "classes": [
+        {
+          "name": "DatabaseConnection",
+          "docstring": "A class representing a database connection.",
+          "methods": [
+            {
+              "name": "get_user_manager",
+              "args": [
+                "self"
+              ],
+              "docstring": "Returns a UserManager instance.",
+              "calls": [],
+              "instantiations": [
+                "sample.UserManager"
+              ],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        },
+        {
+          "name": "UserManager",
+          "docstring": "A class for managing users.",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "docstring": null,
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "get_admin_panel",
+              "args": [
+                "self"
+              ],
+              "docstring": "Returns an AdminPanel instance.",
+              "calls": [],
+              "instantiations": [
+                "sample.AdminPanel"
+              ],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        },
+        {
+          "name": "AdminPanel",
+          "docstring": "A class for admin operations.",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "docstring": null,
+              "calls": [],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        },
+        {
+          "name": "ApplicationService",
+          "docstring": "A different class that uses the database connection.",
+          "methods": [
+            {
+              "name": "__init__",
+              "args": [
+                "self"
+              ],
+              "docstring": null,
+              "calls": [],
+              "instantiations": [
+                "sample.DatabaseConnection"
+              ],
+              "accessed_state": [],
+              "decorators": []
+            },
+            {
+              "name": "handle_admin_request",
+              "args": [
+                "self"
+              ],
+              "docstring": "Method containing the self.b.c() pattern we want to test.",
+              "calls": [
+                "sample.UserManager.get_admin_panel",
+                "sample.DatabaseConnection.get_user_manager"
+              ],
+              "instantiations": [],
+              "accessed_state": [],
+              "decorators": []
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "process_data",
+          "args": [],
+          "docstring": "Function containing the original assignment we want to debug.",
+          "calls": [
+            "sample.DatabaseConnection.get_user_manager"
+          ],
+          "instantiations": [
+            "sample.DatabaseConnection"
+          ],
+          "accessed_state": [],
+          "decorators": []
+        }
+      ],
+      "module_state": []
+    }
+  }
+}
