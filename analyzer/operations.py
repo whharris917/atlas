@@ -336,29 +336,45 @@ class CallFunction(Operation):
         if not return_type:
             return None
         
-        # Clean the type annotation
-        cleaned_type = self._clean_type_annotation(return_type)
-        if not cleaned_type:
+        self._log(LogLevel.TRACE, f"Resolving return type: '{return_type}'",
+                  extra={'return_type': return_type, 'function': func_fqn})
+        
+        # Clean up the return type string - remove quotes and whitespace
+        clean_type = return_type.strip().strip('\'"')
+        
+        if not clean_type:
             return None
         
-        # If already FQN, validate and return
-        if "." in cleaned_type:
-            if (cleaned_type in recon_data.get("classes", {}) or 
-                cleaned_type in recon_data.get("external_classes", {})):
-                return cleaned_type
+        # Handle None type
+        if clean_type.lower() == 'none':
+            return None
         
-        # Try to resolve relative to current module
-        current_module = func_fqn.split('.')[0] if func_fqn else ''
-        candidate = f"{current_module}.{cleaned_type}"
-        if candidate in recon_data.get("classes", {}):
-            return candidate
+        # For simple type names, try to resolve them to full FQNs
+        # Extract module from function FQN for context
+        func_parts = func_fqn.split('.')
+        if len(func_parts) >= 2:
+            module_name = func_parts[0]  # e.g., 'sample' from 'sample.DatabaseConnection.get_user_manager'
+            
+            # Try module-qualified name first
+            candidate_fqn = f"{module_name}.{clean_type}"
+            
+            # Check if this FQN exists in recon data
+            if (candidate_fqn in recon_data.get("classes", {}) or 
+                candidate_fqn in recon_data.get("external_classes", {})):
+                self._log(LogLevel.TRACE, f"Resolved return type: '{return_type}' -> {candidate_fqn}",
+                          extra={'original_type': return_type, 'resolved_fqn': candidate_fqn})
+                return candidate_fqn
         
-        # Search all classes for matching name
-        for catalog_name in ["classes", "external_classes"]:
-            for class_fqn in recon_data.get(catalog_name, {}):
-                if class_fqn.endswith(f".{cleaned_type}"):
-                    return class_fqn
+        # Fallback: check if the clean type is already a full FQN
+        if (clean_type in recon_data.get("classes", {}) or 
+            clean_type in recon_data.get("external_classes", {})):
+            self._log(LogLevel.TRACE, f"Return type already FQN: '{return_type}' -> {clean_type}",
+                      extra={'original_type': return_type, 'resolved_fqn': clean_type})
+            return clean_type
         
+        # If we can't resolve it, log the failure and return None
+        self._log(LogLevel.WARNING, f"Could not resolve return type: '{return_type}' for function {func_fqn}",
+                  extra={'return_type': return_type, 'function': func_fqn, 'clean_type': clean_type})
         return None
     
     def _clean_type_annotation(self, type_str: str) -> Optional[str]:

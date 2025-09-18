@@ -120,6 +120,36 @@ class ModuleFallbackStrategy(NameResolutionStrategy):
         return result
 
 
+class ModuleStateStrategy(NameResolutionStrategy):
+    """Resolves names from module-level state variables."""
+    
+    def resolve(self, name: str, context_fqn: str, recon_data: Dict[str, Any], scope_manager: ScopeManager) -> Optional[str]:
+        # Extract current module from context_fqn
+        current_module = context_fqn.split('.')[0] if context_fqn else None
+        if not current_module:
+            self._log(LogLevel.TRACE, f"ModuleStateStrategy: no current_module from context_fqn: {context_fqn}",
+                      extra={'strategy': 'ModuleState', 'variable': name, 'context_fqn': context_fqn})
+            return None
+        
+        # Check if this name exists as a module state variable
+        # Format: module.variable_name
+        state_fqn = f"{current_module}.{name}"
+        state_data = recon_data.get("state", {})
+        
+        self._log(LogLevel.TRACE, f"ModuleStateStrategy checking: {state_fqn}",
+                  extra={'strategy': 'ModuleState', 'variable': name, 'state_fqn': state_fqn, 
+                         'state_exists': state_fqn in state_data})
+        
+        if state_fqn in state_data:
+            self._log(LogLevel.TRACE, f"ModuleStateStrategy.resolve({name}): {state_fqn}",
+                      extra={'strategy': 'ModuleState', 'variable': name, 'result': state_fqn})
+            return state_fqn
+        
+        self._log(LogLevel.TRACE, f"ModuleStateStrategy failed: {state_fqn} not found",
+                  extra={'strategy': 'ModuleState', 'variable': name, 'state_fqn': state_fqn})
+        return None
+    
+
 class NameResolutionEngine:
     """
     Unified name resolution engine using modern strategy pattern.
@@ -134,6 +164,7 @@ class NameResolutionEngine:
             LocalVariableStrategy(),
             SelfReferenceStrategy(),
             InternalClassStrategy(),
+            ModuleStateStrategy(),
             ExternalLibraryStrategy(),
             ModuleFallbackStrategy()
         ]

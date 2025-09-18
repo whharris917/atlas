@@ -1,9 +1,10 @@
 """
-Call Analyzer - Code Atlas
+Call Analyzer - Code Atlas (Enhanced with ExpressionTraversal)
 
-Handles the detailed analysis of `ast.Call` nodes. This module is responsible
-for resolving the call's FQN, identifying its type (e.g., class instantiation,
-function call), and detecting special patterns like SocketIO emits.
+Handles the detailed analysis of `ast.Call` nodes using the unified ExpressionTraversal engine.
+This replaces the fragmented name resolution approach with the modern Expression Traversal system.
+
+REFACTORED: Uses ExpressionTraversal.resolve_and_evaluate() to eliminate redundant resolution logic.
 """
 
 import ast
@@ -12,201 +13,193 @@ from typing import Dict, Any, Optional, List
 from .utils import EXTERNAL_LIBRARY_ALLOWLIST
 from .logger import get_logger, LogLevel
 from .utils import get_source
+from .expression_traversal import ExpressionTraversal
 
 
 class CallAnalyzer:
-    """Analyzes ast.Call nodes to resolve and categorize function calls."""
+    """Analyzes ast.Call nodes using unified ExpressionTraversal engine."""
 
     def __init__(self, recon_data: Dict[str, Any], visitor):
         self.recon_data = recon_data
         self.visitor = visitor  # The main AnalysisVisitor instance
         self.logger = get_logger()
+        
+        # Initialize ExpressionTraversal engine with all required parameters
+        self.expression_traversal = ExpressionTraversal(
+            recon_data=recon_data,
+            scope_manager=visitor.scope_manager, 
+            module_fqn=visitor.module_name  # AnalysisVisitor stores module name
+        )
+        
+        self._log(LogLevel.DEBUG, "CallAnalyzer initialized with ExpressionTraversal engine")
 
     def _log(self, level: LogLevel, message: str, extra: Optional[Dict[str, Any]] = None):
         """Enhanced log with automatic source detection and correct module tracking."""
         getattr(get_logger(), level.name.lower())(message, get_source(), extra)
     
     def analyze_call(self, node: ast.Call):
-        """Process function calls with comprehensive logging - FIXED VERSION."""
+        """
+        Process function calls using unified ExpressionTraversal engine.
+        
+        This replaces the legacy name resolution approach with the modern
+        Expression Traversal system that provides proper Type Propagation
+        and unified expression analysis.
+        """
         if not self.visitor.current_function_report:
             return
         
         try:
-            name_parts = self.visitor.name_resolver.extract_name_parts(node.func)
-            if not name_parts:
-                self._log(LogLevel.TRACE, "Could not extract name parts from call")
-                return
+            # **NEW APPROACH: Use ExpressionTraversal for unified analysis**
+            identity_fqn, resulting_type = self.expression_traversal.resolve_and_evaluate(node.func)
             
-            raw_name = ".".join(name_parts)
-            self._log(LogLevel.TRACE, f"Found call: {raw_name}")
-            
-            # Check if this is a built-in that should be ignored
-            if len(name_parts) == 1 and name_parts[0] in ['print', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple', 'range', 'enumerate', 'zip', 'all', 'any', 'max', 'min', 'sum', 'abs', 'round', 'sorted']:
-                self._log(LogLevel.TRACE, f"Ignored built-in function: {raw_name}")
-                return
-            
-            context = self.visitor._get_context()
-            
-            # **FIXED: Always resolve the complete call first**
-            resolved_fqn = self.visitor._cached_resolve_name(name_parts, context)
-            
-            """
-            # **ENHANCED: Track intermediate calls in method chains**
-            if len(name_parts) > 1 and resolved_fqn:
-                self._track_intermediate_chain_calls(name_parts, context, resolved_fqn)
-            """
-            
-            if resolved_fqn:
-                self._log(LogLevel.TRACE, f"Resolved call: {raw_name} -> {resolved_fqn}")
+            if identity_fqn:
+                self._log(LogLevel.DEBUG, f"ExpressionTraversal resolved call: {ast.unparse(node.func)} -> {identity_fqn}")
                 
-                # **ENHANCED EMIT DETECTION**: Check for emit calls with comprehensive patterns
-                is_emit_call = self._is_emit_call(resolved_fqn, name_parts, raw_name)
+                # Check for built-in functions that should be ignored
+                if self._is_builtin_function(identity_fqn):
+                    self._log(LogLevel.TRACE, f"Ignored built-in function: {identity_fqn}")
+                    return
                 
-                if is_emit_call:
-                    self._handle_emit_call(node, resolved_fqn)
-                    self._log(LogLevel.INFO, f"SocketIO emit detected: {resolved_fqn}")
-                # Handle instantiations
-                elif resolved_fqn in self.recon_data["classes"]:
-                    if resolved_fqn not in self.visitor.current_function_report["instantiations"]:
-                        self.visitor.current_function_report["instantiations"].append(resolved_fqn)
-                    self._log(LogLevel.DEBUG, f"Class instantiation: {resolved_fqn}")
-                # Handle external class instantiations
-                elif resolved_fqn in self.recon_data.get("external_classes", {}):
-                    if resolved_fqn not in self.visitor.current_function_report["instantiations"]:
-                        self.visitor.current_function_report["instantiations"].append(resolved_fqn)
-                    self._log(LogLevel.DEBUG, f"External class instantiation: {resolved_fqn}")
-                # Handle function calls
-                elif resolved_fqn in self.recon_data["functions"]:
-                    self.visitor._add_unique_call(resolved_fqn)
-                    self._log(LogLevel.DEBUG, f"Function call: {resolved_fqn}")
-                # Handle external function calls
-                elif resolved_fqn in self.recon_data.get("external_functions", {}):
-                    self.visitor._add_unique_call(resolved_fqn)
-                    self._log(LogLevel.DEBUG, f"External function call: {resolved_fqn}")
-                # Handle external library calls from old allowlist (for backward compatibility)
-                elif any(resolved_fqn.startswith(lib) for lib in EXTERNAL_LIBRARY_ALLOWLIST):
-                    self.visitor._add_unique_call(resolved_fqn)
-                    self._log(LogLevel.DEBUG, f"External library call: {resolved_fqn}")
-                else:
-                    self._log(LogLevel.TRACE, f"Call not in catalog: {resolved_fqn}")
+                # Handle different types of calls based on resolved FQN
+                self._process_resolved_call(node, identity_fqn, resulting_type)
+                
             else:
-                self._log(LogLevel.TRACE, f"Could not resolve call: {raw_name}")
-                
-                # **FALLBACK EMIT DETECTION**: Check for emit patterns even when resolution fails
-                if self._is_emit_call_fallback(name_parts, raw_name):
-                    self._log(LogLevel.INFO, f"Unresolved SocketIO emit detected: {raw_name}")
-                    self._handle_emit_call(node, raw_name)  # Use raw name if we can't resolve
+                # **FALLBACK: Handle unresolved calls with pattern detection**
+                self._log(LogLevel.TRACE, f"ExpressionTraversal could not resolve: {ast.unparse(node.func)}")
+                self._handle_unresolved_call(node)
             
-            # Check for function arguments
+            # Process function arguments for additional analysis
             self._process_function_arguments(node)
         
         except Exception as e:
-            self._log(LogLevel.ERROR, f"Error processing call: {e}")
-
-    def _is_emit_call(self, resolved_fqn: str, name_parts: List[str], raw_name: str) -> bool:
-        """Comprehensive emit call detection with multiple patterns including external libraries."""
+            self._log(LogLevel.ERROR, f"Error in ExpressionTraversal call analysis: {e}")
+            # Graceful fallback - continue without crashing
+            
+    def _is_builtin_function(self, resolved_fqn: str) -> bool:
+        """Check if the resolved FQN represents a built-in function."""
+        builtin_functions = {
+            'print', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 
+            'set', 'tuple', 'range', 'enumerate', 'zip', 'all', 'any', 
+            'max', 'min', 'sum', 'abs', 'round', 'sorted'
+        }
         
-        # Pattern 1: Direct flask_socketio.emit import
-        if resolved_fqn == 'flask_socketio.emit':
+        # Check if it's a simple built-in (e.g., "print")
+        if resolved_fqn in builtin_functions:
             return True
-        
-        # Pattern 2: Any method ending with .emit
-        if resolved_fqn.endswith('.emit'):
-            return True
-        
-        # Pattern 3: External SocketIO class emit method
-        if 'flask_socketio.SocketIO.emit' in resolved_fqn:
-            return True
-        
-        # Pattern 4: Contains SocketIO
-        if 'SocketIO' in resolved_fqn:
-            return True
-        
-        # Pattern 5: Contains socketio (case insensitive)
-        if 'socketio' in resolved_fqn.lower():
-            return True
-        
-        # Pattern 6: Check if resolved to external emit function
-        if resolved_fqn in self.recon_data.get("external_functions", {}):
-            ext_func_info = self.recon_data["external_functions"][resolved_fqn]
-            if ext_func_info["name"] == "emit" and "socketio" in ext_func_info["module"]:
-                return True
-        
-        # Pattern 7: Check if any part of the name is 'emit'
-        if 'emit' in name_parts:
-            return True
-        
-        # Pattern 8: Check raw name patterns
-        if '.emit(' in raw_name or raw_name.endswith('.emit'):
-            return True
-        
+            
+        # Check if it's a module-qualified built-in (e.g., "builtins.print")
+        if '.' in resolved_fqn:
+            name_part = resolved_fqn.split('.')[-1]
+            return name_part in builtin_functions
+            
         return False
     
-    def _is_emit_call_fallback(self, name_parts: List[str], raw_name: str) -> bool:
-        """Fallback emit detection for unresolved calls."""
+    def _process_resolved_call(self, node: ast.Call, identity_fqn: str, resulting_type: Optional[str]):
+        """
+        Process a successfully resolved call based on its type.
         
-        # Check if 'emit' is the last part of the call
-        if name_parts and name_parts[-1] == 'emit':
-            return True
+        Args:
+            node: The ast.Call node
+            identity_fqn: The resolved FQN of the called entity
+            resulting_type: The type that results from calling this entity
+        """
         
-        # Check for common SocketIO patterns in the raw name
-        if any(pattern in raw_name.lower() for pattern in ['socketio.emit', '.emit']):
-            return True
-        
-        return False
-    
-    def _track_intermediate_chain_calls(self, name_parts: List[str], context: Dict[str, Any], final_resolved_fqn: str):
-        """Track intermediate method calls in complex chains - FIXED VERSION."""
-        self._log(LogLevel.TRACE, f"Tracking intermediate chain calls for: {'.'.join(name_parts)}")
-        
-        # Only track intermediate calls if we have a multi-part chain
-        if len(name_parts) <= 1:
+        # **ENHANCED EMIT DETECTION**: Check for SocketIO emit patterns
+        if self._is_emit_call(identity_fqn):
+            self._handle_emit_call(node, identity_fqn)
+            self._log(LogLevel.INFO, f"SocketIO emit detected: {identity_fqn}")
             return
         
-        # Track each progressive step in the chain (excluding the final call which is handled separately)
-        for i in range(1, len(name_parts)):  # Skip the final step since it's handled by main resolution
-            partial_chain = name_parts[:i+1]
-            partial_name = ".".join(partial_chain)
+        # **CATEGORIZE BY ENTITY TYPE**: Use reconnaissance data to determine call type
+        
+        # Handle class instantiations (internal)
+        if identity_fqn in self.recon_data.get("classes", {}):
+            if identity_fqn not in self.visitor.current_function_report["instantiations"]:
+                self.visitor.current_function_report["instantiations"].append(identity_fqn)
+            self._log(LogLevel.DEBUG, f"Class instantiation: {identity_fqn}")
             
-            # Skip if this is the same as the final resolved call
-            if partial_name == ".".join(name_parts):
-                continue
+        # Handle external class instantiations
+        elif identity_fqn in self.recon_data.get("external_classes", {}):
+            if identity_fqn not in self.visitor.current_function_report["instantiations"]:
+                self.visitor.current_function_report["instantiations"].append(identity_fqn)
+            self._log(LogLevel.DEBUG, f"External class instantiation: {identity_fqn}")
             
-            # Try to resolve this partial chain
-            partial_resolved = self.visitor._cached_resolve_name(partial_chain, context)
+        # Handle function calls (internal)
+        elif identity_fqn in self.recon_data.get("functions", {}):
+            self.visitor._add_unique_call(identity_fqn)
+            self._log(LogLevel.DEBUG, f"Function call: {identity_fqn}")
             
-            if partial_resolved and partial_resolved != final_resolved_fqn:
-                self._log(LogLevel.TRACE, f"Intermediate chain step {i}: {partial_name} -> {partial_resolved}")
-                
-                # Check if this is a function/method call (not just an attribute access)
-                if (partial_resolved in self.recon_data["functions"] or
-                    partial_resolved in self.recon_data.get("external_functions", {})):
-                    # Only add if not already captured
-                    if partial_resolved not in self.visitor.current_function_report["calls"]:
-                        self.visitor._add_unique_call(partial_resolved)
-                        self._log(LogLevel.DEBUG, f"Intermediate call added: {partial_resolved}")
-                
-                # Update context for next step using return type if available
-                if i < len(name_parts) - 1:  # Don't update for the last step
-                    self._update_chain_context(partial_resolved, name_parts[0], context)
+        # Handle external function calls
+        elif identity_fqn in self.recon_data.get("external_functions", {}):
+            self.visitor._add_unique_call(identity_fqn)
+            self._log(LogLevel.DEBUG, f"External function call: {identity_fqn}")
+            
+        # Handle external library calls (backward compatibility)
+        elif any(identity_fqn.startswith(lib) for lib in EXTERNAL_LIBRARY_ALLOWLIST):
+            self.visitor._add_unique_call(identity_fqn)
+            self._log(LogLevel.DEBUG, f"External library call: {identity_fqn}")
+            
+        else:
+            self._log(LogLevel.TRACE, f"Call not in catalog: {identity_fqn}")
     
-    def _update_chain_context(self, resolved_fqn: str, base_name: str, context: Dict[str, Any]):
-        """Update resolution context based on intermediate call return type."""
-        if resolved_fqn in self.recon_data["functions"]:
-            func_info = self.recon_data["functions"][resolved_fqn]
-            return_type = func_info.get("return_type")
-            if return_type:
-                # Extract core type and try to resolve it to FQN
-                core_type = self.visitor.type_inference.extract_core_type(return_type)
-                if core_type:
-                    resolved_type_fqn = self.visitor.type_inference._resolve_return_type_to_fqn(core_type, context)
-                    if resolved_type_fqn:
-                        # CHANGE: Update scope manager instead of symbol manager
-                        self.visitor.scope_manager.update_variable_type(base_name, resolved_type_fqn)
-                        self._log(LogLevel.TRACE, f"Updated chain context: {base_name} -> {resolved_type_fqn}")
-
+    def _handle_unresolved_call(self, node: ast.Call):
+        """
+        Handle calls that couldn't be resolved by ExpressionTraversal.
+        
+        This provides fallback detection for special patterns like SocketIO emits
+        that might not be in reconnaissance data.
+        """
+        try:
+            # Extract raw name for pattern matching
+            raw_name = ast.unparse(node.func)
+            
+            # **FALLBACK EMIT DETECTION**: Check for emit patterns even when resolution fails
+            if self._is_emit_call_fallback(raw_name):
+                self._log(LogLevel.INFO, f"Unresolved SocketIO emit detected: {raw_name}")
+                self._handle_emit_call(node, raw_name)  # Use raw name if we can't resolve
+                
+        except Exception as e:
+            self._log(LogLevel.TRACE, f"Error in unresolved call handling: {e}")
+    
+    def _is_emit_call(self, resolved_fqn: str) -> bool:
+        """
+        Comprehensive emit call detection for resolved FQNs.
+        
+        Detects various SocketIO emit patterns including Flask-SocketIO and
+        standard SocketIO patterns.
+        """
+        emit_patterns = [
+            '.emit',           # Standard SocketIO emit
+            'socketio.emit',   # Flask-SocketIO emit  
+            'flask_socketio.emit',  # Direct import emit
+            '.send',           # SocketIO send (alias for emit)
+        ]
+        
+        return any(pattern in resolved_fqn for pattern in emit_patterns)
+    
+    def _is_emit_call_fallback(self, raw_name: str) -> bool:
+        """
+        Fallback emit detection for unresolved calls.
+        
+        Uses string patterns to detect emit calls that couldn't be resolved.
+        """
+        emit_patterns = [
+            'emit(',
+            '.emit(',
+            'socketio.emit(',
+            'send(',
+            '.send(',
+        ]
+        
+        return any(pattern in raw_name for pattern in emit_patterns)
+    
     def _handle_emit_call(self, node: ast.Call, resolved_fqn: str):
-        """Handle special emit methods for event name extraction."""
+        """
+        Handle special SocketIO emit methods for event name extraction.
+        
+        Extracts event names, room parameters, and other emit context for
+        SocketIO analysis.
+        """
         self._log(LogLevel.DEBUG, f"Processing SocketIO emit call: {resolved_fqn}")
         
         # Extract event name from first argument
@@ -226,7 +219,7 @@ class CallAnalyzer:
         # Extract additional emit parameters for context
         emit_context = {}
         
-        # Check for room parameter
+        # Check for room parameter and other SocketIO-specific keywords
         for keyword in node.keywords:
             if keyword.arg == 'room':
                 if isinstance(keyword.value, ast.Constant):
@@ -247,13 +240,20 @@ class CallAnalyzer:
         self._log(LogLevel.TRACE, f"Emit details - Event: {event_name}, Context: {emit_context}")
     
     def _process_function_arguments(self, node: ast.Call):
-        """Process function arguments for function references."""
-        context = self.visitor._get_context()
+        """
+        Process function arguments to detect function references being passed as arguments.
         
+        This catches cases where functions are passed as callbacks or event handlers.
+        """
         for arg in node.args:
             if isinstance(arg, ast.Name):
-                arg_fqn = self.visitor.name_resolver.resolve_name([arg.id], context)
-                if (arg_fqn and (arg_fqn in self.recon_data["functions"] or
-                               arg_fqn in self.recon_data.get("external_functions", {}))):
-                    self.visitor._add_unique_call(arg_fqn)
-                    self._log(LogLevel.TRACE, f"Function argument reference: {arg_fqn}")
+                # **NEW: Use ExpressionTraversal for argument resolution**
+                try:
+                    arg_identity, _ = self.expression_traversal.resolve_and_evaluate(arg)
+                    if (arg_identity and 
+                        (arg_identity in self.recon_data.get("functions", {}) or
+                         arg_identity in self.recon_data.get("external_functions", {}))):
+                        self.visitor._add_unique_call(arg_identity)
+                        self._log(LogLevel.TRACE, f"Function argument reference: {arg_identity}")
+                except Exception as e:
+                    self._log(LogLevel.TRACE, f"Error resolving function argument: {e}")
