@@ -7,7 +7,7 @@ Automatically discovers and builds the project tree structure from filesystem.
 import ast
 from pathlib import Path
 from typing import Dict, List, Optional, Set
-from .foundation import ProjectNode, PackageNode, ModuleNode
+from .nodes import ProjectNode, PackageNode, ModuleNode
 
 
 class ProjectBuilder:
@@ -18,20 +18,35 @@ class ProjectBuilder:
         self.root_path = Path(root_path)
         self.project = ProjectNode(project_name)
     
-    def build_from_filesystem(self, target_dir: str = "sample_files") -> ProjectNode:
-        """Scan filesystem and build complete project tree."""
+    def execute_reconnaissance_phase(self, target_dir: str = "sample_files") -> ProjectNode:
+        """Execute the complete Reconnaissance Phase: discover and catalog all project entities."""
         scan_path = self.root_path / target_dir
         if not scan_path.exists():
             raise FileNotFoundError(f"Directory {scan_path} not found")
         
-        print(f"Building project tree from: {scan_path}")
+        print(f"=== EXECUTING RECONNAISSANCE PHASE ===")
+        print(f"Target: {scan_path}")
         
-        # Scan and build the tree structure
-        self._scan_directory(scan_path, self.project)
+        # Phase 1: Build basic project structure (Project -> Package -> Module)
+        print("\n--- Phase 1: Building Project Structure ---")
+        self.build_project_structure(scan_path, self.project)
         
+        # Phase 2: Discover classes, functions, and other entities
+        print("\n--- Phase 2: Entity Discovery ---")
+        self.discover_classes_and_methods()
+        self.discover_module_functions()
+        self.discover_state_variables()
+        self.discover_imports()
+        
+        print("\n=== RECONNAISSANCE PHASE COMPLETE ===")
         return self.project
     
-    def _scan_directory(self, dir_path: Path, parent_node):
+    def build_project_structure(self, scan_path: Path, project_node: ProjectNode):
+        """Build the basic Project -> Package -> Module hierarchy from filesystem."""
+        print(f"Building project structure from: {scan_path}")
+        self._discover_containment_hierarchy(scan_path, project_node)
+    
+    def _discover_containment_hierarchy(self, dir_path: Path, parent_node):
         """Recursively scan directory and build tree nodes."""
         print(f"Scanning: {dir_path}")
         
@@ -46,8 +61,12 @@ class ProjectBuilder:
             elif item.is_dir() and not item.name.startswith('.'):
                 subdirectories.append(item)
         
-        # Create module nodes for Python files
+        # Create module nodes for Python files (but skip __init__.py)
         for py_file in python_files:
+            # Skip __init__.py files - they're handled in PackageNode
+            if py_file.name == "__init__.py":
+                continue
+                
             module_name = py_file.stem
             relative_path = str(py_file.relative_to(self.root_path))
             
@@ -85,12 +104,169 @@ class ProjectBuilder:
                 package_node.path = relative_path  # Set path after creation
                 
                 # Recursively scan the package
-                self._scan_directory(subdir, package_node)
-            else:
-                print(f"  Skipping {subdir} (no __init__.py)")
+                self._discover_containment_hierarchy(subdir, package_node)
+    
+    def discover_classes_and_methods(self):
+        """Discover all classes and their methods by parsing stored AST nodes."""
+        print("Discovering classes and methods...")
+        
+        for module_node in self._get_all_modules():
+            if module_node.ast_node:
+                self._extract_classes_from_module(module_node)
+    
+    def discover_module_functions(self):
+        """Discover module-level functions by parsing stored AST nodes."""
+        print("Discovering module functions...")
+        
+        for module_node in self._get_all_modules():
+            if module_node.ast_node:
+                self._extract_functions_from_module(module_node)
+    
+    def discover_state_variables(self):
+        """Discover module-level state variables by parsing stored AST nodes."""
+        print("Discovering state variables...")
+        
+        for module_node in self._get_all_modules():
+            if module_node.ast_node:
+                self._extract_state_from_module(module_node)
+    
+    def discover_imports(self):
+        """Discover import statements by parsing stored AST nodes."""
+        print("Discovering imports...")
+        
+        for module_node in self._get_all_modules():
+            if module_node.ast_node:
+                self._extract_imports_from_module(module_node)
+    
+    def _get_all_modules(self):
+        """Get all module nodes from the entire project tree."""
+        modules = []
+        
+        # Direct modules in project
+        modules.extend(self.project.list_modules())
+        
+        # Modules in packages (including nested packages)
+        def collect_from_package(package):
+            modules.extend(package.list_modules())
+            for nested_package in package.list_packages():
+                collect_from_package(nested_package)
+        
+        for package in self.project.list_packages():
+            collect_from_package(package)
+        
+        return modules
+    
+    def _extract_classes_from_module(self, module_node):
+        """Extract all classes and their methods from a module's AST."""
+        for node in ast.walk(module_node.ast_node):
+            if isinstance(node, ast.ClassDef):
+                # Create the class node
+                class_node = module_node.create_class(
+                    name=node.name,
+                    line_number=getattr(node, 'lineno', 0),
+                    ast_node=node
+                )
+                print(f"  Found class: {class_node.fqn}")
+                
+                # Extract methods from this class
+                self._extract_methods_from_class(class_node, node)
+    
+    def _extract_methods_from_class(self, class_node, class_ast_node):
+        """Extract all methods from a class AST node."""
+        for node in class_ast_node.body:
+            if isinstance(node, ast.FunctionDef):
+                method_node = class_node.create_method(
+                    name=node.name,
+                    line_number=getattr(node, 'lineno', 0),
+                    ast_node=node
+                )
+                print(f"    Found method: {method_node.fqn}")
+                
+                # Extract arguments from this method
+                self._extract_arguments_from_function(method_node, node)
+    
+    def _extract_functions_from_module(self, module_node):
+        """Extract module-level functions from a module's AST."""
+        for node in module_node.ast_node.body:
+            if isinstance(node, ast.FunctionDef):
+                function_node = module_node.create_function(
+                    name=node.name,
+                    line_number=getattr(node, 'lineno', 0),
+                    ast_node=node
+                )
+                print(f"  Found function: {function_node.fqn}")
+                
+                # Extract arguments from this function
+                self._extract_arguments_from_function(function_node, node)
+    
+    def _extract_arguments_from_function(self, function_node, func_ast_node):
+        """Extract arguments from a function AST node."""
+        for arg in func_ast_node.args.args:
+            arg_type = ""
+            if arg.annotation:
+                try:
+                    arg_type = ast.unparse(arg.annotation)
+                except:
+                    arg_type = "Unknown"
+            
+            arg_node = function_node.create_argument(
+                name=arg.arg,
+                arg_type=arg_type,
+                ast_node=arg
+            )
+            print(f"      Found argument: {arg_node.fqn} : {arg_type}")
+    
+    def _extract_state_from_module(self, module_node):
+        """Extract module-level state variables from a module's AST."""
+        for node in module_node.ast_node.body:
+            if isinstance(node, ast.Assign):
+                # Handle regular assignments like: var = value
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        state_node = module_node.create_state(
+                            name=target.id,
+                            line_number=getattr(node, 'lineno', 0),
+                            ast_node=node
+                        )
+                        print(f"  Found state variable: {state_node.fqn}")
+            
+            elif isinstance(node, ast.AnnAssign):
+                # Handle annotated assignments like: var: Type = value
+                if isinstance(node.target, ast.Name):
+                    state_node = module_node.create_state(
+                        name=node.target.id,
+                        line_number=getattr(node, 'lineno', 0),
+                        ast_node=node
+                    )
+                    print(f"  Found annotated state variable: {state_node.fqn}")
+    
+    def _extract_imports_from_module(self, module_node):
+        """Extract import statements from a module's AST."""
+        for node in module_node.ast_node.body:
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    import_name = alias.asname if alias.asname else alias.name
+                    import_node = module_node.create_import(
+                        name=import_name,
+                        module_name=alias.name,
+                        ast_node=node
+                    )
+                    print(f"  Found import: {import_node.fqn} -> {alias.name}")
+            
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    for alias in node.names:
+                        import_name = alias.asname if alias.asname else alias.name
+                        full_module = f"{node.module}.{alias.name}"
+                        import_node = module_node.create_import(
+                            name=import_name,
+                            module_name=full_module,
+                            ast_node=node
+                        )
+                        print(f"  Found from-import: {import_node.fqn} -> {full_module}")
 
 
 def build_sample_project() -> ProjectNode:
-    """Convenience function to build the sample project."""
+    """Convenience function to execute reconnaissance phase on sample project."""
     builder = ProjectBuilder("sample_project")
-    return builder.build_from_filesystem("sample_files")
+    return builder.execute_reconnaissance_phase("sample_files")
