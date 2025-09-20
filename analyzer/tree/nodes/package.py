@@ -21,7 +21,7 @@ class PackageNode(TreeNode):
         self.path = path
         self.init_ast = init_ast  # Also keep separate reference for clarity
         self._packages: Dict[str, 'PackageNode'] = {}  # Self-reference must be string
-        self._modules: Dict[str, ModuleNode] = {}
+        self._modules: Dict[str, 'ModuleNode'] = {}
     
     def create_package(self, name: str, path: str = "", init_ast: Optional[ast.Module] = None) -> 'PackageNode':
         """Create and hook a new nested package."""
@@ -30,7 +30,7 @@ class PackageNode(TreeNode):
         self._packages[name] = package
         return package
     
-    def create_module(self, name: str, path: str = "", ast_node: Optional[ast.Module] = None) -> ModuleNode:
+    def create_module(self, name: str, path: str = "", ast_node: Optional[ast.Module] = None) -> 'ModuleNode':
         """Create and hook a new module in this package."""
         from .module import ModuleNode
         module = ModuleNode(name, path, ast_node)
@@ -44,7 +44,7 @@ class PackageNode(TreeNode):
             raise KeyError(f"Package '{name}' not found in package '{self.name}'")
         return self._packages[name]
     
-    def get_module(self, name: str) -> ModuleNode:
+    def get_module(self, name: str) -> 'ModuleNode':
         """Get a module by name."""
         if name not in self._modules:
             raise KeyError(f"Module '{name}' not found in package '{self.name}'")
@@ -54,6 +54,6 @@ class PackageNode(TreeNode):
         """List all nested packages in this package."""
         return list(self._packages.values())
     
-    def list_modules(self) -> List[ModuleNode]:
+    def list_modules(self) -> List['ModuleNode']:
         """List all modules in this package."""
         return list(self._modules.values())

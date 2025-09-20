@@ -19,10 +19,10 @@ class ProjectNode(TreeNode):
     
     def __init__(self, name: str):
         super().__init__(name)
-        self._packages: Dict[str, PackageNode] = {}
-        self._modules: Dict[str, ModuleNode] = {}  # Direct modules (no package)
+        self._packages: Dict[str, 'PackageNode'] = {}
+        self._modules: Dict[str, 'ModuleNode'] = {}  # Direct modules (no package)
     
-    def create_package(self, name: str, init_ast: Optional[ast.Module] = None) -> PackageNode:
+    def create_package(self, name: str, init_ast: Optional[ast.Module] = None) -> 'PackageNode':
         """Create and hook a new package."""
         from .package import PackageNode
         package = PackageNode(name, init_ast=init_ast)
@@ -30,7 +30,7 @@ class ProjectNode(TreeNode):
         self._packages[name] = package
         return package
     
-    def create_module(self, name: str, path: str = "", ast_node: Optional[ast.Module] = None) -> ModuleNode:
+    def create_module(self, name: str, path: str = "", ast_node: Optional[ast.Module] = None) -> 'ModuleNode':
         """Create and hook a new module directly under project."""
         from .module import ModuleNode
         module = ModuleNode(name, path, ast_node)
@@ -38,22 +38,22 @@ class ProjectNode(TreeNode):
         self._modules[name] = module
         return module
     
-    def get_package(self, name: str) -> PackageNode:
+    def get_package(self, name: str) -> 'PackageNode':
         """Get a package by name."""
         if name not in self._packages:
             raise KeyError(f"Package '{name}' not found")
         return self._packages[name]
     
-    def get_module(self, name: str) -> ModuleNode:
+    def get_module(self, name: str) -> 'ModuleNode':
         """Get a direct module by name."""
         if name not in self._modules:
             raise KeyError(f"Module '{name}' not found")
         return self._modules[name]
     
-    def list_packages(self) -> List[PackageNode]:
+    def list_packages(self) -> List['PackageNode']:
         """List all packages in the project."""
         return list(self._packages.values())
     
-    def list_modules(self) -> List[ModuleNode]:
+    def list_modules(self) -> List['ModuleNode']:
         """List all direct modules in the project."""
         return list(self._modules.values())

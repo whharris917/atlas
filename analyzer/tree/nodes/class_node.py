@@ -20,8 +20,8 @@ class ClassNode(TreeNode):
     def __init__(self, name: str, line_number: int = 0, ast_node: Optional[ast.ClassDef] = None):
         super().__init__(name, ast_node)
         self.line_number = line_number
-        self._methods: Dict[str, FunctionNode] = {}
-        self._attributes: Dict[str, AttributeNode] = {}
+        self._methods: Dict[str, 'FunctionNode'] = {}
+        self._attributes: Dict[str, 'AttributeNode'] = {}
         self._children_discovered = False
     
     def discover_children(self):
@@ -42,7 +42,7 @@ class ClassNode(TreeNode):
         
         self._children_discovered = True
     
-    def create_method(self, name: str, line_number: int = 0, ast_node: Optional[ast.FunctionDef] = None) -> FunctionNode:
+    def create_method(self, name: str, line_number: int = 0, ast_node: Optional[ast.FunctionDef] = None) -> 'FunctionNode':
         """Create and hook a new method."""
         from .function import FunctionNode
         method_node = FunctionNode(name, line_number, ast_node, is_method=True)
@@ -50,7 +50,7 @@ class ClassNode(TreeNode):
         self._methods[name] = method_node
         return method_node
     
-    def create_attribute(self, name: str, attribute_type: str = "", ast_node: Optional[ast.AST] = None) -> AttributeNode:
+    def create_attribute(self, name: str, attribute_type: str = "", ast_node: Optional[ast.AST] = None) -> 'AttributeNode':
         """Create and hook a new attribute."""
         from .attribute import AttributeNode
         attr_node = AttributeNode(name, attribute_type, ast_node)
@@ -58,19 +58,19 @@ class ClassNode(TreeNode):
         self._attributes[name] = attr_node
         return attr_node
     
-    def get_method(self, name: str) -> FunctionNode:
+    def get_method(self, name: str) -> 'FunctionNode':
         """Get a method by name."""
         self.discover_children()  # Ensure children are discovered
         if name not in self._methods:
             raise KeyError(f"Method '{name}' not found in class '{self.name}'")
         return self._methods[name]
     
-    def list_methods(self) -> List[FunctionNode]:
+    def list_methods(self) -> List['FunctionNode']:
         """List all methods in this class."""
         self.discover_children()  # Ensure children are discovered
         return list(self._methods.values())
     
-    def list_attributes(self) -> List[AttributeNode]:
+    def list_attributes(self) -> List['AttributeNode']:
         """List all attributes in this class."""
         self.discover_children()  # Ensure children are discovered
         return list(self._attributes.values())

@@ -20,7 +20,7 @@ class FunctionNode(TreeNode):
         super().__init__(name, ast_node)
         self.line_number = line_number
         self.is_method = is_method
-        self._arguments: Dict[str, ArgumentNode] = {}
+        self._arguments: Dict[str, 'ArgumentNode'] = {}
         self._children_discovered = False
     
     def discover_children(self):
@@ -47,7 +47,7 @@ class FunctionNode(TreeNode):
         
         self._children_discovered = True
     
-    def create_argument(self, name: str, arg_type: str = "", ast_node: Optional[ast.arg] = None) -> ArgumentNode:
+    def create_argument(self, name: str, arg_type: str = "", ast_node: Optional[ast.arg] = None) -> 'ArgumentNode':
         """Create and hook a new argument."""
         from .argument import ArgumentNode
         arg_node = ArgumentNode(name, arg_type, ast_node)
@@ -55,7 +55,7 @@ class FunctionNode(TreeNode):
         self._arguments[name] = arg_node
         return arg_node
     
-    def list_arguments(self) -> List[ArgumentNode]:
+    def list_arguments(self) -> List['ArgumentNode']:
         """List all arguments for this function."""
         self.discover_children()  # Ensure children are discovered
         return list(self._arguments.values())
