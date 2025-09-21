@@ -14,9 +14,11 @@ from .nodes import (
     StateNode, ImportNode, ArgumentNode, AttributeNode
 )
 
-# Reconnaissance Phase
+# Main Atlas Builder (moved from reconnaissance)
+from .builder import AtlasBuilder, build_complete_atlas, build_sample_project
+
+# Reconnaissance Phase components
 from .reconnaissance import (
-    ProjectBuilder, build_sample_project,
     ProjectDiscovery, discover_project_structure,
     TreeBuilder, build_project_tree,
     ModuleReconnaissanceVisitor, ClassReconnaissanceVisitor, FunctionReconnaissanceVisitor
@@ -33,8 +35,10 @@ __all__ = [
     'ProjectNode', 'PackageNode', 'ModuleNode', 'ClassNode', 'FunctionNode',
     'StateNode', 'ImportNode', 'ArgumentNode', 'AttributeNode',
     
-    # Reconnaissance
-    'ProjectBuilder', 'build_sample_project',
+    # Main Atlas Builder
+    'AtlasBuilder', 'build_complete_atlas', 'build_sample_project',
+    
+    # Reconnaissance components
     'ProjectDiscovery', 'discover_project_structure', 
     'TreeBuilder', 'build_project_tree',
     'ModuleReconnaissanceVisitor', 'ClassReconnaissanceVisitor', 'FunctionReconnaissanceVisitor'
