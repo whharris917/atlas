@@ -14,7 +14,7 @@ class TreeNode:
     def __init__(self, name: str, ast_node: Optional[ast.AST] = None):
         self.name = name
         self.ast_node = ast_node
-        self.parent: Optional['TreeNode'] = None
+        self.parent = None
     
     @property
     def fqn(self) -> str:
@@ -26,6 +26,13 @@ class TreeNode:
             parts.append(current.name)
             current = current.parent
         return ".".join(reversed(parts))
+    
+    @property
+    def line_number(self) -> int:
+        """Get line number from AST node, or 0 if not available."""
+        if self.ast_node:
+            return getattr(self.ast_node, 'lineno', 0)
+        return 0
     
     def __repr__(self) -> str:
         """Nice string representation showing node type and FQN."""

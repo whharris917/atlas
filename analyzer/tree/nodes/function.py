@@ -16,46 +16,42 @@ if TYPE_CHECKING:
 class FunctionNode(TreeNode):
     """Node representing a Python function or method."""
     
-    def __init__(self, name: str, line_number: int = 0, ast_node: Optional[ast.FunctionDef] = None, is_method: bool = False):
+    def __init__(self, name: str, ast_node: ast.FunctionDef, is_method: bool = False):
         super().__init__(name, ast_node)
-        self.line_number = line_number
         self.is_method = is_method
         self._arguments: Dict[str, 'ArgumentNode'] = {}
-        self._children_discovered = False
+        self._children_created = False
     
-    def discover_children(self):
-        """Discover and create argument nodes from function AST."""
-        if self._children_discovered or not self.ast_node:
+    def create_children(self):
+        """Create argument nodes from function AST."""
+        if self._children_created or not self.ast_node:
             return
         
-        print(f"      Discovering arguments in: {self.fqn}")
+        print(f"      Creating arguments in: {self.fqn}")
         
         # Extract arguments from function
         for arg in self.ast_node.args.args:
-            arg_type = ""
-            if arg.annotation:
-                try:
-                    arg_type = ast.unparse(arg.annotation)
-                except:
-                    arg_type = "Unknown"
-            
-            from .argument import ArgumentNode
-            arg_node = ArgumentNode(arg.arg, arg_type, arg)
-            arg_node.parent = self
-            self._arguments[arg.arg] = arg_node
-            print(f"        Found argument: {arg_node.fqn} : {arg_type}")
+            self.create_argument(arg)
         
-        self._children_discovered = True
+        self._children_created = True
     
-    def create_argument(self, name: str, arg_type: str = "", ast_node: Optional[ast.arg] = None) -> 'ArgumentNode':
-        """Create and hook a new argument."""
+    def create_argument(self, arg_ast: ast.arg) -> 'ArgumentNode':
+        """Create and hook a new argument from AST node."""
+        arg_type = ""
+        if arg_ast.annotation:
+            try:
+                arg_type = ast.unparse(arg_ast.annotation)
+            except:
+                arg_type = "Unknown"
+        
         from .argument import ArgumentNode
-        arg_node = ArgumentNode(name, arg_type, ast_node)
+        arg_node = ArgumentNode(arg_ast.arg, arg_type, arg_ast)
         arg_node.parent = self
-        self._arguments[name] = arg_node
+        self._arguments[arg_ast.arg] = arg_node
+        print(f"        Found argument: {arg_node.fqn} : {arg_type}")
         return arg_node
     
     def list_arguments(self) -> List['ArgumentNode']:
         """List all arguments for this function."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         return list(self._arguments.values())

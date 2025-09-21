@@ -19,74 +19,78 @@ if TYPE_CHECKING:
 class ModuleNode(TreeNode):
     """Node representing a Python module."""
     
-    def __init__(self, name: str, path: str = "", ast_node: Optional[ast.Module] = None):
+    def __init__(self, name: str, path: str, ast_node: ast.Module):
         super().__init__(name, ast_node)
         self.path = path
         self._classes: Dict[str, 'ClassNode'] = {}
         self._functions: Dict[str, 'FunctionNode'] = {}
         self._state: Dict[str, 'StateNode'] = {}
         self._imports: Dict[str, 'ImportNode'] = {}
-        self._children_discovered = False
+        self._children_created = False
     
-    def discover_children(self):
-        """Discover and create child nodes from AST without full population."""
-        if self._children_discovered or not self.ast_node:
+    def create_children(self):
+        """Create child nodes from AST without full population."""
+        if self._children_created or not self.ast_node:
             return
         
-        print(f"  Discovering children in: {self.fqn}")
+        print(f"  Creating children in: {self.fqn}")
         
         # Walk AST and create child nodes with their AST nodes
         for node in ast.walk(self.ast_node):
             if isinstance(node, ast.ClassDef):
-                self._discover_class(node)
+                self.create_class(node)
         
         # Extract module-level functions (not inside classes)
         for node in self.ast_node.body:
             if isinstance(node, ast.FunctionDef):
-                self._discover_function(node)
+                self.create_function(node)
             elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-                self._discover_state(node)
+                self.create_state(node)
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
-                self._discover_import(node)
+                self.create_import(node)
         
-        self._children_discovered = True
+        self._children_created = True
     
-    def _discover_class(self, class_ast: ast.ClassDef):
-        """Create ClassNode with AST, let it handle its own method discovery."""
+    def create_class(self, class_ast: ast.ClassDef) -> 'ClassNode':
+        """Create and hook a new class from AST node."""
         if class_ast.name not in self._classes:
             from .class_node import ClassNode
-            class_node = ClassNode(class_ast.name, getattr(class_ast, 'lineno', 0), class_ast)
+            class_node = ClassNode(class_ast.name, class_ast)
             class_node.parent = self
             self._classes[class_ast.name] = class_node
             print(f"    Found class: {class_node.fqn}")
+            return class_node
+        return self._classes[class_ast.name]
     
-    def _discover_function(self, func_ast: ast.FunctionDef):
-        """Create FunctionNode with AST for later argument discovery."""
+    def create_function(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
+        """Create and hook a new function from AST node."""
         from .function import FunctionNode
-        function_node = FunctionNode(func_ast.name, getattr(func_ast, 'lineno', 0), func_ast)
+        function_node = FunctionNode(func_ast.name, func_ast)
         function_node.parent = self
         self._functions[func_ast.name] = function_node
         print(f"    Found function: {function_node.fqn}")
+        return function_node
     
-    def _discover_state(self, state_ast: ast.AST):
-        """Create StateNode with AST."""
+    def create_state(self, state_ast: ast.AST) -> 'StateNode':
+        """Create and hook state variable(s) from AST node."""
         if isinstance(state_ast, ast.Assign):
             for target in state_ast.targets:
                 if isinstance(target, ast.Name):
-                    self._create_state_node(target.id, state_ast)
+                    return self._create_state_node(target.id, state_ast)
         elif isinstance(state_ast, ast.AnnAssign) and isinstance(state_ast.target, ast.Name):
-            self._create_state_node(state_ast.target.id, state_ast)
+            return self._create_state_node(state_ast.target.id, state_ast)
     
-    def _create_state_node(self, name: str, ast_node: ast.AST):
-        """Helper to create StateNode."""
+    def _create_state_node(self, name: str, ast_node: ast.AST) -> 'StateNode':
+        """Helper to create individual StateNode."""
         from .state import StateNode
-        state_node = StateNode(name, getattr(ast_node, 'lineno', 0), ast_node)
+        state_node = StateNode(name, ast_node)
         state_node.parent = self
         self._state[name] = state_node
         print(f"    Found state: {state_node.fqn}")
+        return state_node
     
-    def _discover_import(self, import_ast: ast.AST):
-        """Create ImportNode with AST."""
+    def create_import(self, import_ast: ast.AST) -> 'ImportNode':
+        """Create and hook import(s) from AST node."""
         from .import_node import ImportNode
         
         if isinstance(import_ast, ast.Import):
@@ -96,6 +100,7 @@ class ModuleNode(TreeNode):
                 import_node.parent = self
                 self._imports[import_name] = import_node
                 print(f"    Found import: {import_node.fqn} -> {alias.name}")
+                return import_node  # Return first one created
         
         elif isinstance(import_ast, ast.ImportFrom) and import_ast.module:
             for alias in import_ast.names:
@@ -105,76 +110,48 @@ class ModuleNode(TreeNode):
                 import_node.parent = self
                 self._imports[import_name] = import_node
                 print(f"    Found from-import: {import_node.fqn} -> {full_module}")
+                return import_node  # Return first one created
     
-    def create_class(self, name: str, line_number: int = 0, ast_node: Optional[ast.ClassDef] = None) -> 'ClassNode':
-        """Create and hook a new class."""
-        from .class_node import ClassNode
-        class_node = ClassNode(name, line_number, ast_node)
-        class_node.parent = self
-        self._classes[name] = class_node
-        return class_node
-    
-    def create_function(self, name: str, line_number: int = 0, ast_node: Optional[ast.FunctionDef] = None) -> 'FunctionNode':
-        """Create and hook a new function."""
-        from .function import FunctionNode
-        function_node = FunctionNode(name, line_number, ast_node)
-        function_node.parent = self
-        self._functions[name] = function_node
-        return function_node
-    
-    def create_state(self, name: str, line_number: int = 0, ast_node: Optional[ast.AST] = None) -> 'StateNode':
-        """Create and hook a new state variable."""
-        from .state import StateNode
-        state_node = StateNode(name, line_number, ast_node)
-        state_node.parent = self
-        self._state[name] = state_node
-        return state_node
-    
-    def create_import(self, name: str, module_name: str = "", ast_node: Optional[ast.AST] = None) -> 'ImportNode':
-        """Create and hook a new import."""
-        from .import_node import ImportNode
-        import_node = ImportNode(name, module_name, ast_node)
-        import_node.parent = self
-        self._imports[name] = import_node
-        return import_node
+    # Remove old create methods - now unified above
+    # These were the manual creation methods that are no longer needed
     
     def get_class(self, name: str) -> 'ClassNode':
         """Get a class by name."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         if name not in self._classes:
             raise KeyError(f"Class '{name}' not found in module '{self.name}'")
         return self._classes[name]
     
     def get_function(self, name: str) -> 'FunctionNode':
         """Get a function by name."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         if name not in self._functions:
             raise KeyError(f"Function '{name}' not found in module '{self.name}'")
         return self._functions[name]
     
     def list_classes(self) -> List['ClassNode']:
         """List all classes in this module."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         return list(self._classes.values())
     
     def list_functions(self) -> List['FunctionNode']:
         """List all functions in this module."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         return list(self._functions.values())
     
     def list_state(self) -> List['StateNode']:
         """List all state variables in this module."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         return list(self._state.values())
     
     def list_imports(self) -> List['ImportNode']:
         """List all imports in this module."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         return list(self._imports.values())
     
     def list_all(self) -> Dict[str, List]:
         """List everything contained in this module."""
-        self.discover_children()  # Ensure children are discovered
+        self.create_children()  # Ensure children are created
         return {
             'classes': self.list_classes(),
             'functions': self.list_functions(),
