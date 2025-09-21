@@ -11,7 +11,7 @@ from .core import TreeNode
 # All node types
 from .nodes import (
     ProjectNode, PackageNode, ModuleNode, ClassNode, FunctionNode,
-    StateNode, ImportNode, ArgumentNode, AttributeNode
+    StateNode, ImportNode, ImportFromNode, AliasNode, ArgumentNode, AttributeNode
 )
 
 # Main Atlas Builder
@@ -32,7 +32,7 @@ __all__ = [
     
     # Nodes
     'ProjectNode', 'PackageNode', 'ModuleNode', 'ClassNode', 'FunctionNode',
-    'StateNode', 'ImportNode', 'ArgumentNode', 'AttributeNode',
+    'StateNode', 'ImportNode', 'ImportFromNode', 'AliasNode', 'ArgumentNode', 'AttributeNode',
     
     # Main Atlas Builder
     'AtlasBuilder', 'build_complete_atlas', 'build_sample_project',

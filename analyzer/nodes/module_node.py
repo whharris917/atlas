@@ -6,12 +6,12 @@ Creates all ClassNodes, FunctionNodes, StateNodes, ImportNodes immediately.
 """
 
 import ast
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING, Union
 from ..core import TreeNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from . import ClassNode, FunctionNode, StateNode, ImportNode
+    from . import ClassNode, FunctionNode, StateNode, ImportNode, ImportFromNode
 
 
 class ModuleNode(TreeNode):
@@ -25,7 +25,7 @@ class ModuleNode(TreeNode):
         self._classes: Dict[str, 'ClassNode'] = {}
         self._functions: Dict[str, 'FunctionNode'] = {}
         self._state: Dict[str, 'StateNode'] = {}
-        self._imports: Dict[str, 'ImportNode'] = {}
+        self._imports: Dict[str, Union['ImportNode', 'ImportFromNode']] = {}
         
         # Create all children immediately
         self._create_children()
@@ -75,25 +75,25 @@ class ModuleNode(TreeNode):
         self._state[name] = state_node
         return state_node
     
-    def create_import(self, import_ast: ast.AST) -> 'ImportNode':
-        """Create and hook import(s) from AST node."""
-        from . import ImportNode
-        
+    def create_import(self, import_ast: ast.AST):
+        """Create appropriate import node type based on AST type."""
         if isinstance(import_ast, ast.Import):
-            for alias in import_ast.names:
-                import_name = alias.asname if alias.asname else alias.name
-                import_node = ImportNode(import_name, import_ast)  # Simplified constructor
-                import_node.parent = self
-                self._imports[import_name] = import_node
-                return import_node  # Return first one created
+            from . import ImportNode
+            import_node = ImportNode(import_ast)
+            import_node.parent = self
+            # Store by a generated key since ImportNode doesn't have a meaningful single name
+            import_key = f"import_{len(self._imports)}"
+            self._imports[import_key] = import_node
+            return import_node
         
         elif isinstance(import_ast, ast.ImportFrom) and import_ast.module:
-            for alias in import_ast.names:
-                import_name = alias.asname if alias.asname else alias.name
-                import_node = ImportNode(import_name, import_ast)  # Simplified constructor
-                import_node.parent = self
-                self._imports[import_name] = import_node
-                return import_node  # Return first one created
+            from . import ImportFromNode
+            import_from_node = ImportFromNode(import_ast)
+            import_from_node.parent = self
+            # Store by a generated key since ImportFromNode doesn't have a meaningful single name
+            import_key = f"from_import_{len(self._imports)}"
+            self._imports[import_key] = import_from_node
+            return import_from_node
     
     def get_class(self, name: str) -> 'ClassNode':
         """Get a class by name."""
@@ -119,7 +119,7 @@ class ModuleNode(TreeNode):
         """List all state variables in this module."""
         return list(self._state.values())
     
-    def list_imports(self) -> List['ImportNode']:
+    def list_imports(self) -> List[Union['ImportNode', 'ImportFromNode']]:
         """List all imports in this module."""
         return list(self._imports.values())
     

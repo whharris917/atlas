@@ -12,10 +12,12 @@ from .class_node import ClassNode
 from .function_node import FunctionNode
 from .state_node import StateNode
 from .import_node import ImportNode
+from .import_from_node import ImportFromNode
+from .alias_node import AliasNode
 from .argument_node import ArgumentNode
 from .attribute_node import AttributeNode
 
 __all__ = [
     'ProjectNode', 'PackageNode', 'ModuleNode', 'ClassNode', 'FunctionNode',
-    'StateNode', 'ImportNode', 'ArgumentNode', 'AttributeNode'
+    'StateNode', 'ImportNode', 'ImportFromNode', 'AliasNode', 'ArgumentNode', 'AttributeNode'
 ]
