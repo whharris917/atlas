@@ -15,8 +15,6 @@ from dataclasses import dataclass
 class DiscoveredModule:
     """Data class for discovered module information."""
     name: str
-    path: str
-    relative_path: str
     ast_node: Optional[ast.Module]
     is_init: bool = False
 
@@ -25,8 +23,6 @@ class DiscoveredModule:
 class DiscoveredPackage:
     """Data class for discovered package information."""
     name: str
-    path: str
-    relative_path: str
     ast_node: Optional[ast.Module]
     modules: List[DiscoveredModule]
     nested_packages: List['DiscoveredPackage']
@@ -108,19 +104,16 @@ class ProjectDiscovery:
             return None
         
         package_name = package_dir.name
-        relative_path = str(package_dir.relative_to(self.root_path))
         
         # Parse __init__.py
         ast_node = self._parse_file(init_file)
-        print(f"    Found package: {package_name} ({relative_path}/)")
+        print(f"    Found package: {package_name}")
         
         # Recursively discover package contents
         modules, nested_packages = self._scan_directory(package_dir)
         
         return DiscoveredPackage(
             name=package_name,
-            path=str(package_dir),
-            relative_path=relative_path,
             ast_node=ast_node,
             modules=modules,
             nested_packages=nested_packages
@@ -129,16 +122,13 @@ class ProjectDiscovery:
     def _parse_module(self, py_file: Path) -> Optional[DiscoveredModule]:
         """Parse a single Python module file."""
         module_name = py_file.stem
-        relative_path = str(py_file.relative_to(self.root_path))
         
         ast_node = self._parse_file(py_file)
         if ast_node:
-            print(f"    Found module: {module_name} ({relative_path})")
+            print(f"    Found module: {module_name}")
         
         return DiscoveredModule(
             name=module_name,
-            path=str(py_file),
-            relative_path=relative_path,
             ast_node=ast_node
         )
     

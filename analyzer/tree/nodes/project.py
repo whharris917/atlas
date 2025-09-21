@@ -22,18 +22,18 @@ class ProjectNode(TreeNode):
         self._packages: Dict[str, 'PackageNode'] = {}
         self._modules: Dict[str, 'ModuleNode'] = {}  # Direct modules (no package)
     
-    def create_package(self, name: str, path: str, ast_node: ast.Module) -> 'PackageNode':
+    def create_package(self, name: str, ast_node: ast.Module) -> 'PackageNode':
         """Create and hook a new package."""
         from .package import PackageNode
-        package = PackageNode(name, path, ast_node)
+        package = PackageNode(name, ast_node)
         package.parent = self
         self._packages[name] = package
         return package
     
-    def create_module(self, name: str, path: str, ast_node: ast.Module) -> 'ModuleNode':
+    def create_module(self, name: str, ast_node: ast.Module) -> 'ModuleNode':
         """Create and hook a new module directly under project."""
         from .module import ModuleNode
-        module = ModuleNode(name, path, ast_node)
+        module = ModuleNode(name, ast_node)
         module.parent = self
         self._modules[name] = module
         return module

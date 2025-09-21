@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 class FunctionNode(TreeNode):
     """Node representing a Python function or method."""
     
-    def __init__(self, name: str, ast_node: ast.FunctionDef, is_method: bool = False):
-        super().__init__(name, ast_node)
+    def __init__(self, ast_node: ast.FunctionDef, is_method: bool = False):
+        super().__init__(ast_node.name, ast_node)
         self.is_method = is_method
         self._arguments: Dict[str, 'ArgumentNode'] = {}
         self._children_created = False
@@ -45,7 +45,7 @@ class FunctionNode(TreeNode):
                 arg_type = "Unknown"
         
         from .argument import ArgumentNode
-        arg_node = ArgumentNode(arg_ast.arg, arg_type, arg_ast)
+        arg_node = ArgumentNode(arg_ast, arg_type)
         arg_node.parent = self
         self._arguments[arg_ast.arg] = arg_node
         print(f"        Found argument: {arg_node.fqn} : {arg_type}")

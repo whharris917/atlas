@@ -19,9 +19,8 @@ if TYPE_CHECKING:
 class ModuleNode(TreeNode):
     """Node representing a Python module."""
     
-    def __init__(self, name: str, path: str, ast_node: ast.Module):
+    def __init__(self, name: str, ast_node: ast.Module):
         super().__init__(name, ast_node)
-        self.path = path
         self._classes: Dict[str, 'ClassNode'] = {}
         self._functions: Dict[str, 'FunctionNode'] = {}
         self._state: Dict[str, 'StateNode'] = {}
@@ -40,7 +39,7 @@ class ModuleNode(TreeNode):
             if isinstance(node, ast.ClassDef):
                 self.create_class(node)
         
-        # Extract module-level functions (not inside classes)
+        # Extract module-level objects
         for node in self.ast_node.body:
             if isinstance(node, ast.FunctionDef):
                 self.create_function(node)
@@ -55,7 +54,7 @@ class ModuleNode(TreeNode):
         """Create and hook a new class from AST node."""
         if class_ast.name not in self._classes:
             from .class_node import ClassNode
-            class_node = ClassNode(class_ast.name, class_ast)
+            class_node = ClassNode(class_ast)
             class_node.parent = self
             self._classes[class_ast.name] = class_node
             print(f"    Found class: {class_node.fqn}")
@@ -65,7 +64,7 @@ class ModuleNode(TreeNode):
     def create_function(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
         """Create and hook a new function from AST node."""
         from .function import FunctionNode
-        function_node = FunctionNode(func_ast.name, func_ast)
+        function_node = FunctionNode(func_ast)
         function_node.parent = self
         self._functions[func_ast.name] = function_node
         print(f"    Found function: {function_node.fqn}")
@@ -83,7 +82,7 @@ class ModuleNode(TreeNode):
     def _create_state_node(self, name: str, ast_node: ast.AST) -> 'StateNode':
         """Helper to create individual StateNode."""
         from .state import StateNode
-        state_node = StateNode(name, ast_node)
+        state_node = StateNode(name, ast_node)  # Keep explicit name - AST target extraction is complex
         state_node.parent = self
         self._state[name] = state_node
         print(f"    Found state: {state_node.fqn}")
@@ -96,7 +95,7 @@ class ModuleNode(TreeNode):
         if isinstance(import_ast, ast.Import):
             for alias in import_ast.names:
                 import_name = alias.asname if alias.asname else alias.name
-                import_node = ImportNode(import_name, alias.name, import_ast)
+                import_node = ImportNode(import_name, alias.name, import_ast)  # Keep explicit - alias logic is complex
                 import_node.parent = self
                 self._imports[import_name] = import_node
                 print(f"    Found import: {import_node.fqn} -> {alias.name}")
@@ -106,14 +105,11 @@ class ModuleNode(TreeNode):
             for alias in import_ast.names:
                 import_name = alias.asname if alias.asname else alias.name
                 full_module = f"{import_ast.module}.{alias.name}"
-                import_node = ImportNode(import_name, full_module, import_ast)
+                import_node = ImportNode(import_name, full_module, import_ast)  # Keep explicit - complex derivation
                 import_node.parent = self
                 self._imports[import_name] = import_node
                 print(f"    Found from-import: {import_node.fqn} -> {full_module}")
                 return import_node  # Return first one created
-    
-    # Remove old create methods - now unified above
-    # These were the manual creation methods that are no longer needed
     
     def get_class(self, name: str) -> 'ClassNode':
         """Get a class by name."""

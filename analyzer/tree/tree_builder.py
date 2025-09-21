@@ -37,10 +37,9 @@ class TreeBuilder:
     
     def _add_package_to_parent(self, parent_node, package_data: DiscoveredPackage) -> PackageNode:
         """Add a package and its contents to a parent node."""
-        # Create package node - all parameters required
+        # Create package node
         package_node = parent_node.create_package(
             name=package_data.name,
-            path=package_data.relative_path,
             ast_node=package_data.ast_node
         )
         
@@ -60,7 +59,6 @@ class TreeBuilder:
         """Add a module to a parent node."""
         module_node = parent_node.create_module(
             name=module_data.name,
-            path=module_data.relative_path,
             ast_node=module_data.ast_node
         )
         

@@ -16,23 +16,22 @@ if TYPE_CHECKING:
 class PackageNode(TreeNode):
     """Node representing a Python package."""
     
-    def __init__(self, name: str, path: str, ast_node: ast.Module):
+    def __init__(self, name: str, ast_node: ast.Module):
         super().__init__(name, ast_node)  # Store package AST as the node's AST
-        self.path = path
         self._packages: Dict[str, 'PackageNode'] = {}  # Self-reference must be string
         self._modules: Dict[str, 'ModuleNode'] = {}
     
-    def create_package(self, name: str, path: str, ast_node: ast.Module) -> 'PackageNode':
+    def create_package(self, name: str, ast_node: ast.Module) -> 'PackageNode':
         """Create and hook a new nested package."""
-        package = PackageNode(name, path, ast_node)
+        package = PackageNode(name, ast_node)
         package.parent = self
         self._packages[name] = package
         return package
     
-    def create_module(self, name: str, path: str, ast_node: ast.Module) -> 'ModuleNode':
+    def create_module(self, name: str, ast_node: ast.Module) -> 'ModuleNode':
         """Create and hook a new module in this package."""
         from .module import ModuleNode
-        module = ModuleNode(name, path, ast_node)
+        module = ModuleNode(name, ast_node)
         module.parent = self
         self._modules[name] = module
         return module

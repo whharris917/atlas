@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 class ClassNode(TreeNode):
     """Node representing a Python class."""
     
-    def __init__(self, name: str, ast_node: ast.ClassDef):
-        super().__init__(name, ast_node)
+    def __init__(self, ast_node: ast.ClassDef):
+        super().__init__(ast_node.name, ast_node)
         self._methods: Dict[str, 'FunctionNode'] = {}
         self._attributes: Dict[str, 'AttributeNode'] = {}
         self._children_created = False
@@ -40,7 +40,7 @@ class ClassNode(TreeNode):
     def create_method(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
         """Create and hook a new method from AST node."""
         from .function import FunctionNode
-        method_node = FunctionNode(func_ast.name, func_ast, is_method=True)
+        method_node = FunctionNode(func_ast, is_method=True)
         method_node.parent = self
         self._methods[func_ast.name] = method_node
         print(f"      Found method: {method_node.fqn}")
