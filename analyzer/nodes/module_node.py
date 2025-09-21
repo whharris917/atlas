@@ -1,7 +1,8 @@
 """
 Module Node - Atlas Rewrite
 
-Node representing a Python module with ReconnaissanceVisitor-based discovery.
+Node representing a Python module with automatic child creation.
+Creates all ClassNodes, FunctionNodes, StateNodes, ImportNodes immediately.
 """
 
 import ast
@@ -22,11 +23,13 @@ class ModuleNode(TreeNode):
         self._functions: Dict[str, 'FunctionNode'] = {}
         self._state: Dict[str, 'StateNode'] = {}
         self._imports: Dict[str, 'ImportNode'] = {}
-        self._children_created = False
+        
+        # Create all children immediately
+        self._create_children()
     
-    def create_children(self):
+    def _create_children(self):
         """Create child nodes using ModuleReconnaissanceVisitor."""
-        if self._children_created or not self.ast_node:
+        if not self.ast_node:
             return
         
         print(f"  Creating children in: {self.fqn}")
@@ -35,8 +38,6 @@ class ModuleNode(TreeNode):
         from ..reconnaissance.visitors import ModuleReconnaissanceVisitor
         visitor = ModuleReconnaissanceVisitor(self)
         visitor.visit(self.ast_node)
-        
-        self._children_created = True
     
     def create_class(self, class_ast: ast.ClassDef) -> 'ClassNode':
         """Create and hook a new class from AST node."""
@@ -96,41 +97,34 @@ class ModuleNode(TreeNode):
     
     def get_class(self, name: str) -> 'ClassNode':
         """Get a class by name."""
-        self.create_children()  # Ensure children are created
         if name not in self._classes:
             raise KeyError(f"Class '{name}' not found in module '{self.name}'")
         return self._classes[name]
     
     def get_function(self, name: str) -> 'FunctionNode':
         """Get a function by name."""
-        self.create_children()  # Ensure children are created
         if name not in self._functions:
             raise KeyError(f"Function '{name}' not found in module '{self.name}'")
         return self._functions[name]
     
     def list_classes(self) -> List['ClassNode']:
         """List all classes in this module."""
-        self.create_children()  # Ensure children are created
         return list(self._classes.values())
     
     def list_functions(self) -> List['FunctionNode']:
         """List all functions in this module."""
-        self.create_children()  # Ensure children are created
         return list(self._functions.values())
     
     def list_state(self) -> List['StateNode']:
         """List all state variables in this module."""
-        self.create_children()  # Ensure children are created
         return list(self._state.values())
     
     def list_imports(self) -> List['ImportNode']:
         """List all imports in this module."""
-        self.create_children()  # Ensure children are created
         return list(self._imports.values())
     
     def list_all(self) -> Dict[str, List]:
         """List everything contained in this module."""
-        self.create_children()  # Ensure children are created
         return {
             'classes': self.list_classes(),
             'functions': self.list_functions(),

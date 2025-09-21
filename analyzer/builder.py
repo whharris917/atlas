@@ -11,7 +11,6 @@ This is the main entry point for Atlas analysis.
 
 from .nodes import ProjectNode
 from .reconnaissance.discovery import discover_project_structure
-from .reconnaissance.tree_builder import build_project_tree
 
 
 class AtlasBuilder:
@@ -47,53 +46,12 @@ class AtlasBuilder:
         print(f"Phase 1: Project Structure Discovery")
         structure = discover_project_structure(target_dir)
         
-        # Phase 2: Tree Building
-        print(f"Phase 2: Tree Construction")
-        project = build_project_tree(self.project_name, structure)
-        
-        # Phase 3: Entity Discovery
-        print(f"Phase 3: Visitor-Based Entity Creation")
-        self._create_all_children(project)
+        # Phase 2: Create ProjectNode (which creates entire tree automatically)
+        print(f"Phase 2: Tree Construction with Entity Discovery")
+        project = ProjectNode(self.project_name, structure)
         
         print(f"RECONNAISSANCE PHASE COMPLETE")
         return project
-    
-    def _create_all_children(self, project: ProjectNode):
-        """Trigger visitor-based child creation on all modules in the project."""
-        print("Triggering visitor-based child creation on all modules...")
-        
-        # Create children in direct modules
-        for module in project.list_modules():
-            module.create_children()
-            self._create_nested_children(module)
-        
-        # Create children in package modules
-        for package in project.list_packages():
-            self._create_package_children(package)
-    
-    def _create_package_children(self, package):
-        """Recursively create children in package modules."""
-        # Create in direct modules
-        for module in package.list_modules():
-            module.create_children()
-            self._create_nested_children(module)
-        
-        # Create in nested packages
-        for nested_package in package.list_packages():
-            self._create_package_children(nested_package)
-    
-    def _create_nested_children(self, module):
-        """Create children in classes and functions within a module."""
-        # Trigger class method creation
-        for class_node in module.list_classes():
-            class_node.create_children()
-            # Trigger argument creation for methods
-            for method in class_node.list_methods():
-                method.create_children()
-        
-        # Trigger argument creation for module functions
-        for function in module.list_functions():
-            function.create_children()
 
 
 def build_complete_atlas(project_name: str = "sample_project", target_dir: str = "sample_files") -> ProjectNode:

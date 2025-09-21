@@ -1,7 +1,8 @@
 """
 Class Node - Atlas Rewrite
 
-Node representing a Python class with ClassReconnaissanceVisitor-based discovery.
+Node representing a Python class with automatic child creation.
+Creates all FunctionNodes (methods) and AttributeNodes immediately.
 """
 
 import ast
@@ -20,11 +21,13 @@ class ClassNode(TreeNode):
         super().__init__(ast_node.name, ast_node)
         self._methods: Dict[str, 'FunctionNode'] = {}
         self._attributes: Dict[str, 'AttributeNode'] = {}
-        self._children_created = False
+        
+        # Create all children immediately
+        self._create_children()
     
-    def create_children(self):
+    def _create_children(self):
         """Create child nodes using ClassReconnaissanceVisitor."""
-        if self._children_created or not self.ast_node:
+        if not self.ast_node:
             return
         
         print(f"    Creating methods in: {self.fqn}")
@@ -33,8 +36,6 @@ class ClassNode(TreeNode):
         from ..reconnaissance.visitors import ClassReconnaissanceVisitor
         visitor = ClassReconnaissanceVisitor(self)
         visitor.visit(self.ast_node)
-        
-        self._children_created = True
     
     def create_method(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
         """Create and hook a new method from AST node."""
@@ -54,17 +55,14 @@ class ClassNode(TreeNode):
     
     def get_method(self, name: str) -> 'FunctionNode':
         """Get a method by name."""
-        self.create_children()  # Ensure children are created
         if name not in self._methods:
             raise KeyError(f"Method '{name}' not found in class '{self.name}'")
         return self._methods[name]
     
     def list_methods(self) -> List['FunctionNode']:
         """List all methods in this class."""
-        self.create_children()  # Ensure children are created
         return list(self._methods.values())
     
     def list_attributes(self) -> List['AttributeNode']:
         """List all attributes in this class."""
-        self.create_children()  # Ensure children are created
         return list(self._attributes.values())
