@@ -6,12 +6,11 @@ Root node representing the entire project.
 
 import ast
 from typing import Dict, List, Optional, TYPE_CHECKING
-from ..base import TreeNode
+from ..core import TreeNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from .package import PackageNode
-    from .module import ModuleNode
+    from . import PackageNode, ModuleNode
 
 
 class ProjectNode(TreeNode):
@@ -24,7 +23,7 @@ class ProjectNode(TreeNode):
     
     def create_package(self, name: str, ast_node: ast.Module) -> 'PackageNode':
         """Create and hook a new package."""
-        from .package import PackageNode
+        from . import PackageNode
         package = PackageNode(name, ast_node)
         package.parent = self
         self._packages[name] = package
@@ -32,7 +31,7 @@ class ProjectNode(TreeNode):
     
     def create_module(self, name: str, ast_node: ast.Module) -> 'ModuleNode':
         """Create and hook a new module directly under project."""
-        from .module import ModuleNode
+        from . import ModuleNode
         module = ModuleNode(name, ast_node)
         module.parent = self
         self._modules[name] = module

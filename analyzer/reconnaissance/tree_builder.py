@@ -6,7 +6,7 @@ Pure tree construction without file I/O.
 """
 
 from typing import Dict, List
-from .nodes import ProjectNode, PackageNode, ModuleNode
+from ..nodes import ProjectNode, PackageNode, ModuleNode
 from .discovery import ProjectStructure, DiscoveredPackage, DiscoveredModule
 
 

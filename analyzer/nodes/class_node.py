@@ -6,12 +6,11 @@ Node representing a Python class with ClassReconnaissanceVisitor-based discovery
 
 import ast
 from typing import Dict, List, Optional, TYPE_CHECKING
-from ..base import TreeNode
+from ..core import TreeNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from .function import FunctionNode
-    from .attribute import AttributeNode
+    from . import FunctionNode, AttributeNode
 
 
 class ClassNode(TreeNode):
@@ -31,7 +30,7 @@ class ClassNode(TreeNode):
         print(f"    Creating methods in: {self.fqn}")
         
         # Use specialized visitor for class-level discovery
-        from ..reconnaissance_visitor import ClassReconnaissanceVisitor
+        from ..reconnaissance.visitors import ClassReconnaissanceVisitor
         visitor = ClassReconnaissanceVisitor(self)
         visitor.visit(self.ast_node)
         
@@ -39,7 +38,7 @@ class ClassNode(TreeNode):
     
     def create_method(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
         """Create and hook a new method from AST node."""
-        from .function import FunctionNode
+        from . import FunctionNode
         method_node = FunctionNode(func_ast, is_method=True)
         method_node.parent = self
         self._methods[func_ast.name] = method_node
@@ -47,7 +46,7 @@ class ClassNode(TreeNode):
     
     def create_attribute(self, name: str, attribute_type: str, ast_node: ast.AST) -> 'AttributeNode':
         """Create and hook a new attribute."""
-        from .attribute import AttributeNode
+        from . import AttributeNode
         attr_node = AttributeNode(name, attribute_type, ast_node)
         attr_node.parent = self
         self._attributes[name] = attr_node

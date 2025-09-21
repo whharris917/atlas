@@ -1,17 +1,15 @@
 """
-Reconnaissance Visitors Framework - Atlas Rewrite
+Module Reconnaissance Visitor - Atlas Rewrite
 
-Specialized AST visitors for each TreeNode type to handle focused entity discovery.
-Each visitor is responsible for creating the appropriate child entities for its node type.
+Specialized AST visitor for module-level entity discovery.
+Discovers: classes, functions, state variables, imports at module scope.
 """
 
 import ast
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .nodes.module import ModuleNode
-    from .nodes.class_node import ClassNode
-    from .nodes.function import FunctionNode
+    from ...nodes import ModuleNode
 
 
 class ModuleReconnaissanceVisitor(ast.NodeVisitor):
@@ -89,79 +87,3 @@ class ModuleReconnaissanceVisitor(ast.NodeVisitor):
         )):
             super().generic_visit(node)
         # Stop at entity boundaries - their internals handled by specialized visitors
-
-
-class ClassReconnaissanceVisitor(ast.NodeVisitor):
-    """
-    Discovers class-level entities: methods, nested classes, class variables.
-    Focused on class body discovery.
-    """
-    
-    def __init__(self, class_node: 'ClassNode'):
-        self.class_node = class_node
-    
-    def visit_FunctionDef(self, node: ast.FunctionDef):
-        """Create method node."""
-        self.class_node.create_method(node)
-        print(f"      Found method: {self.class_node.fqn}.{node.name}")
-        # Don't visit method internals - handled by FunctionReconnaissanceVisitor
-    
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
-        """Create async method node."""
-        self.class_node.create_method(node)
-        print(f"      Found async method: {self.class_node.fqn}.{node.name}")
-        # Don't visit method internals - handled by FunctionReconnaissanceVisitor
-    
-    def visit_ClassDef(self, node: ast.ClassDef):
-        """Create nested class node if needed."""
-        # For now, skip nested classes as requested
-        # Could be enabled later: self.class_node.create_nested_class(node)
-        pass
-    
-    def visit_Assign(self, node: ast.Assign):
-        """Create class variable if appropriate."""
-        # Future enhancement: detect class variables vs instance variables
-        # For now, defer to avoid complexity
-        pass
-    
-    def generic_visit(self, node: ast.AST):
-        """Visit class body directly - no control flow filtering needed at class level."""
-        # Class bodies are simpler - just visit direct children
-        super().generic_visit(node)
-
-
-class FunctionReconnaissanceVisitor(ast.NodeVisitor):
-    """
-    Discovers function-level entities: arguments, local variables (future), nested functions.
-    Focused on function signature and body discovery.
-    """
-    
-    def __init__(self, function_node: 'FunctionNode'):
-        self.function_node = function_node
-    
-    def visit_arguments(self, node: ast.arguments):
-        """Create argument nodes from function signature."""
-        for arg in node.args:
-            self.function_node.create_argument(arg)
-            arg_type = ""
-            if arg.annotation:
-                try:
-                    arg_type = ast.unparse(arg.annotation)
-                except:
-                    arg_type = "Unknown"
-            print(f"        Found argument: {self.function_node.fqn}.{arg.arg} : {arg_type}")
-        # Don't visit argument internals
-    
-    def visit_FunctionDef(self, node: ast.FunctionDef):
-        """Handle nested functions if needed."""
-        # For now, skip nested functions
-        # Could be enabled later for complex analysis
-        pass
-    
-    def generic_visit(self, node: ast.AST):
-        """Visit function signature only - skip body for now."""
-        # For reconnaissance, we only care about the signature
-        # Body analysis deferred to Analysis Phase
-        if isinstance(node, ast.arguments):
-            super().generic_visit(node)
-        # Skip function body during reconnaissance

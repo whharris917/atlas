@@ -6,14 +6,11 @@ Node representing a Python module with ReconnaissanceVisitor-based discovery.
 
 import ast
 from typing import Dict, List, Optional, TYPE_CHECKING
-from ..base import TreeNode
+from ..core import TreeNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from .class_node import ClassNode
-    from .function import FunctionNode
-    from .state import StateNode
-    from .import_node import ImportNode
+    from . import ClassNode, FunctionNode, StateNode, ImportNode
 
 
 class ModuleNode(TreeNode):
@@ -35,7 +32,7 @@ class ModuleNode(TreeNode):
         print(f"  Creating children in: {self.fqn}")
         
         # Use specialized visitor for module-level discovery
-        from ..reconnaissance_visitor import ModuleReconnaissanceVisitor
+        from ..reconnaissance.visitors import ModuleReconnaissanceVisitor
         visitor = ModuleReconnaissanceVisitor(self)
         visitor.visit(self.ast_node)
         
@@ -44,7 +41,7 @@ class ModuleNode(TreeNode):
     def create_class(self, class_ast: ast.ClassDef) -> 'ClassNode':
         """Create and hook a new class from AST node."""
         if class_ast.name not in self._classes:
-            from .class_node import ClassNode
+            from . import ClassNode
             class_node = ClassNode(class_ast)
             class_node.parent = self
             self._classes[class_ast.name] = class_node
@@ -53,7 +50,7 @@ class ModuleNode(TreeNode):
     
     def create_function(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
         """Create and hook a new function from AST node."""
-        from .function import FunctionNode
+        from . import FunctionNode
         function_node = FunctionNode(func_ast)
         function_node.parent = self
         self._functions[func_ast.name] = function_node
@@ -70,7 +67,7 @@ class ModuleNode(TreeNode):
     
     def _create_state_node(self, name: str, ast_node: ast.AST) -> 'StateNode':
         """Helper to create individual StateNode."""
-        from .state import StateNode
+        from . import StateNode
         state_node = StateNode(name, ast_node)
         state_node.parent = self
         self._state[name] = state_node
@@ -78,7 +75,7 @@ class ModuleNode(TreeNode):
     
     def create_import(self, import_ast: ast.AST) -> 'ImportNode':
         """Create and hook import(s) from AST node."""
-        from .import_node import ImportNode
+        from . import ImportNode
         
         if isinstance(import_ast, ast.Import):
             for alias in import_ast.names:

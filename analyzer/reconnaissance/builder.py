@@ -1,24 +1,24 @@
 """
 Project Builder - Atlas Rewrite
 
-Orchestrates the complete Reconnaissance Phase using self-creating tree nodes.
-Clean separation: Discovery -> Tree Building -> Lazy Child Creation.
+Orchestrates the complete Reconnaissance Phase using specialized reconnaissance visitors.
+Clean separation: Discovery -> Tree Building -> Visitor-based Entity Creation.
 """
 
-from .nodes import ProjectNode
+from ..nodes import ProjectNode
 from .discovery import discover_project_structure
 from .tree_builder import build_project_tree
 
 
 class ProjectBuilder:
-    """Orchestrates the complete Reconnaissance Phase with self-creating nodes."""
+    """Orchestrates the complete Reconnaissance Phase with specialized visitors."""
     
     def __init__(self, project_name: str, root_path: str = "."):
         self.project_name = project_name
         self.root_path = root_path
     
     def execute_reconnaissance_phase(self, target_dir: str = "sample_files") -> ProjectNode:
-        """Execute the complete Reconnaissance Phase with lazy creation."""
+        """Execute the complete Reconnaissance Phase with specialized visitors."""
         print(f"=== EXECUTING RECONNAISSANCE PHASE ===")
         print(f"Project: {self.project_name}")
         print(f"Target: {target_dir}")
@@ -31,16 +31,16 @@ class ProjectBuilder:
         print(f"\n--- Phase 2: Tree Construction ---")
         project = build_project_tree(self.project_name, structure)
         
-        # Phase 3: Trigger creation on all modules to populate children
-        print(f"\n--- Phase 3: Child Entity Creation ---")
+        # Phase 3: Trigger visitor-based entity creation on all modules
+        print(f"\n--- Phase 3: Visitor-Based Entity Creation ---")
         self._create_all_children(project)
         
         print(f"\n=== RECONNAISSANCE PHASE COMPLETE ===")
         return project
     
     def _create_all_children(self, project: ProjectNode):
-        """Trigger child creation on all modules in the project."""
-        print("Triggering child creation on all modules...")
+        """Trigger visitor-based child creation on all modules in the project."""
+        print("Triggering visitor-based child creation on all modules...")
         
         # Create children in direct modules
         for module in project.list_modules():

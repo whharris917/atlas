@@ -6,11 +6,11 @@ Node representing a Python function or method with FunctionReconnaissanceVisitor
 
 import ast
 from typing import Dict, List, Optional, TYPE_CHECKING
-from ..base import TreeNode
+from ..core import TreeNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from .argument import ArgumentNode
+    from . import ArgumentNode
 
 
 class FunctionNode(TreeNode):
@@ -30,7 +30,7 @@ class FunctionNode(TreeNode):
         print(f"      Creating arguments in: {self.fqn}")
         
         # Use specialized visitor for function-level discovery
-        from ..reconnaissance_visitor import FunctionReconnaissanceVisitor
+        from ..reconnaissance.visitors import FunctionReconnaissanceVisitor
         visitor = FunctionReconnaissanceVisitor(self)
         visitor.visit(self.ast_node)
         
@@ -45,7 +45,7 @@ class FunctionNode(TreeNode):
             except:
                 arg_type = "Unknown"
         
-        from .argument import ArgumentNode
+        from . import ArgumentNode
         arg_node = ArgumentNode(arg_ast, arg_type)
         arg_node.parent = self
         self._arguments[arg_ast.arg] = arg_node

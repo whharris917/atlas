@@ -5,7 +5,7 @@ Node representing a function argument.
 """
 
 import ast
-from ..base import TreeNode
+from ..core import TreeNode
 
 
 class ArgumentNode(TreeNode):

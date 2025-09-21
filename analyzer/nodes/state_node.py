@@ -5,7 +5,7 @@ Node representing a module-level state variable.
 """
 
 import ast
-from ..base import TreeNode
+from ..core import TreeNode
 
 
 class StateNode(TreeNode):

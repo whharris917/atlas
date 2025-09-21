@@ -6,11 +6,11 @@ Node representing a Python package.
 
 import ast
 from typing import Dict, List, Optional, TYPE_CHECKING
-from ..base import TreeNode
+from ..core import TreeNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from .module import ModuleNode
+    from . import ModuleNode
 
 
 class PackageNode(TreeNode):
@@ -30,7 +30,7 @@ class PackageNode(TreeNode):
     
     def create_module(self, name: str, ast_node: ast.Module) -> 'ModuleNode':
         """Create and hook a new module in this package."""
-        from .module import ModuleNode
+        from . import ModuleNode
         module = ModuleNode(name, ast_node)
         module.parent = self
         self._modules[name] = module

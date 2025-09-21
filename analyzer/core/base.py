@@ -1,7 +1,7 @@
 """
-Tree Base Classes - Atlas Rewrite
+Core Base Classes - Atlas Rewrite
 
-Core base class for all tree nodes with dynamic FQN generation.
+Foundation classes for all tree nodes with dynamic FQN generation.
 """
 
 import ast

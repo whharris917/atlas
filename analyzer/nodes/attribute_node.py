@@ -5,7 +5,7 @@ Node representing a class attribute.
 """
 
 import ast
-from ..base import TreeNode
+from ..core import TreeNode
 
 
 class AttributeNode(TreeNode):

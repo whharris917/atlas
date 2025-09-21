@@ -5,7 +5,7 @@ Node representing an import statement.
 """
 
 import ast
-from ..base import TreeNode
+from ..core import TreeNode
 
 
 class ImportNode(TreeNode):
