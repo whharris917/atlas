@@ -19,6 +19,9 @@ class ProjectNode(TreeNode):
     """Root node representing the entire project."""
     
     def __init__(self, name: str, structure: 'ProjectStructure'):
+        if not structure:
+            raise ValueError(f"ProjectNode '{name}' requires valid project structure")
+        
         super().__init__(name, None)  # ProjectNode has no AST
         self.structure = structure
         self._packages: Dict[str, 'PackageNode'] = {}

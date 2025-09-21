@@ -18,6 +18,9 @@ class FunctionNode(TreeNode):
     """Node representing a Python function or method."""
     
     def __init__(self, ast_node: ast.FunctionDef, is_method: bool = False):
+        if not ast_node:
+            raise ValueError("FunctionNode requires valid AST node")
+        
         super().__init__(ast_node.name, ast_node)
         self.is_method = is_method
         self._arguments: Dict[str, 'ArgumentNode'] = {}
@@ -27,8 +30,6 @@ class FunctionNode(TreeNode):
     
     def _create_children(self):
         """Create child nodes using FunctionReconnaissanceVisitor."""
-        if not self.ast_node:
-            return
         
         print(f"      Creating arguments in: {self.fqn}")
         
@@ -39,15 +40,8 @@ class FunctionNode(TreeNode):
     
     def create_argument(self, arg_ast: ast.arg) -> 'ArgumentNode':
         """Create and hook a new argument from AST node."""
-        arg_type = ""
-        if arg_ast.annotation:
-            try:
-                arg_type = ast.unparse(arg_ast.annotation)
-            except:
-                arg_type = "Unknown"
-        
         from . import ArgumentNode
-        arg_node = ArgumentNode(arg_ast, arg_type)
+        arg_node = ArgumentNode(arg_ast)  # Simplified constructor
         arg_node.parent = self
         self._arguments[arg_ast.arg] = arg_node
         return arg_node

@@ -19,6 +19,11 @@ class PackageNode(TreeNode):
     """Node representing a Python package."""
     
     def __init__(self, name: str, ast_node: ast.Module, package_data: 'DiscoveredPackage'):
+        if not ast_node:
+            raise ValueError(f"PackageNode '{name}' requires valid AST node")
+        if not package_data:
+            raise ValueError(f"PackageNode '{name}' requires valid package data")
+        
         super().__init__(name, ast_node)  # Store package AST as the node's AST
         self.package_data = package_data
         self._packages: Dict[str, 'PackageNode'] = {}  # Self-reference must be string

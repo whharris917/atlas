@@ -18,6 +18,9 @@ class ModuleNode(TreeNode):
     """Node representing a Python module."""
     
     def __init__(self, name: str, ast_node: ast.Module):
+        if not ast_node:
+            raise ValueError(f"ModuleNode '{name}' requires valid AST node")
+        
         super().__init__(name, ast_node)
         self._classes: Dict[str, 'ClassNode'] = {}
         self._functions: Dict[str, 'FunctionNode'] = {}
@@ -29,8 +32,6 @@ class ModuleNode(TreeNode):
     
     def _create_children(self):
         """Create child nodes using ModuleReconnaissanceVisitor."""
-        if not self.ast_node:
-            return
         
         print(f"  Creating children in: {self.fqn}")
         
@@ -81,7 +82,7 @@ class ModuleNode(TreeNode):
         if isinstance(import_ast, ast.Import):
             for alias in import_ast.names:
                 import_name = alias.asname if alias.asname else alias.name
-                import_node = ImportNode(import_name, alias.name, import_ast)
+                import_node = ImportNode(import_name, import_ast)  # Simplified constructor
                 import_node.parent = self
                 self._imports[import_name] = import_node
                 return import_node  # Return first one created
@@ -89,8 +90,7 @@ class ModuleNode(TreeNode):
         elif isinstance(import_ast, ast.ImportFrom) and import_ast.module:
             for alias in import_ast.names:
                 import_name = alias.asname if alias.asname else alias.name
-                full_module = f"{import_ast.module}.{alias.name}"
-                import_node = ImportNode(import_name, full_module, import_ast)
+                import_node = ImportNode(import_name, import_ast)  # Simplified constructor
                 import_node.parent = self
                 self._imports[import_name] = import_node
                 return import_node  # Return first one created

@@ -12,6 +12,9 @@ class TreeNode:
     """Base class for all tree nodes."""
     
     def __init__(self, name: str, ast_node: Optional[ast.AST] = None):
+        if not name:
+            raise ValueError(f"{self.__class__.__name__} requires non-empty name")
+        
         self.name = name
         self.ast_node = ast_node
         self.parent = None
