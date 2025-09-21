@@ -1,7 +1,7 @@
 """
 Module Node - Atlas Rewrite
 
-Node representing a Python module with self-discovery capabilities.
+Node representing a Python module with ReconnaissanceVisitor-based discovery.
 """
 
 import ast
@@ -28,25 +28,16 @@ class ModuleNode(TreeNode):
         self._children_created = False
     
     def create_children(self):
-        """Create child nodes from AST without full population."""
+        """Create child nodes using ModuleReconnaissanceVisitor."""
         if self._children_created or not self.ast_node:
             return
         
         print(f"  Creating children in: {self.fqn}")
         
-        # Walk AST and create child nodes with their AST nodes
-        for node in ast.walk(self.ast_node):
-            if isinstance(node, ast.ClassDef):
-                self.create_class(node)
-        
-        # Extract module-level objects
-        for node in self.ast_node.body:
-            if isinstance(node, ast.FunctionDef):
-                self.create_function(node)
-            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-                self.create_state(node)
-            elif isinstance(node, (ast.Import, ast.ImportFrom)):
-                self.create_import(node)
+        # Use specialized visitor for module-level discovery
+        from ..reconnaissance_visitor import ModuleReconnaissanceVisitor
+        visitor = ModuleReconnaissanceVisitor(self)
+        visitor.visit(self.ast_node)
         
         self._children_created = True
     
@@ -57,7 +48,6 @@ class ModuleNode(TreeNode):
             class_node = ClassNode(class_ast)
             class_node.parent = self
             self._classes[class_ast.name] = class_node
-            print(f"    Found class: {class_node.fqn}")
             return class_node
         return self._classes[class_ast.name]
     
@@ -67,7 +57,6 @@ class ModuleNode(TreeNode):
         function_node = FunctionNode(func_ast)
         function_node.parent = self
         self._functions[func_ast.name] = function_node
-        print(f"    Found function: {function_node.fqn}")
         return function_node
     
     def create_state(self, state_ast: ast.AST) -> 'StateNode':
@@ -82,10 +71,9 @@ class ModuleNode(TreeNode):
     def _create_state_node(self, name: str, ast_node: ast.AST) -> 'StateNode':
         """Helper to create individual StateNode."""
         from .state import StateNode
-        state_node = StateNode(name, ast_node)  # Keep explicit name - AST target extraction is complex
+        state_node = StateNode(name, ast_node)
         state_node.parent = self
         self._state[name] = state_node
-        print(f"    Found state: {state_node.fqn}")
         return state_node
     
     def create_import(self, import_ast: ast.AST) -> 'ImportNode':
@@ -95,20 +83,18 @@ class ModuleNode(TreeNode):
         if isinstance(import_ast, ast.Import):
             for alias in import_ast.names:
                 import_name = alias.asname if alias.asname else alias.name
-                import_node = ImportNode(import_name, alias.name, import_ast)  # Keep explicit - alias logic is complex
+                import_node = ImportNode(import_name, alias.name, import_ast)
                 import_node.parent = self
                 self._imports[import_name] = import_node
-                print(f"    Found import: {import_node.fqn} -> {alias.name}")
                 return import_node  # Return first one created
         
         elif isinstance(import_ast, ast.ImportFrom) and import_ast.module:
             for alias in import_ast.names:
                 import_name = alias.asname if alias.asname else alias.name
                 full_module = f"{import_ast.module}.{alias.name}"
-                import_node = ImportNode(import_name, full_module, import_ast)  # Keep explicit - complex derivation
+                import_node = ImportNode(import_name, full_module, import_ast)
                 import_node.parent = self
                 self._imports[import_name] = import_node
-                print(f"    Found from-import: {import_node.fqn} -> {full_module}")
                 return import_node  # Return first one created
     
     def get_class(self, name: str) -> 'ClassNode':

@@ -2,7 +2,7 @@
 Tree Package - Atlas Rewrite
 
 Tree-based project structure with fluent navigation API.
-Reconnaissance Phase foundation with clean modular architecture.
+Reconnaissance Phase foundation with ReconnaissanceVisitor.
 """
 
 from .base import TreeNode
@@ -12,7 +12,9 @@ from .nodes import (
 )
 from .discovery import ProjectDiscovery, discover_project_structure
 from .tree_builder import TreeBuilder, build_project_tree
-from .entity_discovery import EntityDiscovery, discover_all_entities
+from .reconnaissance_visitor import (
+    ModuleReconnaissanceVisitor, ClassReconnaissanceVisitor, FunctionReconnaissanceVisitor
+)
 from .builder import ProjectBuilder, build_sample_project
 
 __all__ = [
@@ -26,7 +28,7 @@ __all__ = [
     # Discovery components
     'ProjectDiscovery', 'discover_project_structure',
     'TreeBuilder', 'build_project_tree', 
-    'EntityDiscovery', 'discover_all_entities',
+    'ModuleReconnaissanceVisitor', 'ClassReconnaissanceVisitor', 'FunctionReconnaissanceVisitor',
     
     # Main orchestrator
     'ProjectBuilder', 'build_sample_project'

@@ -1,7 +1,7 @@
 """
 Class Node - Atlas Rewrite
 
-Node representing a Python class with method discovery.
+Node representing a Python class with ClassReconnaissanceVisitor-based discovery.
 """
 
 import ast
@@ -24,16 +24,16 @@ class ClassNode(TreeNode):
         self._children_created = False
     
     def create_children(self):
-        """Create method nodes from class AST without full population."""
+        """Create child nodes using ClassReconnaissanceVisitor."""
         if self._children_created or not self.ast_node:
             return
         
         print(f"    Creating methods in: {self.fqn}")
         
-        # Extract methods from class body
-        for node in self.ast_node.body:
-            if isinstance(node, ast.FunctionDef):
-                self.create_method(node)
+        # Use specialized visitor for class-level discovery
+        from ..reconnaissance_visitor import ClassReconnaissanceVisitor
+        visitor = ClassReconnaissanceVisitor(self)
+        visitor.visit(self.ast_node)
         
         self._children_created = True
     
@@ -43,7 +43,6 @@ class ClassNode(TreeNode):
         method_node = FunctionNode(func_ast, is_method=True)
         method_node.parent = self
         self._methods[func_ast.name] = method_node
-        print(f"      Found method: {method_node.fqn}")
         return method_node
     
     def create_attribute(self, name: str, attribute_type: str, ast_node: ast.AST) -> 'AttributeNode':

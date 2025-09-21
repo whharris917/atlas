@@ -1,7 +1,7 @@
 """
 Function Node - Atlas Rewrite
 
-Node representing a Python function or method with argument discovery.
+Node representing a Python function or method with FunctionReconnaissanceVisitor-based discovery.
 """
 
 import ast
@@ -23,15 +23,16 @@ class FunctionNode(TreeNode):
         self._children_created = False
     
     def create_children(self):
-        """Create argument nodes from function AST."""
+        """Create child nodes using FunctionReconnaissanceVisitor."""
         if self._children_created or not self.ast_node:
             return
         
         print(f"      Creating arguments in: {self.fqn}")
         
-        # Extract arguments from function
-        for arg in self.ast_node.args.args:
-            self.create_argument(arg)
+        # Use specialized visitor for function-level discovery
+        from ..reconnaissance_visitor import FunctionReconnaissanceVisitor
+        visitor = FunctionReconnaissanceVisitor(self)
+        visitor.visit(self.ast_node)
         
         self._children_created = True
     
@@ -48,7 +49,6 @@ class FunctionNode(TreeNode):
         arg_node = ArgumentNode(arg_ast, arg_type)
         arg_node.parent = self
         self._arguments[arg_ast.arg] = arg_node
-        print(f"        Found argument: {arg_node.fqn} : {arg_type}")
         return arg_node
     
     def list_arguments(self) -> List['ArgumentNode']:
