@@ -2,6 +2,7 @@
 Core Base Classes - Atlas Rewrite
 
 Foundation classes for all tree nodes with dynamic FQN generation.
+Updated to handle ContainerNode parents in FQN hierarchy.
 """
 
 import ast
@@ -21,13 +22,17 @@ class TreeNode:
     
     @property
     def fqn(self) -> str:
-        """Generate FQN by walking up the tree."""
+        """Generate FQN by walking up the tree, skipping ContainerNodes."""
         parts = [self.name]
         current = self.parent
-        # Check by class name to avoid circular import
+        
+        # Walk up the hierarchy, skipping ContainerNodes (they don't contribute to FQN)
         while current and current.__class__.__name__ != 'ProjectNode':
-            parts.append(current.name)
+            # Only include TreeNodes in FQN, skip ContainerNodes
+            if hasattr(current, 'name') and current.name:
+                parts.append(current.name)
             current = current.parent
+        
         return ".".join(reversed(parts))
     
     @property

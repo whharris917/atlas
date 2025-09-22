@@ -1,34 +1,29 @@
 """
 Import From Node - Atlas Rewrite
 
-Node representing a from-import statement (ast.ImportFrom).
+Container for from-import statements (ast.ImportFrom).
 Creates AliasNodes for each import in the statement.
 Examples: from os import path, from os.path import join, exists as path_exists
 """
 
 import ast
 from typing import Dict, List, TYPE_CHECKING
-from ..core import TreeNode
+from ..core import ContainerNode
 
 if TYPE_CHECKING:
     from . import AliasNode
 
 
-class ImportFromNode(TreeNode):
-    """Node representing a from-import statement with automatic alias creation."""
+class ImportFromNode(ContainerNode):
+    """Container for from-import statements with automatic alias creation."""
     
     def __init__(self, ast_node: ast.ImportFrom):
-        if not ast_node:
-            raise ValueError("ImportFromNode requires valid ast.ImportFrom node")
         if not isinstance(ast_node, ast.ImportFrom):
             raise ValueError("ImportFromNode requires ast.ImportFrom node, not ast.Import")
         
-        super().__init__("from_import", ast_node)
         self.from_module = ast_node.module or ""  # Module being imported from
         self._aliases: Dict[str, 'AliasNode'] = {}
-        
-        # Create all alias children immediately
-        self._create_children()
+        super().__init__(ast_node)
     
     def _create_children(self):
         """Create AliasNode for each alias in the from-import statement."""
@@ -55,3 +50,10 @@ class ImportFromNode(TreeNode):
     def list_aliases(self) -> List['AliasNode']:
         """List all aliases in this from-import statement."""
         return list(self._aliases.values())
+    
+    def __repr__(self) -> str:
+        """Enhanced string representation showing from module."""
+        if self.from_module:
+            return f"ImportFromContainer(from {self.from_module}, line {self.line_number})"
+        else:
+            return f"ImportFromContainer(line {self.line_number})"

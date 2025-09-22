@@ -6,7 +6,7 @@ Clean package structure with focused responsibilities.
 """
 
 # Core infrastructure
-from .core import TreeNode
+from .core import TreeNode, ContainerNode
 
 # All node types
 from .nodes import (
@@ -28,7 +28,7 @@ from .reconnaissance import (
 
 __all__ = [
     # Core
-    'TreeNode',
+    'TreeNode', 'ContainerNode',
     
     # Nodes
     'ProjectNode', 'PackageNode', 'ModuleNode', 'ClassNode', 'FunctionNode',

@@ -1,33 +1,28 @@
 """
 Import Node - Atlas Rewrite
 
-Node representing a simple import statement (ast.Import).
+Container for simple import statements (ast.Import).
 Creates AliasNodes for each import in the statement.
 Examples: import requests, import os, sys as system
 """
 
 import ast
 from typing import Dict, List, TYPE_CHECKING
-from ..core import TreeNode
+from ..core import ContainerNode
 
 if TYPE_CHECKING:
     from . import AliasNode
 
 
-class ImportNode(TreeNode):
-    """Node representing a simple import statement with automatic alias creation."""
+class ImportNode(ContainerNode):
+    """Container for simple import statements with automatic alias creation."""
     
     def __init__(self, ast_node: ast.Import):
-        if not ast_node:
-            raise ValueError("ImportNode requires valid ast.Import node")
         if not isinstance(ast_node, ast.Import):
             raise ValueError("ImportNode requires ast.Import node, not ast.ImportFrom")
         
-        super().__init__("import", ast_node)
         self._aliases: Dict[str, 'AliasNode'] = {}
-        
-        # Create all alias children immediately
-        self._create_children()
+        super().__init__(ast_node)
     
     def _create_children(self):
         """Create AliasNode for each alias in the import statement."""
