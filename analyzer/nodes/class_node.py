@@ -17,11 +17,11 @@ if TYPE_CHECKING:
 class ClassNode(TreeNode):
     """Node representing a Python class."""
     
-    def __init__(self, ast_node: ast.ClassDef):
+    def __init__(self, ast_node: ast.ClassDef, parent: TreeNode):
         if not ast_node:
             raise ValueError("ClassNode requires valid AST node")
         
-        super().__init__(ast_node.name, ast_node)
+        super().__init__(ast_node.name, parent, ast_node)
         self._methods: Dict[str, 'FunctionNode'] = {}
         self._attributes: Dict[str, 'AttributeNode'] = {}
         
@@ -41,16 +41,14 @@ class ClassNode(TreeNode):
     def create_method(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
         """Create and hook a new method from AST node."""
         from . import FunctionNode
-        method_node = FunctionNode(func_ast, is_method=True)
-        method_node.parent = self
+        method_node = FunctionNode(func_ast, parent=self, is_method=True)
         self._methods[func_ast.name] = method_node
         return method_node
     
     def create_attribute(self, name: str, ast_node: ast.AST) -> 'AttributeNode':
         """Create and hook a new attribute."""
         from . import AttributeNode
-        attr_node = AttributeNode(name, ast_node)  # Simplified constructor
-        attr_node.parent = self
+        attr_node = AttributeNode(name, parent=self, ast_node=ast_node)
         self._attributes[name] = attr_node
         return attr_node
     

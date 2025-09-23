@@ -1,11 +1,10 @@
 """
 Package Node - Atlas Rewrite
 
-Node representing a Python package.
-Creates all nested PackageNodes and ModuleNodes from package data.
+Node representing a Python package with automatic child creation.
+Creates all nested PackageNodes and ModuleNodes immediately.
 """
 
-import ast
 from typing import Dict, List, Optional, TYPE_CHECKING
 from ..core import TreeNode
 
@@ -18,46 +17,44 @@ if TYPE_CHECKING:
 class PackageNode(TreeNode):
     """Node representing a Python package."""
     
-    def __init__(self, name: str, ast_node: ast.Module, package_data: 'DiscoveredPackage'):
-        if not ast_node:
-            raise ValueError(f"PackageNode '{name}' requires valid AST node")
+    def __init__(self, name: str, parent: TreeNode, package_data: 'DiscoveredPackage'):
         if not package_data:
-            raise ValueError(f"PackageNode '{name}' requires valid package data")
+            raise ValueError(f"PackageNode '{name}' requires valid DiscoveredPackage")
         
-        super().__init__(name, ast_node)  # Store package AST as the node's AST
+        super().__init__(name, parent, package_data.ast_node)
         self.package_data = package_data
-        self._packages: Dict[str, 'PackageNode'] = {}  # Self-reference must be string
+        self._packages: Dict[str, 'PackageNode'] = {}
         self._modules: Dict[str, 'ModuleNode'] = {}
         
         # Create all children immediately
         self._create_children()
     
     def _create_children(self):
-        """Create all nested PackageNodes and ModuleNodes from package data."""
-        # Create modules in this package
-        for module_data in self.package_data.modules:
-            self._create_module(module_data.name, module_data.ast_node)
+        """Create child nodes from DiscoveredPackage data."""
         
-        # Create nested packages (which will create their own children)
+        print(f"  Creating children in: {self.fqn}")
+        
+        # Create nested packages from DiscoveredPackage
         for nested_package_data in self.package_data.nested_packages:
-            self._create_package(nested_package_data.name, nested_package_data.ast_node, nested_package_data)
+            self.create_package(nested_package_data.name, nested_package_data)
+        
+        # Create modules from DiscoveredPackage
+        for module_data in self.package_data.modules:
+            if module_data.ast_node:
+                self.create_module(module_data.name, module_data.ast_node)
     
-    def _create_package(self, name: str, ast_node: ast.Module, package_data: 'DiscoveredPackage') -> 'PackageNode':
-        """Create and hook a new nested package."""
-        package = PackageNode(name, ast_node, package_data)
-        package.parent = self
-        self._packages[name] = package
-        print(f"  Added package: {package.fqn}")
-        return package
+    def create_package(self, name: str, package_data: 'DiscoveredPackage') -> 'PackageNode':
+        """Create and hook a nested package from DiscoveredPackage."""
+        package_node = PackageNode(name, parent=self, package_data=package_data)
+        self._packages[name] = package_node
+        return package_node
     
-    def _create_module(self, name: str, ast_node: ast.Module) -> 'ModuleNode':
-        """Create and hook a new module in this package."""
+    def create_module(self, name: str, ast_module) -> 'ModuleNode':
+        """Create and hook a module from AST."""
         from . import ModuleNode
-        module = ModuleNode(name, ast_node)
-        module.parent = self
-        self._modules[name] = module
-        print(f"  Added module: {module.fqn}")
-        return module
+        module_node = ModuleNode(name, parent=self, ast_node=ast_module)
+        self._modules[name] = module_node
+        return module_node
     
     def get_package(self, name: str) -> 'PackageNode':
         """Get a nested package by name."""

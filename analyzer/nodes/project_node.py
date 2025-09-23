@@ -1,11 +1,10 @@
 """
 Project Node - Atlas Rewrite
 
-Root node representing the entire project.
-Creates all PackageNodes and ModuleNodes from project structure.
+Root node representing the entire project with automatic child creation.
+Creates all top-level PackageNodes and ModuleNodes immediately.
 """
 
-import ast
 from typing import Dict, List, Optional, TYPE_CHECKING
 from ..core import TreeNode
 
@@ -20,65 +19,62 @@ class ProjectNode(TreeNode):
     
     def __init__(self, name: str, structure: 'ProjectStructure'):
         if not structure:
-            raise ValueError(f"ProjectNode '{name}' requires valid project structure")
+            raise ValueError(f"ProjectNode '{name}' requires valid ProjectStructure")
         
-        super().__init__(name, None)  # ProjectNode has no AST
+        # ProjectNode is the only node that can be parentless
+        super().__init__(name, parent=None)
         self.structure = structure
         self._packages: Dict[str, 'PackageNode'] = {}
-        self._modules: Dict[str, 'ModuleNode'] = {}  # Direct modules (no package)
+        self._modules: Dict[str, 'ModuleNode'] = {}
         
         # Create all children immediately
         self._create_children()
     
     def _create_children(self):
-        """Create all PackageNodes and ModuleNodes from project structure."""
+        """Create child nodes from ProjectStructure."""
+        
         print(f"\n=== BUILDING PROJECT TREE ===")
         print(f"Project: {self.name}")
         
-        # Create direct modules
+        # Create direct modules from ProjectStructure
         for module_data in self.structure.direct_modules:
-            self._create_module(module_data.name, module_data.ast_node)
+            if module_data.ast_node:
+                self.create_module(module_data.name, module_data.ast_node)
         
-        # Create packages (which will create their own children)
+        # Create packages from ProjectStructure (which will create their own children)
         for package_data in self.structure.packages:
-            self._create_package(package_data.name, package_data.ast_node, package_data)
-        
-        print(f"Tree construction complete: {len(self.structure.direct_modules)} direct modules, {len(self.structure.packages)} packages")
+            self.create_package(package_data.name, package_data)
     
-    def _create_package(self, name: str, ast_node: ast.Module, package_data) -> 'PackageNode':
-        """Create and hook a new package."""
+    def create_package(self, name: str, package_data) -> 'PackageNode':
+        """Create and hook a top-level package from DiscoveredPackage."""
         from . import PackageNode
-        package = PackageNode(name, ast_node, package_data)
-        package.parent = self
-        self._packages[name] = package
-        print(f"  Added package: {package.fqn}")
-        return package
+        package_node = PackageNode(name, parent=self, package_data=package_data)
+        self._packages[name] = package_node
+        return package_node
     
-    def _create_module(self, name: str, ast_node: ast.Module) -> 'ModuleNode':
-        """Create and hook a new module directly under project."""
+    def create_module(self, name: str, ast_module) -> 'ModuleNode':
+        """Create and hook a top-level module from AST."""
         from . import ModuleNode
-        module = ModuleNode(name, ast_node)
-        module.parent = self
-        self._modules[name] = module
-        print(f"  Added module: {module.fqn}")
-        return module
+        module_node = ModuleNode(name, parent=self, ast_node=ast_module)
+        self._modules[name] = module_node
+        return module_node
     
     def get_package(self, name: str) -> 'PackageNode':
         """Get a package by name."""
         if name not in self._packages:
-            raise KeyError(f"Package '{name}' not found")
+            raise KeyError(f"Package '{name}' not found in project '{self.name}'")
         return self._packages[name]
     
     def get_module(self, name: str) -> 'ModuleNode':
-        """Get a direct module by name."""
+        """Get a module by name."""
         if name not in self._modules:
-            raise KeyError(f"Module '{name}' not found")
+            raise KeyError(f"Module '{name}' not found in project '{self.name}'")
         return self._modules[name]
     
     def list_packages(self) -> List['PackageNode']:
-        """List all packages in the project."""
+        """List all packages in this project."""
         return list(self._packages.values())
     
     def list_modules(self) -> List['ModuleNode']:
-        """List all direct modules in the project."""
+        """List all modules in this project."""
         return list(self._modules.values())

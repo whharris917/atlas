@@ -1,59 +1,69 @@
 """
 Import From Node - Atlas Rewrite
 
-Container for from-import statements (ast.ImportFrom).
-Creates AliasNodes for each import in the statement.
-Examples: from os import path, from os.path import join, exists as path_exists
+ContainerNode representing a from-import statement.
+Creates all AliasNodes immediately.
 """
 
 import ast
-from typing import Dict, List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from ..core import ContainerNode
 
+# Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
     from . import AliasNode
+    from ..core import TreeNode
 
 
 class ImportFromNode(ContainerNode):
-    """Container for from-import statements with automatic alias creation."""
+    """ContainerNode representing a from-import statement."""
     
-    def __init__(self, ast_node: ast.ImportFrom):
+    def __init__(self, parent: 'TreeNode', ast_node: ast.ImportFrom):
         if not isinstance(ast_node, ast.ImportFrom):
-            raise ValueError("ImportFromNode requires ast.ImportFrom node, not ast.Import")
+            raise ValueError("ImportFromNode requires ast.ImportFrom node")
         
-        self.from_module = ast_node.module or ""  # Module being imported from
-        self._aliases: Dict[str, 'AliasNode'] = {}
-        super().__init__(ast_node)
+        # Initialize _aliases BEFORE calling super() because ContainerNode.__init__ calls _create_children immediately
+        self._aliases: List['AliasNode'] = []
+        super().__init__(parent, ast_node)
     
     def _create_children(self):
-        """Create AliasNode for each alias in the from-import statement."""
-        print(f"    Creating aliases for from-import statement")
+        """Create AliasNodes for each imported name."""
         
+        print(f"    Creating aliases in from-import statement")
+        
+        module_name = self.ast_node.module or ""
         for alias in self.ast_node.names:
-            self._create_alias(alias)
+            if alias.name == "*":
+                # Handle wildcard imports
+                full_name = f"{module_name}.*"
+                self.create_alias(alias, full_name)
+            else:
+                full_name = f"{module_name}.{alias.name}" if module_name else alias.name
+                self.create_alias(alias, full_name)
     
-    def _create_alias(self, alias: ast.alias) -> 'AliasNode':
-        """Create and hook a new AliasNode."""
+    def create_alias(self, alias_ast: ast.alias, full_name: str) -> 'AliasNode':
+        """Create and hook an alias from from-import."""
         from . import AliasNode
-        alias_node = AliasNode(alias, "from_import", self.from_module)
-        alias_node.parent = self
-        self._aliases[alias_node.name] = alias_node
-        print(f"      Found alias: {alias_node.name} -> {alias_node.module_name}")
+        alias_name = alias_ast.asname if alias_ast.asname else alias_ast.name
+        alias_node = AliasNode(alias_name, parent=self.parent, full_name=full_name, ast_node=alias_ast)
+        self._aliases.append(alias_node)
         return alias_node
     
     def get_alias(self, name: str) -> 'AliasNode':
         """Get an alias by local name."""
-        if name not in self._aliases:
-            raise KeyError(f"Alias '{name}' not found in from-import statement")
-        return self._aliases[name]
+        for alias in self._aliases:
+            if alias.name == name:
+                return alias
+        raise KeyError(f"Alias '{name}' not found in from-import statement")
     
     def list_aliases(self) -> List['AliasNode']:
-        """List all aliases in this from-import statement."""
-        return list(self._aliases.values())
+        """List all aliases created by this from-import."""
+        return self._aliases
     
     def __repr__(self) -> str:
         """Enhanced string representation showing from module."""
-        if self.from_module:
-            return f"ImportFromContainer(from {self.from_module}, line {self.line_number})"
+        module_name = self.ast_node.module or ""
+        if module_name:
+            return f"ImportFromContainer(from {module_name}, line {self.line_number})"
         else:
             return f"ImportFromContainer(line {self.line_number})"

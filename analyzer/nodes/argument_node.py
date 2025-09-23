@@ -11,11 +11,11 @@ from ..core import TreeNode
 class ArgumentNode(TreeNode):
     """Node representing a function argument."""
     
-    def __init__(self, ast_node: ast.arg):
+    def __init__(self, ast_node: ast.arg, parent: TreeNode):
         if not ast_node:
             raise ValueError("ArgumentNode requires valid AST node")
         
-        super().__init__(ast_node.arg, ast_node)
+        super().__init__(ast_node.arg, parent, ast_node)
         
         # Extract type from AST annotation
         self.arg_type = self._extract_type_from_ast()
