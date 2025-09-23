@@ -2,6 +2,7 @@
 Argument Node - Atlas Rewrite
 
 Node representing a function argument.
+Pure structural discovery - no type inference.
 """
 
 import ast
@@ -16,15 +17,4 @@ class ArgumentNode(TreeNode):
             raise ValueError("ArgumentNode requires valid AST node")
         
         super().__init__(ast_node.arg, parent, ast_node)
-        
-        # Extract type from AST annotation
-        self.arg_type = self._extract_type_from_ast()
-    
-    def _extract_type_from_ast(self) -> str:
-        """Extract argument type from AST annotation."""
-        if self.ast_node.annotation:
-            try:
-                return ast.unparse(self.ast_node.annotation)
-            except:
-                return "Unknown"
-        return ""  # No annotation
+        # No type extraction - AST node contains all context for Analysis Phase

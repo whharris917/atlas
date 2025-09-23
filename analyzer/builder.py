@@ -6,7 +6,7 @@ Coordinates the complete Atlas analysis pipeline:
 - Analysis Phase (behavioral relationships) 
 - Final Atlas Code Map generation
 
-This is the main entry point for Atlas analysis.
+Updated for pure self-extracting TreeNode architecture.
 """
 
 from .nodes import ProjectNode
@@ -16,14 +16,12 @@ from .reconnaissance.discovery import discover_project_structure
 class AtlasBuilder:
     """Main orchestrator for the complete Atlas analysis pipeline."""
     
-    def __init__(self, project_name: str, root_path: str = "."):
-        self.project_name = project_name
+    def __init__(self, root_path: str = "."):
         self.root_path = root_path
     
     def build_complete_atlas(self, target_dir: str = "sample_files") -> ProjectNode:
         """Build complete Atlas code map through all phases."""
         print(f"=== ATLAS STATIC ANALYSIS PIPELINE ===")
-        print(f"Project: {self.project_name}")
         print(f"Target: {target_dir}")
         
         # Phase 1: Reconnaissance (structural discovery)
@@ -48,19 +46,19 @@ class AtlasBuilder:
         
         # Phase 2: Create ProjectNode (which creates entire tree automatically)
         print(f"Phase 2: Tree Construction with Entity Discovery")
-        project = ProjectNode(self.project_name, structure)
+        project = ProjectNode(structure)  # Pure self-extraction
         
         print(f"RECONNAISSANCE PHASE COMPLETE")
         return project
 
 
-def build_complete_atlas(project_name: str = "sample_project", target_dir: str = "sample_files") -> ProjectNode:
+def build_complete_atlas(target_dir: str = "sample_files") -> ProjectNode:
     """Convenience function to build complete Atlas code map."""
-    builder = AtlasBuilder(project_name)
+    builder = AtlasBuilder()
     return builder.build_complete_atlas(target_dir)
 
 
 # Backward compatibility for existing demos
 def build_sample_project() -> ProjectNode:
     """Legacy convenience function - use build_complete_atlas() instead."""
-    return build_complete_atlas("sample_project", "sample_files")
+    return build_complete_atlas("sample_files")

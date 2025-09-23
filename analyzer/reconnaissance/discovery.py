@@ -54,8 +54,9 @@ class ProjectDiscovery:
         # Discover all Python files and packages
         direct_modules, packages = self._scan_directory(scan_path)
         
+        # FIXED: Use scan_path (target directory) as root_path for project naming
         structure = ProjectStructure(
-            root_path=self.root_path,
+            root_path=scan_path,  # This gives us "sample_files" as the project name
             direct_modules=direct_modules,
             packages=packages
         )

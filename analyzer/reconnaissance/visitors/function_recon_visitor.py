@@ -3,6 +3,7 @@ Function Reconnaissance Visitor - Atlas Rewrite
 
 Specialized AST visitor for function-level entity discovery.
 Discovers: arguments, function signature analysis.
+Pure structural discovery - no type inference.
 """
 
 import ast
@@ -25,13 +26,7 @@ class FunctionReconnaissanceVisitor(ast.NodeVisitor):
         """Create argument nodes from function signature."""
         for arg in node.args:
             self.function_node.create_argument(arg)
-            arg_type = ""
-            if arg.annotation:
-                try:
-                    arg_type = ast.unparse(arg.annotation)
-                except:
-                    arg_type = "Unknown"
-            print(f"        Found argument: {self.function_node.fqn}.{arg.arg} : {arg_type}")
+            print(f"        Found argument: {self.function_node.fqn}.{arg.arg}")
         # Don't visit argument internals
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
