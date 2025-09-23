@@ -7,7 +7,7 @@ Pure self-extracting architecture - name from package_data.
 """
 
 from typing import List, Optional, TYPE_CHECKING
-from ..core import TreeNode
+from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class PackageNode(TreeNode):
     """Node representing a Python package."""
     
-    def __init__(self, package_data: 'DiscoveredPackage', parent: TreeNode):
+    def __init__(self, package_data: 'DiscoveredPackage', parent: BaseNode):
         if not package_data:
             raise ValueError("PackageNode requires valid DiscoveredPackage")
         

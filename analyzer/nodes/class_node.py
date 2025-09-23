@@ -8,7 +8,7 @@ Pure self-extracting architecture - no name parameter.
 
 import ast
 from typing import List, Optional, TYPE_CHECKING
-from ..core import TreeNode
+from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class ClassNode(TreeNode):
     """Node representing a Python class."""
     
-    def __init__(self, ast_node: ast.ClassDef, parent: TreeNode):
+    def __init__(self, ast_node: ast.ClassDef, parent: BaseNode):
         if not ast_node:
             raise ValueError("ClassNode requires valid AST node")
         

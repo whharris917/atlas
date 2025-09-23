@@ -3,11 +3,11 @@ Project Node - Atlas Rewrite
 
 Root node representing the entire project with automatic child creation.
 Creates all top-level PackageNodes and ModuleNodes immediately.
-Pure self-extracting architecture - name from structure or default.
+Pure self-extracting architecture - name from structure.
 """
 
 from typing import List, Optional, TYPE_CHECKING
-from ..core import TreeNode
+from ..core import RootNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ..reconnaissance.discovery import ProjectStructure
 
 
-class ProjectNode(TreeNode):
+class ProjectNode(RootNode):
     """Root node representing the entire project."""
     
     def __init__(self, structure: 'ProjectStructure'):
@@ -32,8 +32,8 @@ class ProjectNode(TreeNode):
         self._packages: List['PackageNode'] = []
         self._modules: List['ModuleNode'] = []
         
-        # ProjectNode is the only node that can be parentless
-        super().__init__(project_name, parent=None)
+        # RootNode handles parentless construction
+        super().__init__(project_name)
     
     def _create_children(self):
         """Create child nodes from ProjectStructure."""

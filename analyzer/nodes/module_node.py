@@ -10,7 +10,7 @@ File: analyzer/nodes/module_node.py
 
 import ast
 from typing import List, Optional, TYPE_CHECKING, Union
-from ..core import TreeNode
+from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class ModuleNode(TreeNode):
     """Node representing a Python module."""
     
-    def __init__(self, module_data: 'DiscoveredModule', parent: TreeNode):
+    def __init__(self, module_data: 'DiscoveredModule', parent: BaseNode):
         if not module_data or not module_data.ast_node:
             raise ValueError("ModuleNode requires valid DiscoveredModule with AST")
         

@@ -1,10 +1,10 @@
 """
 Core Package - Atlas Rewrite
 
-Foundation infrastructure for the Atlas static analysis tool.
-Contains base classes and shared types.
+Foundation infrastructure for Atlas tree nodes.
+Refined hierarchy: BaseNode → RootNode/TreeNode/ContainerNode
 """
 
-from .base import TreeNode, ContainerNode
+from .base import BaseNode, RootNode, TreeNode, ContainerNode
 
-__all__ = ['TreeNode', 'ContainerNode']
+__all__ = ['BaseNode', 'RootNode', 'TreeNode', 'ContainerNode']

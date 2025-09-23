@@ -8,7 +8,7 @@ Pure self-extracting architecture - no name or is_method parameters.
 
 import ast
 from typing import List, Optional, TYPE_CHECKING
-from ..core import TreeNode
+from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class FunctionNode(TreeNode):
     """Node representing a Python function or method."""
     
-    def __init__(self, ast_node: ast.FunctionDef, parent: TreeNode):
+    def __init__(self, ast_node: ast.FunctionDef, parent: BaseNode):
         if not ast_node:
             raise ValueError("FunctionNode requires valid AST node")
         
