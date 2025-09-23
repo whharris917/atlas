@@ -2,7 +2,10 @@
 State Node - Atlas Rewrite
 
 Node representing a module-level state variable.
-Pure structural discovery with self-extracting name.
+Pure self-extracting from individual ast.Name target nodes.
+Works exclusively with StateContainerNode - no legacy support.
+
+File: analyzer/nodes/state_node.py
 """
 
 import ast
@@ -12,23 +15,37 @@ from ..core import TreeNode
 class StateNode(TreeNode):
     """Node representing a module-level state variable."""
     
-    def __init__(self, ast_node: ast.AST, parent: TreeNode):
-        if not ast_node:
-            raise ValueError("StateNode requires valid AST node")
+    def __init__(self, target_ast: ast.Name, parent):
+        if not isinstance(target_ast, ast.Name):
+            raise ValueError("StateNode requires ast.Name target node")
         
-        # Self-extract name from assignment target
-        name = self._extract_name_from_ast(ast_node)
-        super().__init__(name, parent, ast_node)
+        # Pure self-extraction from target AST
+        super().__init__(target_ast.id, parent, target_ast)
     
-    def _extract_name_from_ast(self, ast_node: ast.AST) -> str:
-        """Extract variable name from assignment AST node."""
-        if isinstance(ast_node, ast.Assign):
-            # Handle: var = value
-            for target in ast_node.targets:
-                if isinstance(target, ast.Name):
-                    return target.id
-        elif isinstance(ast_node, ast.AnnAssign) and isinstance(ast_node.target, ast.Name):
-            # Handle: var: Type = value
-            return ast_node.target.id
-        
-        raise ValueError("StateNode requires assignment with simple name target")
+    @property 
+    def assignment_ast(self) -> ast.AST:
+        """Get the original assignment AST from parent StateContainerNode."""
+        return self.parent.ast_node
+    
+    @property
+    def target_ast(self) -> ast.Name:
+        """Get the target AST node for this specific variable."""
+        return self.ast_node  # ast_node IS the target in this architecture
+    
+    @property
+    def assignment_value_ast(self) -> ast.AST:
+        """Get the assignment value AST for Analysis Phase."""
+        assignment = self.assignment_ast
+        if isinstance(assignment, ast.Assign):
+            return assignment.value
+        elif isinstance(assignment, ast.AnnAssign):
+            return assignment.value
+        return None
+    
+    @property 
+    def type_annotation_ast(self) -> ast.AST:
+        """Get type annotation AST for Analysis Phase (AnnAssign only)."""
+        assignment = self.assignment_ast
+        if isinstance(assignment, ast.AnnAssign):
+            return assignment.annotation
+        return None

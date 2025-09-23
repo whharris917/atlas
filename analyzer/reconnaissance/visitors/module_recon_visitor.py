@@ -1,8 +1,10 @@
 """
 Module Reconnaissance Visitor - Atlas Rewrite
 
-Specialized AST visitor for module-level entity discovery.
-Discovers: classes, functions, state variables, imports at module scope.
+Pure StateContainerNode architecture visitor.
+Eliminates arbitrary target[0] selection completely.
+
+File: analyzer/reconnaissance/visitors/module_recon_visitor.py
 """
 
 import ast
@@ -14,8 +16,8 @@ if TYPE_CHECKING:
 
 class ModuleReconnaissanceVisitor(ast.NodeVisitor):
     """
-    Discovers module-level entities: classes, functions, state variables, imports.
-    Only creates top-level entities - internal details handled by other visitors.
+    Discovers module-level entities using pure StateContainerNode architecture.
+    Creates containers for assignments, eliminating arbitrary selection.
     """
     
     def __init__(self, module_node: 'ModuleNode'):
@@ -45,19 +47,30 @@ class ModuleReconnaissanceVisitor(ast.NodeVisitor):
         # Don't visit function internals - handled by FunctionReconnaissanceVisitor
     
     def visit_Assign(self, node: ast.Assign):
-        """Create state variable if at module level."""
+        """Create state container for module-level assignments."""
         if not self.in_function and not self.in_class:
-            self.module_node.create_state(node)
-            if node.targets and isinstance(node.targets[0], ast.Name):
-                print(f"    Found state: {self.module_node.fqn}.{node.targets[0].id}")
+            container = self.module_node.create_state_container(node)
+            
+            # Show all state variables created (complete coverage!)
+            state_names = [state.name for state in container.list_state_variables()]
+            if len(state_names) == 1:
+                print(f"    Found state: {self.module_node.fqn}.{state_names[0]}")
+            else:
+                # Multi-target assignment - show all targets!
+                names_str = ', '.join(f'{self.module_node.fqn}.{name}' for name in state_names)
+                print(f"    Found multi-target assignment: {names_str}")
         # Don't visit assignment internals
     
     def visit_AnnAssign(self, node: ast.AnnAssign):
-        """Create annotated state variable if at module level."""
+        """Create state container for module-level annotated assignments."""
         if not self.in_function and not self.in_class:
-            self.module_node.create_state(node)
-            if isinstance(node.target, ast.Name):
-                print(f"    Found annotated state: {self.module_node.fqn}.{node.target.id}")
+            container = self.module_node.create_state_container(node)
+            
+            # Show annotated state variable
+            states = container.list_state_variables()
+            if states:
+                state_name = states[0].name  # AnnAssign always has single target
+                print(f"    Found annotated state: {self.module_node.fqn}.{state_name}")
         # Don't visit assignment internals
     
     def visit_Import(self, node: ast.Import):

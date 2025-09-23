@@ -2,8 +2,10 @@
 Module Node - Atlas Rewrite
 
 Node representing a Python module with automatic child creation.
-Creates all ClassNodes, FunctionNodes, StateNodes, ImportNodes immediately.
+Pure StateContainerNode architecture - no legacy state handling.
 Pure self-extracting architecture with list storage.
+
+File: analyzer/nodes/module_node.py
 """
 
 import ast
@@ -12,7 +14,8 @@ from ..core import TreeNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from . import ClassNode, FunctionNode, StateNode, ImportNode, ImportFromNode
+    from . import ClassNode, FunctionNode, StateNode, StateContainerNode
+    from . import ImportNode, ImportFromNode
     from ..reconnaissance.discovery import DiscoveredModule
 
 
@@ -27,7 +30,7 @@ class ModuleNode(TreeNode):
         super().__init__(module_data.name, parent, module_data.ast_node)
         self._classes: List['ClassNode'] = []
         self._functions: List['FunctionNode'] = []
-        self._state: List['StateNode'] = []
+        self._state_containers: List['StateContainerNode'] = []  # Pure architecture
         self._imports: List[Union['ImportNode', 'ImportFromNode']] = []
         
         # Create all children immediately
@@ -57,12 +60,12 @@ class ModuleNode(TreeNode):
         self._functions.append(function_node)
         return function_node
     
-    def create_state(self, state_ast: ast.AST) -> 'StateNode':
-        """Create and hook state variable from AST node."""
-        from . import StateNode
-        state_node = StateNode(state_ast, parent=self)
-        self._state.append(state_node)
-        return state_node
+    def create_state_container(self, assignment_ast: ast.AST) -> 'StateContainerNode':
+        """Create and hook state container from assignment AST node."""
+        from .state_container_node import StateContainerNode
+        container = StateContainerNode(parent=self, ast_node=assignment_ast)
+        self._state_containers.append(container)
+        return container
     
     def create_import(self, import_ast: Union[ast.Import, ast.ImportFrom]) -> Union['ImportNode', 'ImportFromNode']:
         """Create and hook import container from AST node."""
@@ -92,10 +95,11 @@ class ModuleNode(TreeNode):
         raise KeyError(f"Function '{name}' not found in module '{self.name}'")
     
     def get_state(self, name: str) -> 'StateNode':
-        """Get a state variable by name."""
-        for state in self._state:
-            if state.name == name:
-                return state
+        """Get a state variable by name (searches through all containers)."""
+        for container in self._state_containers:
+            for state in container.list_state_variables():
+                if state.name == name:
+                    return state
         raise KeyError(f"State variable '{name}' not found in module '{self.name}'")
     
     def list_classes(self) -> List['ClassNode']:
@@ -107,8 +111,15 @@ class ModuleNode(TreeNode):
         return self._functions
     
     def list_state(self) -> List['StateNode']:
-        """List all state variables in this module."""
-        return self._state
+        """List all state variables across all containers."""
+        all_states = []
+        for container in self._state_containers:
+            all_states.extend(container.list_state_variables())
+        return all_states
+    
+    def list_state_containers(self) -> List['StateContainerNode']:
+        """List all state assignment containers.""" 
+        return self._state_containers
     
     def list_imports(self) -> List[Union['ImportNode', 'ImportFromNode']]:
         """List all import containers in this module."""
@@ -120,5 +131,6 @@ class ModuleNode(TreeNode):
             'classes': self.list_classes(),
             'functions': self.list_functions(),
             'state': self.list_state(),
+            'state_containers': self.list_state_containers(),
             'imports': self.list_imports()
         }
