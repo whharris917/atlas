@@ -26,6 +26,13 @@ class TreeNode:
         self.name = name
         self.parent = parent
         self.ast_node = ast_node
+        
+        # NEW: Automatic child creation (like ContainerNode)
+        self._create_children()
+    
+    def _create_children(self):
+        """Subclasses implement child creation logic. Base does nothing."""
+        pass  # Default implementation does nothing (for leaf nodes)
     
     @property
     def fqn(self) -> str:

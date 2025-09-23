@@ -2,8 +2,8 @@
 Class Node - Atlas Rewrite
 
 Node representing a Python class with automatic child creation.
-Creates all FunctionNodes (methods) and AttributeNodes immediately.
-Pure self-extracting architecture - no name parameters.
+Creates all method FunctionNodes immediately.
+Pure self-extracting architecture - no name parameter.
 """
 
 import ast
@@ -22,35 +22,34 @@ class ClassNode(TreeNode):
         if not ast_node:
             raise ValueError("ClassNode requires valid AST node")
         
-        # Self-extract name from AST
-        super().__init__(ast_node.name, parent, ast_node)
+        # Initialize collections before parent init (which calls _create_children)
         self._methods: List['FunctionNode'] = []
         self._attributes: List['AttributeNode'] = []
         
-        # Create all children immediately
-        self._create_children()
+        # Self-extract name from AST
+        super().__init__(ast_node.name, parent, ast_node)
     
     def _create_children(self):
         """Create child nodes using ClassReconnaissanceVisitor."""
         
-        print(f"    Creating methods in: {self.fqn}")
+        print(f"    Creating children in: {self.fqn}")
         
         # Use specialized visitor for class-level discovery
         from ..reconnaissance.visitors import ClassReconnaissanceVisitor
         visitor = ClassReconnaissanceVisitor(self)
         visitor.visit(self.ast_node)
     
-    def create_method(self, func_ast: ast.FunctionDef) -> 'FunctionNode':
+    def create_method(self, method_ast: ast.FunctionDef) -> 'FunctionNode':
         """Create and hook a new method from AST node."""
         from . import FunctionNode
-        method_node = FunctionNode(func_ast, parent=self)
+        method_node = FunctionNode(method_ast, parent=self)
         self._methods.append(method_node)
         return method_node
     
-    def create_attribute(self, name: str, ast_node: ast.AST) -> 'AttributeNode':
-        """Create and hook a new attribute."""
+    def create_attribute(self, attr_ast: ast.AnnAssign) -> 'AttributeNode':
+        """Create and hook a new attribute from AST node."""
         from . import AttributeNode
-        attr_node = AttributeNode(name, parent=self, ast_node=ast_node)
+        attr_node = AttributeNode(attr_ast, parent=self)
         self._attributes.append(attr_node)
         return attr_node
     
@@ -61,6 +60,13 @@ class ClassNode(TreeNode):
                 return method
         raise KeyError(f"Method '{name}' not found in class '{self.name}'")
     
+    def get_attribute(self, name: str) -> 'AttributeNode':
+        """Get an attribute by name."""
+        for attribute in self._attributes:
+            if attribute.name == name:
+                return attribute
+        raise KeyError(f"Attribute '{name}' not found in class '{self.name}'")
+    
     def list_methods(self) -> List['FunctionNode']:
         """List all methods in this class."""
         return self._methods
@@ -68,3 +74,10 @@ class ClassNode(TreeNode):
     def list_attributes(self) -> List['AttributeNode']:
         """List all attributes in this class."""
         return self._attributes
+    
+    def list_all(self) -> dict:
+        """Get comprehensive class structure."""
+        return {
+            'methods': [method.name for method in self._methods],
+            'attributes': [attr.name for attr in self._attributes]
+        }

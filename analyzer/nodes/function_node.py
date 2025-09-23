@@ -22,12 +22,11 @@ class FunctionNode(TreeNode):
         if not ast_node:
             raise ValueError("FunctionNode requires valid AST node")
         
-        # Self-extract name from AST
-        super().__init__(ast_node.name, parent, ast_node)
+        # Initialize collections before parent init (which calls _create_children)
         self._arguments: List['ArgumentNode'] = []
         
-        # Create all children immediately
-        self._create_children()
+        # Self-extract name from AST
+        super().__init__(ast_node.name, parent, ast_node)
     
     @property
     def is_method(self) -> bool:
@@ -54,3 +53,16 @@ class FunctionNode(TreeNode):
     def list_arguments(self) -> List['ArgumentNode']:
         """List all arguments for this function."""
         return self._arguments
+    
+    def get_argument(self, name: str) -> 'ArgumentNode':
+        """Get an argument by name."""
+        for argument in self._arguments:
+            if argument.name == name:
+                return argument
+        raise KeyError(f"Argument '{name}' not found in function '{self.name}'")
+    
+    def list_all(self) -> dict:
+        """Get comprehensive function structure."""
+        return {
+            'arguments': [arg.name for arg in self._arguments]
+        }

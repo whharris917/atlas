@@ -26,15 +26,14 @@ class ModuleNode(TreeNode):
         if not module_data or not module_data.ast_node:
             raise ValueError("ModuleNode requires valid DiscoveredModule with AST")
         
-        # Self-extract name from module data
-        super().__init__(module_data.name, parent, module_data.ast_node)
+        # Initialize collections before parent init (which calls _create_children)
         self._classes: List['ClassNode'] = []
         self._functions: List['FunctionNode'] = []
         self._state_containers: List['StateContainerNode'] = []  # Pure architecture
         self._imports: List[Union['ImportNode', 'ImportFromNode']] = []
         
-        # Create all children immediately
-        self._create_children()
+        # Self-extract name from module data
+        super().__init__(module_data.name, parent, module_data.ast_node)
     
     def _create_children(self):
         """Create child nodes using ModuleReconnaissanceVisitor."""
@@ -70,12 +69,12 @@ class ModuleNode(TreeNode):
     def create_import(self, import_ast: Union[ast.Import, ast.ImportFrom]) -> Union['ImportNode', 'ImportFromNode']:
         """Create and hook import container from AST node."""
         if isinstance(import_ast, ast.Import):
-            from . import ImportNode
+            from .import_node import ImportNode
             import_node = ImportNode(parent=self, ast_node=import_ast)
             self._imports.append(import_node)
             return import_node
-        elif isinstance(import_ast, ast.ImportFrom):
-            from . import ImportFromNode
+        else:  # ast.ImportFrom
+            from .import_from_node import ImportFromNode
             import_from_node = ImportFromNode(parent=self, ast_node=import_ast)
             self._imports.append(import_from_node)
             return import_from_node
@@ -95,11 +94,11 @@ class ModuleNode(TreeNode):
         raise KeyError(f"Function '{name}' not found in module '{self.name}'")
     
     def get_state(self, name: str) -> 'StateNode':
-        """Get a state variable by name (searches through all containers)."""
+        """Get a state variable by name (searches across all containers)."""
         for container in self._state_containers:
-            for state in container.list_state_variables():
-                if state.name == name:
-                    return state
+            for state_node in container.list_state_variables():
+                if state_node.name == name:
+                    return state_node
         raise KeyError(f"State variable '{name}' not found in module '{self.name}'")
     
     def list_classes(self) -> List['ClassNode']:
@@ -111,14 +110,14 @@ class ModuleNode(TreeNode):
         return self._functions
     
     def list_state(self) -> List['StateNode']:
-        """List all state variables across all containers."""
-        all_states = []
+        """List all state variables (aggregated from all containers)."""
+        all_state = []
         for container in self._state_containers:
-            all_states.extend(container.list_state_variables())
-        return all_states
+            all_state.extend(container.list_state_variables())
+        return all_state
     
     def list_state_containers(self) -> List['StateContainerNode']:
-        """List all state assignment containers.""" 
+        """List all state containers in this module."""
         return self._state_containers
     
     def list_imports(self) -> List[Union['ImportNode', 'ImportFromNode']]:
@@ -126,11 +125,10 @@ class ModuleNode(TreeNode):
         return self._imports
     
     def list_all(self) -> dict:
-        """List all entities in this module organized by type."""
+        """Get comprehensive module structure."""
         return {
-            'classes': self.list_classes(),
-            'functions': self.list_functions(),
-            'state': self.list_state(),
-            'state_containers': self.list_state_containers(),
-            'imports': self.list_imports()
+            'classes': [cls.name for cls in self._classes],
+            'functions': [func.name for func in self._functions],
+            'state': [state.name for state in self.list_state()],
+            'imports': len(self._imports)
         }

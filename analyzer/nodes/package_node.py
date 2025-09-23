@@ -22,14 +22,13 @@ class PackageNode(TreeNode):
         if not package_data:
             raise ValueError("PackageNode requires valid DiscoveredPackage")
         
-        # Self-extract name from package data
-        super().__init__(package_data.name, parent, package_data.ast_node)
+        # Initialize collections before parent init (which calls _create_children)
         self.package_data = package_data
         self._packages: List['PackageNode'] = []
         self._modules: List['ModuleNode'] = []
         
-        # Create all children immediately
-        self._create_children()
+        # Self-extract name from package data
+        super().__init__(package_data.name, parent, package_data.ast_node)
     
     def _create_children(self):
         """Create child nodes from DiscoveredPackage data."""
@@ -79,3 +78,10 @@ class PackageNode(TreeNode):
     def list_modules(self) -> List['ModuleNode']:
         """List all modules in this package."""
         return self._modules
+    
+    def list_all(self) -> dict:
+        """Get comprehensive package structure."""
+        return {
+            'packages': [pkg.name for pkg in self._packages],
+            'modules': [mod.name for mod in self._modules]
+        }

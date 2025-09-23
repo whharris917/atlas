@@ -27,14 +27,13 @@ class ProjectNode(TreeNode):
         if not project_name:
             raise ValueError("ProjectStructure must have valid root_path with name")
         
-        # ProjectNode is the only node that can be parentless
-        super().__init__(project_name, parent=None)
+        # Initialize collections before parent init (which calls _create_children)
         self.structure = structure
         self._packages: List['PackageNode'] = []
         self._modules: List['ModuleNode'] = []
         
-        # Create all children immediately
-        self._create_children()
+        # ProjectNode is the only node that can be parentless
+        super().__init__(project_name, parent=None)
     
     def _create_children(self):
         """Create child nodes from ProjectStructure."""
@@ -84,5 +83,12 @@ class ProjectNode(TreeNode):
         return self._packages
     
     def list_modules(self) -> List['ModuleNode']:
-        """List all modules in this project."""
+        """List all direct modules in this project."""
         return self._modules
+    
+    def list_all(self) -> dict:
+        """Get comprehensive project structure."""
+        return {
+            'packages': [pkg.name for pkg in self._packages],
+            'modules': [mod.name for mod in self._modules]
+        }
