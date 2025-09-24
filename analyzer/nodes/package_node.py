@@ -56,32 +56,3 @@ class PackageNode(TreeNode):
         module_node = ModuleNode(module_data, parent=self)
         self._modules.append(module_node)
         return module_node
-    
-    def get_package(self, name: str) -> 'PackageNode':
-        """Get a nested package by name."""
-        for package in self._packages:
-            if package.name == name:
-                return package
-        raise KeyError(f"Package '{name}' not found in package '{self.name}'")
-    
-    def get_module(self, name: str) -> 'ModuleNode':
-        """Get a module by name."""
-        for module in self._modules:
-            if module.name == name:
-                return module
-        raise KeyError(f"Module '{name}' not found in package '{self.name}'")
-    
-    def list_packages(self) -> List['PackageNode']:
-        """List all nested packages in this package."""
-        return self._packages
-    
-    def list_modules(self) -> List['ModuleNode']:
-        """List all modules in this package."""
-        return self._modules
-    
-    def list_all(self) -> dict:
-        """Get comprehensive package structure."""
-        return {
-            'packages': [pkg.name for pkg in self._packages],
-            'modules': [mod.name for mod in self._modules]
-        }

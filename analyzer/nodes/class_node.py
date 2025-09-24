@@ -52,32 +52,3 @@ class ClassNode(TreeNode):
         attr_node = AttributeNode(attr_ast, parent=self)
         self._attributes.append(attr_node)
         return attr_node
-    
-    def get_method(self, name: str) -> 'FunctionNode':
-        """Get a method by name."""
-        for method in self._methods:
-            if method.name == name:
-                return method
-        raise KeyError(f"Method '{name}' not found in class '{self.name}'")
-    
-    def get_attribute(self, name: str) -> 'AttributeNode':
-        """Get an attribute by name."""
-        for attribute in self._attributes:
-            if attribute.name == name:
-                return attribute
-        raise KeyError(f"Attribute '{name}' not found in class '{self.name}'")
-    
-    def list_methods(self) -> List['FunctionNode']:
-        """List all methods in this class."""
-        return self._methods
-    
-    def list_attributes(self) -> List['AttributeNode']:
-        """List all attributes in this class."""
-        return self._attributes
-    
-    def list_all(self) -> dict:
-        """Get comprehensive class structure."""
-        return {
-            'methods': [method.name for method in self._methods],
-            'attributes': [attr.name for attr in self._attributes]
-        }

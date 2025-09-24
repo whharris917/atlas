@@ -49,20 +49,3 @@ class FunctionNode(TreeNode):
         arg_node = ArgumentNode(arg_ast, parent=self)
         self._arguments.append(arg_node)
         return arg_node
-    
-    def list_arguments(self) -> List['ArgumentNode']:
-        """List all arguments for this function."""
-        return self._arguments
-    
-    def get_argument(self, name: str) -> 'ArgumentNode':
-        """Get an argument by name."""
-        for argument in self._arguments:
-            if argument.name == name:
-                return argument
-        raise KeyError(f"Argument '{name}' not found in function '{self.name}'")
-    
-    def list_all(self) -> dict:
-        """Get comprehensive function structure."""
-        return {
-            'arguments': [arg.name for arg in self._arguments]
-        }

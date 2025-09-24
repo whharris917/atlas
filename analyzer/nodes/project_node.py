@@ -63,32 +63,3 @@ class ProjectNode(RootNode):
         module_node = ModuleNode(module_data, parent=self)
         self._modules.append(module_node)
         return module_node
-    
-    def get_package(self, name: str) -> 'PackageNode':
-        """Get a package by name."""
-        for package in self._packages:
-            if package.name == name:
-                return package
-        raise KeyError(f"Package '{name}' not found in project '{self.name}'")
-    
-    def get_module(self, name: str) -> 'ModuleNode':
-        """Get a module by name."""
-        for module in self._modules:
-            if module.name == name:
-                return module
-        raise KeyError(f"Module '{name}' not found in project '{self.name}'")
-    
-    def list_packages(self) -> List['PackageNode']:
-        """List all packages in this project."""
-        return self._packages
-    
-    def list_modules(self) -> List['ModuleNode']:
-        """List all direct modules in this project."""
-        return self._modules
-    
-    def list_all(self) -> dict:
-        """Get comprehensive project structure."""
-        return {
-            'packages': [pkg.name for pkg in self._packages],
-            'modules': [mod.name for mod in self._modules]
-        }
