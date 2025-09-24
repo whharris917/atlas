@@ -2,8 +2,7 @@
 Type Node - Atlas Rewrite
 
 Node representing a type annotation with pure self-extracting architecture.
-Part of final Reconnaissance Phase step that discovers type information.
-Creates TypeNode children for arguments with type annotations.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
@@ -35,17 +34,3 @@ class TypeNode(TreeNode):
         except:
             # Fallback for complex or unsupported type annotations
             return type_ast.__class__.__name__
-    
-    @property
-    def type_representation(self) -> str:
-        """Get the full type representation as it appears in code."""
-        return self.name
-    
-    def list_all(self) -> dict:
-        """Get comprehensive type information."""
-        return {
-            'name': self.name,
-            'type_representation': self.type_representation,
-            'line_number': self.line_number,
-            'ast_type': self.ast_node.__class__.__name__
-        }

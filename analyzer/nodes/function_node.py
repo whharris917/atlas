@@ -2,12 +2,11 @@
 Function Node - Atlas Rewrite
 
 Node representing a Python function or method with automatic child creation.
-Creates all ArgumentNodes immediately.
-Pure self-extracting architecture - no name or is_method parameters.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
@@ -27,11 +26,6 @@ class FunctionNode(TreeNode):
         
         # Self-extract name from AST
         super().__init__(ast_node.name, parent, ast_node)
-    
-    @property
-    def is_method(self) -> bool:
-        """Determine if this is a method by checking parent type."""
-        return self.parent.__class__.__name__ == 'ClassNode'
     
     def _create_children(self):
         """Create child nodes using FunctionReconnaissanceVisitor."""

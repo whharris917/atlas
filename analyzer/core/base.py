@@ -162,7 +162,10 @@ class BaseNode:
         if containers:
             all_state = []
             for container in containers:
-                all_state.extend(container.list_state_variables())
+                # FIXED: Use direct attribute access instead of calling removed method
+                # All StateContainerNode objects store their StateNode children in _state_variables
+                container_states = getattr(container, '_state_variables', [])
+                all_state.extend(container_states)
             return all_state
             
         # No state variables

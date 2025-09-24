@@ -1,53 +1,42 @@
 """
 Import Node - Atlas Rewrite
 
-ContainerNode representing an import statement.
-Creates all AliasNodes immediately with pure self-extraction.
+Container node for import statements with automatic alias creation.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
 from typing import List, TYPE_CHECKING
-from ..core import ContainerNode
+from ..core import ContainerNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
     from . import AliasNode
-    from ..core import TreeNode
 
 
 class ImportNode(ContainerNode):
-    """ContainerNode representing an import statement."""
+    """Container node representing import statement (import x, y, z)."""
     
-    def __init__(self, parent: 'TreeNode', ast_node: ast.Import):
+    def __init__(self, parent: BaseNode, ast_node: ast.Import):
         if not isinstance(ast_node, ast.Import):
             raise ValueError("ImportNode requires ast.Import node")
         
-        # Initialize _aliases BEFORE calling super() because ContainerNode.__init__ calls _create_children immediately
+        # Initialize collections before parent init (which calls _create_children)
         self._aliases: List['AliasNode'] = []
+        
         super().__init__(parent, ast_node)
     
     def _create_children(self):
-        """Create AliasNodes for each imported name."""
-        
-        print(f"    Creating aliases in import statement")
+        """Create alias nodes from import statement."""
+        from . import AliasNode
         
         for alias in self.ast_node.names:
-            self.create_alias(alias)
+            alias_node = AliasNode(alias, parent=self)
+            self._aliases.append(alias_node)
     
     def create_alias(self, alias_ast: ast.alias) -> 'AliasNode':
-        """Create and hook an alias from import."""
+        """Create and hook a new alias from AST node."""
         from . import AliasNode
-        alias_node = AliasNode(alias_ast, parent=self.parent)
+        alias_node = AliasNode(alias_ast, parent=self)
         self._aliases.append(alias_node)
         return alias_node
-    
-    def get_alias(self, name: str) -> 'AliasNode':
-        """Get an alias by local name."""
-        for alias in self._aliases:
-            if alias.name == name:
-                return alias
-        raise KeyError(f"Alias '{name}' not found in import statement")
-    
-    def list_aliases(self) -> List['AliasNode']:
-        """List all aliases created by this import."""
-        return self._aliases

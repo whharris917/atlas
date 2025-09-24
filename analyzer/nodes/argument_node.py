@@ -2,8 +2,7 @@
 Argument Node - Atlas Rewrite
 
 Node representing a function argument with type analysis as final Reconnaissance Phase step.
-Creates either TypeNode child (if type annotation exists) or MissingTypeHint violation.
-Pure self-extracting architecture - no name or type parameters.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
@@ -56,44 +55,3 @@ class ArgumentNode(TreeNode):
         violation = MissingTypeHint(parent=self, argument_name=self.name)
         self._violations.append(violation)
         return violation
-    
-    @property
-    def has_type_annotation(self) -> bool:
-        """Check if this argument has a type annotation."""
-        return self._type is not None
-    
-    @property
-    def type_node(self) -> Optional['TypeNode']:
-        """Get the TypeNode child if type annotation exists."""
-        return self._type
-    
-    @property
-    def violations(self) -> List['MissingTypeHint']:
-        """Get list of violations (ornaments hanging off this argument)."""
-        return self._violations.copy()
-    
-    def list_all(self) -> dict:
-        """Get comprehensive argument information including type analysis."""
-        result = {
-            'name': self.name,
-            'line_number': self.line_number,
-            'has_type_annotation': self.has_type_annotation
-        }
-        
-        if self._type:
-            result['type'] = {
-                'representation': self._type.type_representation,
-                'ast_type': self._type.ast_node.__class__.__name__
-            }
-        
-        if self._violations:
-            result['violations'] = [
-                {
-                    'type': violation.violation_type,
-                    'message': violation.message,
-                    'suggested_fix': violation.suggested_fix
-                }
-                for violation in self._violations
-            ]
-        
-        return result

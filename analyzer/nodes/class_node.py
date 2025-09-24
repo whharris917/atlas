@@ -2,12 +2,11 @@
 Class Node - Atlas Rewrite
 
 Node representing a Python class with automatic child creation.
-Creates all method FunctionNodes immediately.
-Pure self-extracting architecture - no name parameter.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)

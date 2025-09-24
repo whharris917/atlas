@@ -1,10 +1,8 @@
 """
-Module Reconnaissance Visitor - Atlas Rewrite
+Module Reconnaissance Visitor - Atlas Rewrite - FIXED
 
-Pure StateContainerNode architecture visitor.
-Eliminates arbitrary target[0] selection completely.
-
-File: analyzer/reconnaissance/visitors/module_recon_visitor.py
+Fixed to use BaseNode's unified navigation API instead of calling methods directly on containers.
+All API access goes through BaseNode's universal interface.
 """
 
 import ast
@@ -16,43 +14,46 @@ if TYPE_CHECKING:
 
 class ModuleReconnaissanceVisitor(ast.NodeVisitor):
     """
-    Discovers module-level entities using pure StateContainerNode architecture.
-    Creates containers for assignments, eliminating arbitrary selection.
+    Discovers module-level entities: classes, functions, state, imports within module scope.
+    Updated to use BaseNode unified navigation API for all access.
     """
     
     def __init__(self, module_node: 'ModuleNode'):
         self.module_node = module_node
-        self.in_function = False
         self.in_class = False
+        self.in_function = False
     
     def visit_ClassDef(self, node: ast.ClassDef):
-        """Create class node only if at module level."""
-        if not self.in_function and not self.in_class:
-            self.module_node.create_class(node)
-            print(f"    Found class: {self.module_node.fqn}.{node.name}")
+        """Create class node."""
+        self.module_node.create_class(node)
+        print(f"  Found class: {self.module_node.fqn}.{node.name}")
         # Don't visit class internals - handled by ClassReconnaissanceVisitor
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        """Create function node only if at module level."""
+        """Create function node if at module level."""
         if not self.in_function and not self.in_class:
             self.module_node.create_function(node)
-            print(f"    Found function: {self.module_node.fqn}.{node.name}")
+            print(f"  Found function: {self.module_node.fqn}.{node.name}")
         # Don't visit function internals - handled by FunctionReconnaissanceVisitor
     
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
-        """Handle async functions same as regular functions."""
+        """Create async function node if at module level."""
         if not self.in_function and not self.in_class:
             self.module_node.create_function(node)
-            print(f"    Found async function: {self.module_node.fqn}.{node.name}")
-        # Don't visit function internals - handled by FunctionReconnaissanceVisitor
+            print(f"  Found async function: {self.module_node.fqn}.{node.name}")
+        # Don't visit function internals
     
     def visit_Assign(self, node: ast.Assign):
-        """Create state container for module-level assignments."""
+        """Create state container for module-level assignments.""" 
         if not self.in_function and not self.in_class:
+            # Create the container
             container = self.module_node.create_state_container(node)
             
-            # Show all state variables created (complete coverage!)
-            state_names = [state.name for state in container.list_state_variables()]
+            # FIXED: Use BaseNode's unified API instead of container.list_state_variables()
+            # Get state variables through the container using BaseNode API
+            state_variables = container.list_state()  # BaseNode unified API
+            state_names = [state.name for state in state_variables]
+            
             if len(state_names) == 1:
                 print(f"    Found state: {self.module_node.fqn}.{state_names[0]}")
             else:
@@ -66,10 +67,10 @@ class ModuleReconnaissanceVisitor(ast.NodeVisitor):
         if not self.in_function and not self.in_class:
             container = self.module_node.create_state_container(node)
             
-            # Show annotated state variable
-            states = container.list_state_variables()
-            if states:
-                state_name = states[0].name  # AnnAssign always has single target
+            # FIXED: Use BaseNode's unified API
+            state_variables = container.list_state()  # BaseNode unified API
+            if state_variables:
+                state_name = state_variables[0].name  # AnnAssign always has single target
                 print(f"    Found annotated state: {self.module_node.fqn}.{state_name}")
         # Don't visit assignment internals
     

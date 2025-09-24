@@ -2,11 +2,10 @@
 Project Node - Atlas Rewrite
 
 Root node representing the entire project with automatic child creation.
-Creates all top-level PackageNodes and ModuleNodes immediately.
-Pure self-extracting architecture - name from structure.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from ..core import RootNode
 
 # Import types only for type checking (no runtime cost)

@@ -2,8 +2,7 @@
 Attribute Node - Atlas Rewrite
 
 Node representing a class attribute with pure self-extracting architecture.
-Type inference eliminated for clean responsibility separation.
-Self-extracts name from ast.AnnAssign target nodes.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
@@ -28,10 +27,3 @@ class AttributeNode(TreeNode):
         
         # Pure self-extraction from AST target
         super().__init__(attr_ast.target.id, parent, attr_ast)
-    
-    def list_all(self) -> dict:
-        """Get comprehensive attribute information."""
-        return {
-            'name': self.name,
-            'line_number': self.line_number
-        }
