@@ -3,6 +3,7 @@ Argument Node - Atlas Rewrite
 
 Node representing a function argument with type analysis as final Reconnaissance Phase step.
 Extremely focused implementation adhering to strict separation of concerns.
+UPDATED: Uses renamed MissingArgumentTypeHint violation.
 """
 
 import ast
@@ -12,7 +13,7 @@ from ..core import TreeNode, BaseNode
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
     from .type_node import TypeNode
-    from ..violations import MissingTypeHint
+    from ..violations import MissingArgumentTypeHint
 
 
 class ArgumentNode(TreeNode):
@@ -26,7 +27,7 @@ class ArgumentNode(TreeNode):
         
         # Initialize collections before parent init (which calls _create_children)
         self._type: Optional['TypeNode'] = None
-        self._violations: List['MissingTypeHint'] = []
+        self._violations: List['MissingArgumentTypeHint'] = []
         
         # Pure self-extraction from AST
         super().__init__(arg_ast.arg, parent, arg_ast)
@@ -34,13 +35,13 @@ class ArgumentNode(TreeNode):
     def _create_children(self):
         """
         Final step of Reconnaissance Phase: analyze type information.
-        Creates either TypeNode child or MissingTypeHint violation.
+        Creates either TypeNode child or MissingArgumentTypeHint violation.
         """
         if self.ast_node.annotation:
             # Type annotation exists - create TypeNode
             self._create_type_node(self.ast_node.annotation)
         else:
-            # No type annotation - create MissingTypeHint violation
+            # No type annotation - create MissingArgumentTypeHint violation
             self._create_missing_type_violation()
     
     def _create_type_node(self, type_ast: ast.AST) -> 'TypeNode':
@@ -49,9 +50,9 @@ class ArgumentNode(TreeNode):
         self._type = TypeNode(type_ast, parent=self)
         return self._type
     
-    def _create_missing_type_violation(self) -> 'MissingTypeHint':
-        """Create MissingTypeHint violation ornament."""
-        from ..violations import MissingTypeHint
-        violation = MissingTypeHint(parent=self, argument_name=self.name)
+    def _create_missing_type_violation(self) -> 'MissingArgumentTypeHint':
+        """Create MissingArgumentTypeHint violation ornament."""
+        from ..violations import MissingArgumentTypeHint
+        violation = MissingArgumentTypeHint(parent=self, argument_name=self.name)
         self._violations.append(violation)
         return violation

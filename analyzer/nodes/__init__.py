@@ -14,6 +14,7 @@ from .function_node import FunctionNode
 from .argument_node import ArgumentNode
 from .attribute_node import AttributeNode
 from .state_node import StateNode
+from .return_node import ReturnNode
 
 # Import system nodes
 from .alias_node import AliasNode
@@ -39,6 +40,7 @@ __all__ = [
     'ArgumentNode',
     'AttributeNode',
     'StateNode',
+    'ReturnNode',
     
     # Import system
     'AliasNode',

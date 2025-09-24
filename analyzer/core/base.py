@@ -4,6 +4,7 @@ Core Base Classes - Atlas Rewrite
 Foundation classes for all tree nodes with refined hierarchy.
 BaseNode provides shared functionality, RootNode for parentless nodes,
 TreeNode for entities requiring parents, ContainerNode for AST artifacts.
+UPDATED: Enhanced with ReturnNode universal API support.
 """
 
 import ast
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from ..nodes import (
         PackageNode, ModuleNode, ClassNode, FunctionNode, StateNode, 
         AliasNode, ArgumentNode, AttributeNode, StateContainerNode,
-        ImportNode, ImportFromNode
+        ImportNode, ImportFromNode, ReturnNode
     )
 
 
@@ -72,17 +73,17 @@ class BaseNode:
     def get_class(self, name: str) -> 'ClassNode':
         """Get a class by name - works on any node that contains classes."""
         classes = getattr(self, '_classes', [])
-        for class_node in classes:
-            if class_node.name == name:
-                return class_node
+        for cls in classes:
+            if cls.name == name:
+                return cls
         raise KeyError(f"Class '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
     
     def get_function(self, name: str) -> 'FunctionNode':
         """Get a function by name - works on any node that contains functions."""
         functions = getattr(self, '_functions', [])
-        for function in functions:
-            if function.name == name:
-                return function
+        for func in functions:
+            if func.name == name:
+                return func
         raise KeyError(f"Function '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
     
     def get_method(self, name: str) -> 'FunctionNode':
@@ -94,36 +95,27 @@ class BaseNode:
         raise KeyError(f"Method '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
     
     def get_state(self, name: str) -> 'StateNode':
-        """Get a state variable by name - searches across containers if needed."""
-        # Direct state variables (for StateNode collections)
-        states = getattr(self, '_states', [])
-        for state in states:
+        """Get a state variable by name - works on any node that contains state."""
+        state_vars = self.list_state()
+        for state in state_vars:
             if state.name == name:
                 return state
-        
-        # Search across state containers (for ModuleNode)
-        containers = getattr(self, '_state_containers', [])
-        for container in containers:
-            for state_node in container.list_state_variables():
-                if state_node.name == name:
-                    return state_node
-                    
         raise KeyError(f"State variable '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
     
     def get_attribute(self, name: str) -> 'AttributeNode':
         """Get an attribute by name - works on any node that contains attributes."""
         attributes = getattr(self, '_attributes', [])
-        for attribute in attributes:
-            if attribute.name == name:
-                return attribute
+        for attr in attributes:
+            if attr.name == name:
+                return attr
         raise KeyError(f"Attribute '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
     
     def get_argument(self, name: str) -> 'ArgumentNode':
         """Get an argument by name - works on any node that contains arguments."""
         arguments = getattr(self, '_arguments', [])
-        for argument in arguments:
-            if argument.name == name:
-                return argument
+        for arg in arguments:
+            if arg.name == name:
+                return arg
         raise KeyError(f"Argument '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
     
     def get_alias(self, name: str) -> 'AliasNode':
@@ -133,6 +125,14 @@ class BaseNode:
             if alias.name == name:
                 return alias
         raise KeyError(f"Alias '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
+    
+    def get_return(self, name: str = "return") -> 'ReturnNode':
+        """Get return node by name (always 'return' for consistency)."""
+        returns = self.list_returns()
+        for ret in returns:
+            if ret.name == name:
+                return ret
+        raise KeyError(f"Return '{name}' not found in {self.__class__.__name__} '{getattr(self, 'name', 'unnamed')}'")
     
     # ===============================================
     # UNIFIED NAVIGATION API - List Methods
@@ -151,25 +151,14 @@ class BaseNode:
         return getattr(self, '_methods', [])
     
     def list_state(self) -> List['StateNode']:
-        """List all state variables - handles both direct and container patterns."""
-        # Direct state variables (for simple collections)
-        direct_states = getattr(self, '_states', [])
-        if direct_states:
-            return direct_states
-        
-        # State containers (for ModuleNode aggregation pattern)
-        containers = getattr(self, '_state_containers', [])
-        if containers:
-            all_state = []
-            for container in containers:
-                # FIXED: Use direct attribute access instead of calling removed method
-                # All StateContainerNode objects store their StateNode children in _state_variables
-                container_states = getattr(container, '_state_variables', [])
-                all_state.extend(container_states)
-            return all_state
-            
-        # No state variables
-        return []
+        """List all state variables from state containers - returns empty list if none."""
+        state_vars = []
+        state_containers = getattr(self, '_state_containers', [])
+        for container in state_containers:
+            # Access state variables directly from container's attribute
+            if hasattr(container, '_state_variables'):
+                state_vars.extend(container._state_variables)
+        return state_vars
     
     def list_attributes(self) -> List['AttributeNode']:
         """List all attributes - returns empty list if node doesn't contain attributes."""
@@ -182,6 +171,35 @@ class BaseNode:
     def list_aliases(self) -> List['AliasNode']:
         """List all aliases - returns empty list if node doesn't contain aliases."""
         return getattr(self, '_aliases', [])
+    
+    def list_returns(self) -> List['ReturnNode']:
+        """List all return nodes in this subtree."""
+        returns = []
+        
+        # Check if this node has returns (direct _return attribute)
+        if hasattr(self, '_return') and self._return:
+            returns.append(self._return)
+        
+        # Recursively collect from child collections using existing BaseNode pattern
+        # Check all known child collections following existing BaseNode universal API pattern
+        child_collections = [
+            '_packages', '_modules', '_classes', '_functions', '_methods', 
+            '_arguments', '_attributes', '_state', '_state_containers',
+            '_imports', '_aliases'
+        ]
+        
+        for collection_name in child_collections:
+            if hasattr(self, collection_name):
+                collection = getattr(self, collection_name)
+                if collection:
+                    for child in collection:
+                        # Check if child has returns
+                        if hasattr(child, '_return') and child._return:
+                            returns.append(child._return)
+                        # Recurse into child
+                        returns.extend(child.list_returns())
+        
+        return returns
     
     # ===============================================
     # UNIFIED NAVIGATION API - Container Methods
@@ -216,6 +234,7 @@ class BaseNode:
             'state': self.list_state(),
             'attributes': self.list_attributes(),
             'arguments': self.list_arguments(),
+            'returns': self.list_returns(),
             'aliases': self.list_aliases(),
             'state_containers': self.list_state_containers(),
             'imports': self.list_imports()
@@ -318,4 +337,4 @@ class ContainerNode(BaseNode):
     
     def _create_children(self):
         """Subclasses implement child creation logic."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__} must implement _create_children()")

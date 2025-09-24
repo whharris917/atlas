@@ -1,8 +1,9 @@
 """
-Missing Type Hint Violation - Atlas Rewrite
+Missing Argument Type Hint Violation - Atlas Rewrite
 
 Violation indicating a missing type hint on a function argument.
 Created when ArgumentNode discovers an argument without type annotation.
+RENAMED from MissingTypeHint for clarity and parallel with MissingReturnTypeHint.
 """
 
 from typing import TYPE_CHECKING
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from ..core import BaseNode
 
 
-class MissingTypeHint(CodeStandardViolation):
+class MissingArgumentTypeHint(CodeStandardViolation):
     """
     Violation indicating a missing type hint on a function argument.
     Created when ArgumentNode discovers an argument without type annotation.
