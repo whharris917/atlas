@@ -1,39 +1,55 @@
 """
-Nodes Package - Atlas Rewrite
+Atlas Nodes Package
 
-All node types for the Atlas tree structure.
-Pure StateContainerNode architecture with no legacy support.
-
-File: analyzer/nodes/__init__.py
+Consolidated imports for all node types including new type analysis classes.
+Maintains backward compatibility while adding type analysis capabilities.
 """
 
-# Core base classes
-from ..core import TreeNode, ContainerNode
-
-# Entity nodes (TreeNode subclasses)
+# Core node types
 from .project_node import ProjectNode
-from .package_node import PackageNode
+from .package_node import PackageNode  
 from .module_node import ModuleNode
 from .class_node import ClassNode
 from .function_node import FunctionNode
-from .state_node import StateNode
-from .alias_node import AliasNode
 from .argument_node import ArgumentNode
 from .attribute_node import AttributeNode
+from .state_node import StateNode
 
-# Container nodes (ContainerNode subclasses)
-from .state_container_node import StateContainerNode
+# Import system nodes
+from .alias_node import AliasNode
 from .import_node import ImportNode
 from .import_from_node import ImportFromNode
 
+# Container nodes  
+from .state_container_node import StateContainerNode
+
+# Type analysis nodes (NEW)
+from .type_node import TypeNode
+
+# Note: CodeStandardViolation classes moved to ../violations package
+
+# Public API exports
 __all__ = [
-    # Core
-    'TreeNode', 'ContainerNode',
+    # Tree structure nodes
+    'ProjectNode', 
+    'PackageNode', 
+    'ModuleNode',
+    'ClassNode', 
+    'FunctionNode', 
+    'ArgumentNode',
+    'AttributeNode',
+    'StateNode',
     
-    # Entity Nodes
-    'ProjectNode', 'PackageNode', 'ModuleNode', 'ClassNode', 'FunctionNode',
-    'StateNode', 'AliasNode', 'ArgumentNode', 'AttributeNode',
+    # Import system
+    'AliasNode',
+    'ImportNode', 
+    'ImportFromNode',
     
-    # Container Nodes  
-    'StateContainerNode', 'ImportNode', 'ImportFromNode'
+    # Container nodes
+    'StateContainerNode',
+    
+    # Type analysis (NEW)
+    'TypeNode'
+    
+    # Note: CodeStandardViolation classes are in ../violations package
 ]
