@@ -485,8 +485,8 @@ class BaseNode:
         return self._execute_navigation_query(query)
     
     def list_arguments(self) -> List['ArgumentNode']:
-        """List arguments using context-sensitive scope (entity = cascade)."""
-        query = NavigationQuery('arguments', TraversalScope.CONTEXT)
+        """List arguments using direct scope (arguments are per-function entities)."""
+        query = NavigationQuery('arguments', TraversalScope.DIRECT)
         return self._execute_navigation_query(query)
     
     def list_aliases(self) -> List['AliasNode']:
