@@ -1,12 +1,12 @@
 """
 Type Node - Atlas Rewrite
 
-Node representing a type annotation with pure self-extracting architecture.
+Node representing a type annotation with comprehensive type analysis.
 Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
@@ -15,22 +15,23 @@ if TYPE_CHECKING:
 
 
 class TypeNode(TreeNode):
-    """Node representing a type annotation extracted from AST."""
+    """Node representing a type annotation."""
     
-    def __init__(self, type_ast: ast.AST, parent: BaseNode):
-        if not type_ast:
-            raise ValueError("TypeNode requires valid type AST node")
-        if not parent:
-            raise ValueError("TypeNode requires parent")
+    def __init__(self, parent: BaseNode, source_data: ast.AST):
+        if not isinstance(source_data, ast.AST):
+            raise TypeError("TypeNode requires ast.AST as source_data")
         
-        # Self-extract type representation from AST
-        type_name = self._extract_type_name(type_ast)
-        super().__init__(type_name, parent, type_ast)
+        # Parent class handles name extraction and validation
+        super().__init__(parent, source_data)
     
-    def _extract_type_name(self, type_ast: ast.AST) -> str:
-        """Extract human-readable type name from AST annotation."""
+    def _extract_name(self) -> str:
+        """Extract type representation from AST node."""
         try:
-            return ast.unparse(type_ast)
-        except:
-            # Fallback for complex or unsupported type annotations
-            return type_ast.__class__.__name__
+            return ast.unparse(self.source_data)
+        except Exception:
+            # Fallback for complex types that can't be unparsed
+            return f"<{type(self.source_data).__name__}>"
+    
+    def _create_children(self):
+        """TypeNode is a leaf node - no children to create."""
+        pass

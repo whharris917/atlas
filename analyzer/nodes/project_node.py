@@ -17,22 +17,20 @@ if TYPE_CHECKING:
 class ProjectNode(RootNode):
     """Root node representing the entire project."""
     
-    def __init__(self, structure: 'ProjectStructure'):
-        if not structure:
-            raise ValueError("ProjectNode requires valid ProjectStructure")
-        
-        # Self-extract name from structure only
-        project_name = structure.root_path.name
-        if not project_name:
-            raise ValueError("ProjectStructure must have valid root_path with name")
-        
+    def __init__(self, source_data: 'ProjectStructure'):
         # Initialize collections before parent init (which calls _create_children)
-        self.structure = structure
         self._packages: List['PackageNode'] = []
         self._modules: List['ModuleNode'] = []
         
-        # RootNode handles parentless construction
-        super().__init__(project_name)
+        # Parent class handles name extraction and validation
+        super().__init__(source_data)
+    
+    def _extract_name(self) -> str:
+        """Extract project name from ProjectStructure root_path."""
+        project_name = self.source_data.root_path.name
+        if not project_name:
+            raise ValueError("ProjectStructure must have valid root_path with name")
+        return project_name
     
     def _create_children(self):
         """Create child nodes from ProjectStructure."""
@@ -41,24 +39,24 @@ class ProjectNode(RootNode):
         print(f"Project: {self.name}")
         
         # Create direct modules from ProjectStructure
-        for module_data in self.structure.direct_modules:
+        for module_data in self.source_data.direct_modules:
             if module_data.ast_node:
                 self.create_module(module_data)
         
         # Create packages from ProjectStructure (which will create their own children)
-        for package_data in self.structure.packages:
+        for package_data in self.source_data.packages:
             self.create_package(package_data)
     
     def create_package(self, package_data) -> 'PackageNode':
         """Create and hook a top-level package from DiscoveredPackage."""
         from . import PackageNode
-        package_node = PackageNode(package_data, parent=self)
+        package_node = PackageNode(parent=self, source_data=package_data)
         self._packages.append(package_node)
         return package_node
     
     def create_module(self, module_data) -> 'ModuleNode':
         """Create and hook a top-level module from DiscoveredModule."""
         from . import ModuleNode
-        module_node = ModuleNode(module_data, parent=self)
+        module_node = ModuleNode(parent=self, source_data=module_data)
         self._modules.append(module_node)
         return module_node

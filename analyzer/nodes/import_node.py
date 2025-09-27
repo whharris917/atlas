@@ -1,42 +1,40 @@
 """
 Import Node - Atlas Rewrite
 
-Container node for import statements with automatic alias creation.
-Extremely focused implementation adhering to strict separation of concerns.
+Container node for standard import statements (import x, y, z).
+Creates AliasNode for each imported item.
 """
 
 import ast
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from ..core import ContainerNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
 if TYPE_CHECKING:
-    from . import AliasNode
+    from .alias_node import AliasNode
 
 
 class ImportNode(ContainerNode):
-    """Container node representing import statement (import x, y, z)."""
+    """Container node for standard import statements."""
     
-    def __init__(self, parent: BaseNode, ast_node: ast.Import):
-        if not isinstance(ast_node, ast.Import):
-            raise ValueError("ImportNode requires ast.Import node")
+    def __init__(self, parent: BaseNode, source_data: ast.Import):
+        if not isinstance(source_data, ast.Import):
+            raise TypeError("ImportNode requires ast.Import as source_data")
         
         # Initialize collections before parent init (which calls _create_children)
         self._aliases: List['AliasNode'] = []
         
-        super().__init__(parent, ast_node)
+        # Parent class handles initialization
+        super().__init__(parent, source_data)
     
     def _create_children(self):
-        """Create alias nodes from import statement."""
-        from . import AliasNode
-        
-        for alias in self.ast_node.names:
-            alias_node = AliasNode(alias, parent=self)
-            self._aliases.append(alias_node)
+        """Create AliasNode for each imported name."""
+        for alias_ast in self.source_data.names:
+            self.create_alias(alias_ast)
     
     def create_alias(self, alias_ast: ast.alias) -> 'AliasNode':
         """Create and hook a new alias from AST node."""
-        from . import AliasNode
-        alias_node = AliasNode(alias_ast, parent=self)
+        from .alias_node import AliasNode
+        alias_node = AliasNode(parent=self, source_data=alias_ast)
         self._aliases.append(alias_node)
         return alias_node

@@ -1,8 +1,7 @@
 """
 Function Node - Atlas Rewrite
 
-Node representing a Python function or method with automatic child creation.
-ENHANCED: Creates ReturnNode for complete type analysis coverage.
+Node representing a Python function/method with automatic child creation.
 Extremely focused implementation adhering to strict separation of concerns.
 """
 
@@ -18,39 +17,50 @@ if TYPE_CHECKING:
 class FunctionNode(TreeNode):
     """Node representing a Python function or method."""
     
-    def __init__(self, ast_node: ast.FunctionDef, parent: BaseNode):
-        if not ast_node:
-            raise ValueError("FunctionNode requires valid AST node")
+    def __init__(self, parent: BaseNode, source_data: ast.FunctionDef):
+        if not isinstance(source_data, ast.FunctionDef):
+            raise TypeError("FunctionNode requires ast.FunctionDef as source_data")
         
         # Initialize collections before parent init (which calls _create_children)
         self._arguments: List['ArgumentNode'] = []
         self._return: Optional['ReturnNode'] = None
         
-        # Self-extract name from AST
-        super().__init__(ast_node.name, parent, ast_node)
+        # Parent class handles name extraction and validation
+        super().__init__(parent, source_data)
+    
+    def _extract_name(self) -> str:
+        """Extract function name from ast.FunctionDef node."""
+        return self.source_data.name
     
     def _create_children(self):
-        """Create child nodes using FunctionReconnaissanceVisitor plus ReturnNode."""
+        """Create child nodes using FunctionReconnaissanceVisitor."""
         
-        print(f"      Creating arguments and return type in: {self.fqn}")
+        print(f"      Creating children in: {self.fqn}")
         
         # Use specialized visitor for function-level discovery
         from ..reconnaissance.visitors import FunctionReconnaissanceVisitor
         visitor = FunctionReconnaissanceVisitor(self)
-        visitor.visit(self.ast_node)
-        
-        # NEW: Always create ReturnNode for type analysis
-        self._create_return_node()
+        visitor.visit(self.source_data)
     
     def create_argument(self, arg_ast: ast.arg) -> 'ArgumentNode':
-        """Create and hook a new argument from AST node."""
+        """
+        Create and hook a new argument from AST node.
+        
+        Public method because it's called by FunctionReconnaissanceVisitor
+        during automatic function discovery.
+        """
         from . import ArgumentNode
-        arg_node = ArgumentNode(arg_ast, parent=self)
+        arg_node = ArgumentNode(parent=self, source_data=arg_ast)
         self._arguments.append(arg_node)
         return arg_node
     
-    def _create_return_node(self) -> 'ReturnNode':
-        """Create ReturnNode for return type analysis."""
-        from . import ReturnNode
-        self._return = ReturnNode(self.ast_node, parent=self)
+    def create_return(self) -> 'ReturnNode':
+        """
+        Create and hook return node for type analysis.
+        
+        Public method because it's called by FunctionReconnaissanceVisitor
+        to automatically create ReturnNode during function discovery.
+        """
+        from .return_node import ReturnNode
+        self._return = ReturnNode(parent=self, source_data=self.source_data)
         return self._return

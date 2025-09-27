@@ -1,13 +1,12 @@
 """
 Alias Node - Atlas Rewrite
 
-Node representing an import alias with pure self-extracting architecture.
-Self-extracts name and calculates full_name from parent context.
-Pure architecture - no redundant parameters.
+Node representing an import alias with module resolution.
+Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from ..core import TreeNode, BaseNode
 
 # Import types only for type checking (no runtime cost)
@@ -18,53 +17,33 @@ if TYPE_CHECKING:
 class AliasNode(TreeNode):
     """Node representing an import alias."""
     
-    def __init__(self, alias_ast: ast.alias, parent: BaseNode):
-        if not alias_ast:
-            raise ValueError("AliasNode requires valid ast.alias node")
-        if not isinstance(alias_ast, ast.alias):
-            raise ValueError("AliasNode requires ast.alias node")
+    def __init__(self, parent: BaseNode, source_data: ast.alias):
+        if not isinstance(source_data, ast.alias):
+            raise TypeError("AliasNode requires ast.alias as source_data")
         
-        # Use alias name if provided, otherwise use the imported name
-        display_name = alias_ast.asname if alias_ast.asname else alias_ast.name
-        
-        # Pure self-extraction from AST
-        super().__init__(display_name, parent, alias_ast)
+        # Parent class handles name extraction and validation
+        super().__init__(parent, source_data)
     
-    @property
-    def imported_name(self) -> str:
-        """Get the actual name being imported (before any aliasing)."""
-        return self.ast_node.name
+    def _extract_name(self) -> str:
+        """Extract alias name (asname if present, otherwise original name)."""
+        # Use alias name if present, otherwise use the original import name
+        return self.source_data.asname or self.source_data.name
     
-    @property
-    def alias_name(self) -> Optional[str]:
-        """Get the alias name (after 'as'), if any."""
-        return self.ast_node.asname
+    def _create_children(self):
+        """AliasNode is a leaf node - no children to create."""
+        pass
     
     @property
     def full_name(self) -> str:
-        """Calculate full qualified name from parent import context."""
-        if hasattr(self.parent, 'ast_node'):
-            parent_ast = self.parent.ast_node
-            
-            if isinstance(parent_ast, ast.ImportFrom):
-                # from package.module import name
-                module = parent_ast.module or ""
-                if module:
-                    return f"{module}.{self.imported_name}"
-                else:
-                    return self.imported_name
+        """Get the full module name being imported."""
+        # Check if this alias is part of a from-import
+        if hasattr(self.parent, 'source_data') and isinstance(self.parent.source_data, ast.ImportFrom):
+            module = self.parent.source_data.module
+            if module:
+                return f"{module}.{self.source_data.name}"
             else:
-                # import name
-                return self.imported_name
+                # Relative import
+                return self.source_data.name
         else:
-            return self.imported_name
-    
-    def list_all(self) -> dict:
-        """Get comprehensive alias information."""
-        return {
-            'name': self.name,
-            'imported_name': self.imported_name,
-            'alias_name': self.alias_name,
-            'full_name': self.full_name,
-            'line_number': self.line_number
-        }
+            # Direct import
+            return self.source_data.name
