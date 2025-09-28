@@ -6,12 +6,9 @@ Creates AliasNode for each imported item.
 """
 
 import ast
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional
 from ..core import ContainerNode, BaseNode
-
-# Import types only for type checking (no runtime cost)
-if TYPE_CHECKING:
-    from .alias_node import AliasNode
+from .alias_node import AliasNode
 
 
 class ImportFromNode(ContainerNode):
@@ -22,7 +19,7 @@ class ImportFromNode(ContainerNode):
             raise TypeError("ImportFromNode requires ast.ImportFrom as source_data")
         
         # Initialize collections before parent init (which calls _create_children)
-        self._aliases: List['AliasNode'] = []
+        self._aliases: List[AliasNode] = []
         
         # Parent class handles initialization
         super().__init__(parent, source_data)
@@ -32,9 +29,8 @@ class ImportFromNode(ContainerNode):
         for alias_ast in self.source_data.names:
             self._create_alias(alias_ast)
     
-    def _create_alias(self, alias_ast: ast.alias) -> 'AliasNode':
+    def _create_alias(self, alias_ast: ast.alias) -> AliasNode:
         """Create and hook a new alias from AST node (internal use only)."""
-        from .alias_node import AliasNode
         alias_node = AliasNode(parent=self, source_data=alias_ast)
         self._aliases.append(alias_node)
         return alias_node

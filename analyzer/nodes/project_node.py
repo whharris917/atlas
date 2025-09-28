@@ -5,22 +5,20 @@ Root node representing the entire project with automatic child creation.
 Extremely focused implementation adhering to strict separation of concerns.
 """
 
-from typing import List, TYPE_CHECKING
+from typing import List
 from ..core import RootNode
-
-# Import types only for type checking (no runtime cost)
-if TYPE_CHECKING:
-    from . import PackageNode, ModuleNode
-    from ..reconnaissance.discovery import ProjectStructure
+from ..reconnaissance.discovery import ProjectStructure, DiscoveredPackage, DiscoveredModule
+from .package_node import PackageNode
+from .module_node import ModuleNode
 
 
 class ProjectNode(RootNode):
     """Root node representing the entire project."""
     
-    def __init__(self, source_data: 'ProjectStructure'):
+    def __init__(self, source_data: ProjectStructure):
         # Initialize collections before parent init (which calls _create_children)
-        self._packages: List['PackageNode'] = []
-        self._modules: List['ModuleNode'] = []
+        self._packages: List[PackageNode] = []
+        self._modules: List[ModuleNode] = []
         
         # Parent class handles name extraction and validation
         super().__init__(source_data)
@@ -34,7 +32,6 @@ class ProjectNode(RootNode):
     
     def _create_children(self):
         """Create child nodes from ProjectStructure."""
-        
         print(f"\n=== BUILDING PROJECT TREE ===")
         print(f"Project: {self.name}")
         
@@ -47,16 +44,14 @@ class ProjectNode(RootNode):
         for package_data in self.source_data.packages:
             self.create_package(package_data)
     
-    def create_package(self, package_data) -> 'PackageNode':
+    def create_package(self, package_data: DiscoveredPackage) -> PackageNode:
         """Create and hook a top-level package from DiscoveredPackage."""
-        from . import PackageNode
         package_node = PackageNode(parent=self, source_data=package_data)
         self._packages.append(package_node)
         return package_node
     
-    def create_module(self, module_data) -> 'ModuleNode':
+    def create_module(self, module_data: DiscoveredModule) -> ModuleNode:
         """Create and hook a top-level module from DiscoveredModule."""
-        from . import ModuleNode
         module_node = ModuleNode(parent=self, source_data=module_data)
         self._modules.append(module_node)
         return module_node

@@ -6,13 +6,10 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import Optional, List, Union, TYPE_CHECKING
+from typing import Optional, List
 from ..core import TreeNode, BaseNode
-
-# Import types only for type checking (no runtime cost)
-if TYPE_CHECKING:
-    from .type_node import TypeNode
-    from ..violations import MissingArgumentTypeHint
+from .type_node import TypeNode
+from ..violations import MissingArgumentTypeHint
 
 
 class ArgumentNode(TreeNode):
@@ -23,8 +20,8 @@ class ArgumentNode(TreeNode):
             raise TypeError("ArgumentNode requires ast.arg as source_data")
         
         # Initialize collections before parent init (which calls _create_children)
-        self._type: Optional['TypeNode'] = None
-        self._violations: List['MissingArgumentTypeHint'] = []
+        self._type: Optional[TypeNode] = None
+        self._violations: List[MissingArgumentTypeHint] = []
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
@@ -45,15 +42,13 @@ class ArgumentNode(TreeNode):
             # No type annotation - create MissingArgumentTypeHint violation
             self._create_missing_type_violation()
     
-    def _create_type_node(self, type_ast: ast.AST) -> 'TypeNode':
+    def _create_type_node(self, type_ast: ast.AST) -> TypeNode:
         """Create TypeNode child from type annotation AST."""
-        from .type_node import TypeNode
         self._type = TypeNode(parent=self, source_data=type_ast)
         return self._type
     
-    def _create_missing_type_violation(self) -> 'MissingArgumentTypeHint':
+    def _create_missing_type_violation(self) -> MissingArgumentTypeHint:
         """Create MissingArgumentTypeHint violation ornament."""
-        from ..violations import MissingArgumentTypeHint
         violation = MissingArgumentTypeHint(parent=self, argument_name=self.name)
         self._violations.append(violation)
         return violation

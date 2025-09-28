@@ -1,29 +1,27 @@
 """
 Function Node - Atlas Rewrite
 
-Node representing a Python function/method with automatic child creation.
+Node representing a function/method with automatic child creation.
 Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional
 from ..core import TreeNode, BaseNode
-
-# Import types only for type checking (no runtime cost)
-if TYPE_CHECKING:
-    from . import ArgumentNode, ReturnNode
+from .argument_node import ArgumentNode
+from .return_node import ReturnNode
 
 
 class FunctionNode(TreeNode):
-    """Node representing a Python function or method."""
+    """Node representing a function or method."""
     
     def __init__(self, parent: BaseNode, source_data: ast.FunctionDef):
-        if not isinstance(source_data, ast.FunctionDef):
-            raise TypeError("FunctionNode requires ast.FunctionDef as source_data")
+        if not isinstance(source_data, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            raise TypeError("FunctionNode requires ast.FunctionDef or ast.AsyncFunctionDef as source_data")
         
         # Initialize collections before parent init (which calls _create_children)
-        self._arguments: List['ArgumentNode'] = []
-        self._return: Optional['ReturnNode'] = None
+        self._arguments: List[ArgumentNode] = []
+        self._return: Optional[ReturnNode] = None
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
@@ -33,34 +31,24 @@ class FunctionNode(TreeNode):
         return self.source_data.name
     
     def _create_children(self):
-        """Create child nodes using FunctionReconnaissanceVisitor."""
-        
+        """Create argument and return nodes directly from function signature."""
         print(f"      Creating children in: {self.fqn}")
         
-        # Use specialized visitor for function-level discovery
-        from ..reconnaissance.visitors import FunctionReconnaissanceVisitor
-        visitor = FunctionReconnaissanceVisitor(self)
-        visitor.visit(self.source_data)
-    
-    def create_argument(self, arg_ast: ast.arg) -> 'ArgumentNode':
-        """
-        Create and hook a new argument from AST node.
+        # Create arguments directly from function signature
+        for arg in self.source_data.args.args:
+            self._create_argument(arg)
         
-        Public method because it's called by FunctionReconnaissanceVisitor
-        during automatic function discovery.
-        """
-        from . import ArgumentNode
+        # Create return node for return type analysis
+        self._create_return()
+    
+    def _create_argument(self, arg_ast: ast.arg) -> ArgumentNode:
+        """Create and hook a new argument from AST node (internal use only)."""
         arg_node = ArgumentNode(parent=self, source_data=arg_ast)
         self._arguments.append(arg_node)
+        print(f"        Found argument: {self.fqn}.{arg_ast.arg}")
         return arg_node
     
-    def create_return(self) -> 'ReturnNode':
-        """
-        Create and hook return node for type analysis.
-        
-        Public method because it's called by FunctionReconnaissanceVisitor
-        to automatically create ReturnNode during function discovery.
-        """
-        from .return_node import ReturnNode
+    def _create_return(self) -> ReturnNode:
+        """Create and hook return node for this function (internal use only)."""
         self._return = ReturnNode(parent=self, source_data=self.source_data)
         return self._return

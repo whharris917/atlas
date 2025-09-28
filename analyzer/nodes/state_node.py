@@ -6,12 +6,7 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import TYPE_CHECKING
 from ..core import TreeNode, BaseNode
-
-# Import types only for type checking (no runtime cost)
-if TYPE_CHECKING:
-    pass
 
 
 class StateNode(TreeNode):

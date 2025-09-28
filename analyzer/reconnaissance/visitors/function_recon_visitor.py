@@ -2,8 +2,8 @@
 Function Reconnaissance Visitor - Atlas Rewrite
 
 Specialized AST visitor for function-level entity discovery.
-Discovers: arguments, function signature analysis.
-Pure structural discovery - no type inference.
+Currently unused as arguments and returns are accessed directly from function signature.
+Kept as skeleton for potential future functionality (e.g., nested functions).
 """
 
 import ast
@@ -15,29 +15,16 @@ if TYPE_CHECKING:
     
 class FunctionReconnaissanceVisitor(ast.NodeVisitor):
     """
-    Discovers function-level entities: arguments, local variables (future), nested functions.
-    Focused on function signature and body discovery.
+    Skeleton visitor for function-level entity discovery.
+    
+    Currently not used - FunctionNode creates arguments and returns directly
+    from function signature via direct attribute access (node.args.args, node.returns).
+    
+    Reserved for potential future functionality such as:
+    - Discovering nested function definitions
+    - Analyzing function body for additional metadata
+    - Other complex function-internal reconnaissance
     """
     
     def __init__(self, function_node: 'FunctionNode'):
         self.function_node = function_node
-    
-    def visit_FunctionDef(self, node: ast.FunctionDef):
-        """Process the function definition - visit the arguments."""
-        # Visit the arguments of this function
-        self.visit(node.args)
-        # Don't visit the function body during reconnaissance
-    
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
-        """Process async function definition - visit the arguments."""
-        # Visit the arguments of this async function
-        self.visit(node.args)
-        # Don't visit the function body during reconnaissance
-    
-    def visit_arguments(self, node: ast.arguments):
-        """Create argument nodes from function signature."""
-        for arg in node.args:
-            self.function_node.create_argument(arg)
-            print(f"        Found argument: {self.function_node.fqn}.{arg.arg}")
-        # Don't visit argument internals
- 
