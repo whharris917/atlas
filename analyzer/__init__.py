@@ -15,7 +15,7 @@ from .core import BaseNode, RootNode, TreeNode, ContainerNode
 from .nodes import (
     ProjectNode, PackageNode, ModuleNode, ClassNode, FunctionNode,
     StateNode, StateContainerNode, ImportNode, ImportFromNode, 
-    AliasNode, ArgumentNode, ClassAttributeNode, InstanceAttributeNode,
+    AliasNode, ArgumentNode, BaseAttributeNode, ClassAttributeNode, InstanceAttributeNode,
     ReturnNode, TypeNode
 )
 
@@ -40,7 +40,7 @@ __all__ = [
     # Node types
     'ProjectNode', 'PackageNode', 'ModuleNode', 'ClassNode', 'FunctionNode',
     'StateNode', 'StateContainerNode', 'ImportNode', 'ImportFromNode',
-    'AliasNode', 'ArgumentNode', 'ClassAttributeNode', 'InstanceAttributeNode',
+    'AliasNode', 'ArgumentNode', 'BaseAttributeNode', 'ClassAttributeNode', 'InstanceAttributeNode',
     'ReturnNode', 'TypeNode',
     
     # Main builder

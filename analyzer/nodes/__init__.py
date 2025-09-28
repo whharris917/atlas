@@ -2,7 +2,7 @@
 Atlas Nodes Package
 
 Consolidated imports for all node types including enhanced attribute discovery.
-Updated with ClassAttributeNode and InstanceAttributeNode for comprehensive attribute analysis.
+Updated with BaseAttributeNode, ClassAttributeNode and InstanceAttributeNode for comprehensive attribute analysis.
 """
 
 # Core node types
@@ -12,6 +12,7 @@ from .module_node import ModuleNode
 from .class_node import ClassNode
 from .function_node import FunctionNode
 from .argument_node import ArgumentNode
+from .base_attribute_node import BaseAttributeNode
 from .class_attribute_node import ClassAttributeNode
 from .instance_attribute_node import InstanceAttributeNode
 from .state_node import StateNode
@@ -37,6 +38,7 @@ __all__ = [
     'ClassNode', 
     'FunctionNode', 
     'ArgumentNode',
+    'BaseAttributeNode',
     'ClassAttributeNode',
     'InstanceAttributeNode',
     'StateNode',
