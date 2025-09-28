@@ -30,10 +30,10 @@ class ImportFromNode(ContainerNode):
     def _create_children(self):
         """Create AliasNode for each imported name."""
         for alias_ast in self.source_data.names:
-            self.create_alias(alias_ast)
+            self._create_alias(alias_ast)
     
-    def create_alias(self, alias_ast: ast.alias) -> 'AliasNode':
-        """Create and hook a new alias from AST node."""
+    def _create_alias(self, alias_ast: ast.alias) -> 'AliasNode':
+        """Create and hook a new alias from AST node (internal use only)."""
         from .alias_node import AliasNode
         alias_node = AliasNode(parent=self, source_data=alias_ast)
         self._aliases.append(alias_node)
