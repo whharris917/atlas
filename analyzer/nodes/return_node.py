@@ -2,62 +2,11 @@
 Return Node - Atlas Rewrite
 
 Node representing a function's return position with type analysis.
-
-ARCHITECTURAL PRINCIPLE: Every Python function returns something.
-
-Python's fundamental semantics guarantee that ALL functions return a value:
-- Functions with explicit `return x` return that value
-- Functions with bare `return` return None
-- Functions with NO return statement implicitly return None
-
-This universal truth means every function has a "return position" that should
-be documented with a type hint. Atlas models this reality by creating a 
-ReturnNode for every function, making return positions first-class entities
-in the project tree.
-
-SEMANTIC vs AST REPRESENTATION:
-
-While Python's AST stores return type hints as an optional attribute 
-(ast.FunctionDef.returns), Atlas treats "the return position" as a mandatory
-first-class entity for three reasons:
-
-1. SEMANTIC REALITY: Every function returns something (explicit or implicit None)
-2. TYPE ANALYSIS COMPLETENESS: Every return should be documented with type hints
-3. API CONSISTENCY: Provides symmetric navigation with ArgumentNode
-
-Every function has exactly one ReturnNode, which creates either:
-- TypeNode child (when return type hint exists, including `-> None`)
-- MissingReturnTypeHint violation ornament (when type hint is missing)
-
-This design choice prioritizes semantic accuracy and completeness over strict
-AST node correspondence, treating Atlas as a semantic model rather than just
-an AST wrapper.
-
-EXAMPLES:
-
-    # Explicit return with type hint
-    def calculate(x: int) -> float:
-        return x * 1.5
-    # ReturnNode → TypeNode(type_string="float")
-    
-    # Explicit None for side effects
-    def log_message(msg: str) -> None:
-        print(msg)
-    # ReturnNode → TypeNode(type_string="None")
-    
-    # Implicit None return, missing type hint (VIOLATION)
-    def define_one():
-        x = 1
-    # ReturnNode → MissingReturnTypeHint violation
-    
-    # Meaningful None with Optional
-    def find_user(id: int) -> Optional[User]:
-        return user if found else None
-    # ReturnNode → TypeNode(type_string="Optional[User]")
+Every function has exactly one return position, even if implicitly returning None.
 """
 
 import ast
-from typing import Optional, List, Union
+from typing import Optional, List
 from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
 from ..violations import MissingReturnTypeHint
@@ -65,43 +14,16 @@ from ..violations import MissingReturnTypeHint
 
 class ReturnNode(TreeNode):
     """
-    Node representing a function's return position with type analysis.
+    Node representing a function's return position.
     
-    ReturnNode is a first-class semantic entity representing the universal
-    truth that every Python function returns something. Even functions with
-    no return statement implicitly return None, making the return position
-    a mandatory aspect of every function that should be documented with type
-    hints.
-    
-    This semantic abstraction provides consistency with ArgumentNode and
-    enables complete type analysis coverage across all function signatures.
-    Every function has exactly one ReturnNode, which always creates either
-    a TypeNode child or a MissingReturnTypeHint violation ornament.
-    
-    Note: ReturnNode's source_data is ast.FunctionDef because Python's AST
-    stores return type hints as an optional attribute (.returns) rather than
-    as a dedicated node. This is an intentional architectural decision where
-    Atlas creates semantic entities beyond raw AST structure to model the
-    reality that return positions always exist, even when type hints don't.
+    ReturnNode is a semantic abstraction representing the concept of a function's
+    return position, even though Python's AST doesn't provide a dedicated node
+    for this concept. Every function has exactly one return position.
     """
     
-    def __init__(self, parent: BaseNode, source_data: Union[ast.FunctionDef, ast.AsyncFunctionDef]):
-        """
-        Initialize ReturnNode for a function's return position.
-        
-        Args:
-            parent: The FunctionNode this return belongs to
-            source_data: The function definition containing return type info
-            
-        Note: source_data is the function definition itself because Python's
-        AST doesn't have a dedicated node type for return positions. The
-        return type hint (if present) is accessed via source_data.returns.
-        """
+    def __init__(self, parent: BaseNode, source_data: ast.FunctionDef):
         if not isinstance(source_data, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            raise TypeError(
-                "ReturnNode requires ast.FunctionDef or ast.AsyncFunctionDef as source_data. "
-                "This represents the function whose return position is being analyzed."
-            )
+            raise TypeError("ReturnNode requires ast.FunctionDef or ast.AsyncFunctionDef as source_data")
         
         # Initialize collections before parent init (which calls _create_children)
         self._type: Optional[TypeNode] = None
@@ -112,8 +34,9 @@ class ReturnNode(TreeNode):
     
     def _extract_name(self) -> str:
         """
-        ReturnNode always has name 'return' for consistency.
+        Extract semantic name for return position.
         
+        Returns "return" as the canonical name for function return positions.
         This provides symmetric FQN patterns:
         - module.function.arg_name (for arguments)
         - module.function.return (for return position)
@@ -174,6 +97,6 @@ class ReturnNode(TreeNode):
         Returns:
             The created violation ornament
         """
-        violation = MissingReturnTypeHint(parent=self, function_name=self.parent.name)
+        violation = MissingReturnTypeHint(self)
         self._violations.append(violation)
         return violation

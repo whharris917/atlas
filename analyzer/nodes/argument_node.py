@@ -49,6 +49,6 @@ class ArgumentNode(TreeNode):
     
     def _create_missing_type_violation(self) -> MissingArgumentTypeHint:
         """Create MissingArgumentTypeHint violation ornament."""
-        violation = MissingArgumentTypeHint(parent=self, argument_name=self.name)
+        violation = MissingArgumentTypeHint(self)
         self._violations.append(violation)
         return violation

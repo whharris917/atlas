@@ -25,8 +25,8 @@ from .builder import AtlasBuilder, build_complete_atlas, build_sample_project
 # Violation system
 from .violations import (
     CodeStandardViolation, MissingArgumentTypeHint, MissingReturnTypeHint,
-    MissingClassAttributeTypeHintViolation, MissingInstanceAttributeTypeHintViolation,
-    MultipleTargetAttributeAssignmentViolation
+    MissingClassAttributeTypeHint, MissingInstanceAttributeTypeHint,
+    MultipleTargetAttributeAssignment
 )
 
 # Navigation system
@@ -48,8 +48,8 @@ __all__ = [
     
     # Violations
     'CodeStandardViolation', 'MissingArgumentTypeHint', 'MissingReturnTypeHint',
-    'MissingClassAttributeTypeHintViolation', 'MissingInstanceAttributeTypeHintViolation',
-    'MultipleTargetAttributeAssignmentViolation',
+    'MissingClassAttributeTypeHint', 'MissingInstanceAttributeTypeHint',
+    'MultipleTargetAttributeAssignment',
     
     # Navigation
     'NavigationMixin', 'TraversalScope', 'NavigationQuery'

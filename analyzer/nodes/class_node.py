@@ -10,6 +10,7 @@ from typing import List, Union, TYPE_CHECKING
 from ..core import TreeNode, BaseNode
 from ..reconnaissance.visitors import ClassReconnaissanceVisitor
 from .function_node import FunctionNode
+from ..violations import MultipleTargetAttributeAssignment
 
 if TYPE_CHECKING:
     from .class_attribute_node import ClassAttributeNode
@@ -93,7 +94,7 @@ class ClassNode(TreeNode):
     
     def create_multiple_target_attribute_violation(self, target_names: List[str], assignment_context: str):
         """
-        Create MultipleTargetAttributeAssignmentViolation ornament.
+        Create MultipleTargetAttributeAssignment violation ornament.
         
         Called by ClassReconnaissanceVisitor when encountering attribute
         assignments with multiple targets that cannot be properly represented
@@ -104,14 +105,7 @@ class ClassNode(TreeNode):
             assignment_context: Context description ("class-level" or "instance-level")
         
         Returns:
-            The created MultipleTargetAttributeAssignmentViolation
+            The created MultipleTargetAttributeAssignment
         """
-        # Import here to avoid circular imports
-        from ..violations import MultipleTargetAttributeAssignmentViolation
-        
-        violation = MultipleTargetAttributeAssignmentViolation(
-            parent=self,
-            target_names=target_names,
-            assignment_context=assignment_context
-        )
+        violation = MultipleTargetAttributeAssignment(self)
         return violation

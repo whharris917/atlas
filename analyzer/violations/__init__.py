@@ -1,24 +1,75 @@
 """
-Atlas Code Standard Violations Package
+Atlas Code Standard Violations - Minimalist Ornament System
 
-Diagnostic ornaments that hang off the project tree but are not part of its structure.
-These classes represent quality issues discovered during analysis phases.
-UPDATED: Includes new attribute type hint violations and multi-target assignment violation.
+Violations are simple ornaments that hang off nodes as labels.
+They require only a parent - everything else can be derived.
+
+This single module replaces all the separate violation modules with
+extremely simple subclasses that contain no redundant data.
 """
 
-from .base import CodeStandardViolation
-from .missing_argument_type_hint import MissingArgumentTypeHint
-from .missing_return_type_hint import MissingReturnTypeHint
-from .missing_class_attribute_type_hint import MissingClassAttributeTypeHintViolation
-from .missing_instance_attribute_type_hint import MissingInstanceAttributeTypeHintViolation
-from .multiple_target_attribute_assignment import MultipleTargetAttributeAssignmentViolation
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..core import BaseNode
+
+
+class CodeStandardViolation:
+    """
+    Base class for code standard violations.
+    
+    Violations are just ornaments - labels that hang off nodes.
+    They contain only a parent reference, nothing else.
+    """
+    
+    def __init__(self, parent: 'BaseNode'):
+        """
+        Create a violation ornament.
+        
+        Args:
+            parent: The node this violation is attached to
+        """
+        if not parent:
+            raise ValueError("CodeStandardViolation requires parent node")
+        
+        self.parent = parent
+    
+    def __repr__(self) -> str:
+        """Simple string representation for debugging."""
+        return f"{self.__class__.__name__}({self.parent.__class__.__name__})"
+
+
+class MissingArgumentTypeHint(CodeStandardViolation):
+    """Violation indicating a missing type hint on a function argument."""
+    pass
+
+
+class MissingReturnTypeHint(CodeStandardViolation):
+    """Violation indicating a missing return type hint on a function."""
+    pass
+
+
+class MissingClassAttributeTypeHint(CodeStandardViolation):
+    """Violation indicating a missing type hint on a class attribute."""
+    pass
+
+
+class MissingInstanceAttributeTypeHint(CodeStandardViolation):
+    """Violation indicating a missing type hint on an instance attribute."""
+    pass
+
+
+class MultipleTargetAttributeAssignment(CodeStandardViolation):
+    """Violation indicating an assignment with multiple targets (e.g., x = y = value)."""
+    pass
+
 
 # Public API exports
 __all__ = [
     'CodeStandardViolation',
     'MissingArgumentTypeHint',
     'MissingReturnTypeHint',
-    'MissingClassAttributeTypeHintViolation',
-    'MissingInstanceAttributeTypeHintViolation',
-    'MultipleTargetAttributeAssignmentViolation'
+    'MissingClassAttributeTypeHint', 
+    'MissingInstanceAttributeTypeHint',
+    'MultipleTargetAttributeAssignment'
 ]

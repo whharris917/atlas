@@ -2,22 +2,29 @@
 Instance Attribute Node - Atlas Rewrite
 
 Node representing an instance attribute with type analysis.
-Handles both annotated and unannotated instance attributes defined in __init__ method.
+Handles both annotated (self.attr: Type = value) and unannotated (self.attr = value) attributes.
 """
 
 import ast
-from typing import Union, Optional, TYPE_CHECKING
-from ..core import TreeNode
+from typing import Union, Optional, List
+from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
-
-if TYPE_CHECKING:
-    from .class_node import ClassNode
+from ..violations import MissingInstanceAttributeTypeHint
 
 
 class InstanceAttributeNode(TreeNode):
-    """Node representing an instance attribute."""
+    """
+    Node representing an instance attribute.
     
-    def __init__(self, parent: 'ClassNode', source_data: Union[ast.AnnAssign, ast.Assign]):
+    Instance attributes are defined in __init__ methods and are unique
+    to each instance. They can be either annotated or unannotated.
+    
+    Examples:
+    - self.name: str = name          # Annotated instance attribute
+    - self.items = []                # Unannotated instance attribute
+    """
+    
+    def __init__(self, parent: BaseNode, source_data: Union[ast.AnnAssign, ast.Assign]):
         if not isinstance(source_data, (ast.AnnAssign, ast.Assign)):
             raise TypeError("InstanceAttributeNode requires ast.AnnAssign or ast.Assign as source_data")
         
@@ -37,27 +44,30 @@ class InstanceAttributeNode(TreeNode):
         
         # Initialize collections before parent init (which calls _create_children)
         self._type: Optional[TypeNode] = None
-        self._violations: list = []
+        self._violations: List[MissingInstanceAttributeTypeHint] = []
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
     
     def _extract_name(self) -> str:
-        """Extract attribute name from AST node."""
+        """Extract attribute name from assignment AST node."""
         if isinstance(self.source_data, ast.AnnAssign):
+            # Annotated assignment: self.attr: Type = value
             return self.source_data.target.attr
         else:  # ast.Assign
+            # Regular assignment: self.attr = value
+            # ClassReconnaissanceVisitor ensures single target
             return self.source_data.targets[0].attr
     
     def _create_children(self):
         """
-        Create TypeNode child from annotation or violation for missing type hint.
+        Final step of Reconnaissance Phase: analyze type information.
         
         Every InstanceAttributeNode creates exactly one child, enforcing complete type
         analysis coverage:
         
         - TypeNode: when instance attribute has type annotation
-        - MissingInstanceAttributeTypeHintViolation: when type hint is missing
+        - MissingInstanceAttributeTypeHint: when type hint is missing
         
         This ensures Atlas identifies ALL instance attributes requiring type documentation.
         """
@@ -93,7 +103,7 @@ class InstanceAttributeNode(TreeNode):
     
     def _create_missing_type_hint_violation(self):
         """
-        Create MissingInstanceAttributeTypeHintViolation ornament.
+        Create MissingInstanceAttributeTypeHint violation ornament.
         
         Private method - only called internally when no type hint exists.
         Best practice requires explicit type annotations for all instance attributes.
@@ -101,13 +111,6 @@ class InstanceAttributeNode(TreeNode):
         Violation ornaments hang off the tree but aren't considered part
         of the structural tree hierarchy (reserved for BaseNode subclasses).
         """
-        # Import here to avoid circular imports
-        from ..violations import MissingInstanceAttributeTypeHintViolation
-        
-        violation = MissingInstanceAttributeTypeHintViolation(
-            parent=self, 
-            attribute_name=self.name,
-            class_name=self.parent.name
-        )
+        violation = MissingInstanceAttributeTypeHint(self)
         self._violations.append(violation)
         return violation
