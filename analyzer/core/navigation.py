@@ -11,7 +11,7 @@ FIXED: Properly lifted and shifted from original working implementation.
 """
 
 import ast
-from typing import Optional, List, Union, TYPE_CHECKING, Any, Dict, Callable
+from typing import Optional, List, Union, TYPE_CHECKING, Any, Callable
 from enum import Enum
 
 if TYPE_CHECKING:

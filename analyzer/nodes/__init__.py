@@ -1,8 +1,8 @@
 """
 Atlas Nodes Package
 
-Consolidated imports for all node types including new type analysis classes.
-Maintains backward compatibility while adding type analysis capabilities.
+Consolidated imports for all node types including enhanced attribute discovery.
+Updated with ClassAttributeNode and InstanceAttributeNode for comprehensive attribute analysis.
 """
 
 # Core node types
@@ -12,7 +12,8 @@ from .module_node import ModuleNode
 from .class_node import ClassNode
 from .function_node import FunctionNode
 from .argument_node import ArgumentNode
-from .attribute_node import AttributeNode
+from .class_attribute_node import ClassAttributeNode
+from .instance_attribute_node import InstanceAttributeNode
 from .state_node import StateNode
 from .return_node import ReturnNode
 
@@ -24,10 +25,8 @@ from .import_from_node import ImportFromNode
 # Container nodes  
 from .state_container_node import StateContainerNode
 
-# Type analysis nodes (NEW)
+# Type analysis nodes
 from .type_node import TypeNode
-
-# Note: CodeStandardViolation classes moved to ../violations package
 
 # Public API exports
 __all__ = [
@@ -38,7 +37,8 @@ __all__ = [
     'ClassNode', 
     'FunctionNode', 
     'ArgumentNode',
-    'AttributeNode',
+    'ClassAttributeNode',
+    'InstanceAttributeNode',
     'StateNode',
     'ReturnNode',
     
@@ -50,8 +50,6 @@ __all__ = [
     # Container nodes
     'StateContainerNode',
     
-    # Type analysis (NEW)
+    # Type analysis
     'TypeNode'
-    
-    # Note: CodeStandardViolation classes are in ../violations package
 ]

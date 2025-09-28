@@ -27,17 +27,15 @@ Type Safety:
 """
 
 import ast
-from typing import Union, TYPE_CHECKING
+from typing import Union
 
 from .navigation import NavigationMixin
-
-if TYPE_CHECKING:
-    from ..reconnaissance.discovery import ProjectStructure, DiscoveredModule, DiscoveredPackage
+from ..reconnaissance.discovery import ProjectStructure, DiscoveredModule, DiscoveredPackage
 
 class BaseNode(NavigationMixin):
     """Foundation for all Atlas nodes with shared functionality and enhanced navigation."""
     
-    def __init__(self, source_data: Union[ast.AST, 'ProjectStructure', 'DiscoveredModule', 'DiscoveredPackage']):
+    def __init__(self, source_data: Union[ast.AST, ProjectStructure, DiscoveredModule, DiscoveredPackage]):
         """
         Initialize BaseNode with source data for child creation.
         
@@ -53,9 +51,6 @@ class BaseNode(NavigationMixin):
             raise ValueError("BaseNode requires valid source_data (cannot be None)")
         
         # Validate source_data is one of the allowed types
-        # Import here to avoid circular imports while still getting proper type checking
-        from ..reconnaissance.discovery import ProjectStructure, DiscoveredModule, DiscoveredPackage
-        
         if not isinstance(source_data, (ast.AST, ProjectStructure, DiscoveredModule, DiscoveredPackage)):
             raise TypeError(
                 f"BaseNode source_data must be ast.AST, ProjectStructure, DiscoveredModule, "
@@ -164,7 +159,7 @@ class RootNode(BaseNode):
     relationships. They still require source material for child creation.
     """
     
-    def __init__(self, source_data: 'ProjectStructure'):
+    def __init__(self, source_data: ProjectStructure):
         """
         Initialize a root node with comprehensive validation.
         
@@ -175,10 +170,7 @@ class RootNode(BaseNode):
             ValueError: If extracted name is invalid
             TypeError: If source_data is not ProjectStructure
         """
-        # Validate source_data is ProjectStructure
-        # Import here to avoid circular imports while still getting proper type checking
-        from ..reconnaissance.discovery import ProjectStructure
-        
+        # Validate source_data is ProjectStructure        
         if not isinstance(source_data, ProjectStructure):
             raise TypeError(f"RootNode source_data must be ProjectStructure, got {type(source_data)}")
             
@@ -224,7 +216,7 @@ class TreeNode(BaseNode):
     and source material for child creation.
     """
     
-    def __init__(self, parent: 'BaseNode', source_data: Union[ast.AST, 'DiscoveredModule', 'DiscoveredPackage']):
+    def __init__(self, parent: BaseNode, source_data: Union[ast.AST, DiscoveredModule, DiscoveredPackage]):
         """
         Initialize a tree node with comprehensive validation.
         
@@ -243,10 +235,7 @@ class TreeNode(BaseNode):
             raise ValueError("TreeNode requires valid parent (cannot be None)")
         if not isinstance(parent, BaseNode):
             raise TypeError(f"TreeNode parent must be BaseNode instance, got {type(parent)}")
-        
-        # Import here to avoid circular imports while still getting proper type checking
-        from ..reconnaissance.discovery import DiscoveredModule, DiscoveredPackage
-        
+                
         # Validate source_data is appropriate for TreeNode
         if not isinstance(source_data, (ast.AST, DiscoveredModule, DiscoveredPackage)):
             raise TypeError(
@@ -329,7 +318,7 @@ class ContainerNode(BaseNode):
     entities. They require a valid parent and source AST node for processing.
     """
     
-    def __init__(self, parent: 'BaseNode', source_data: ast.AST):
+    def __init__(self, parent: BaseNode, source_data: ast.AST):
         """
         Initialize a container node with validation.
         
