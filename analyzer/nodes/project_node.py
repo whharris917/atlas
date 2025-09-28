@@ -10,6 +10,7 @@ from ..core import RootNode
 from ..reconnaissance.discovery import ProjectStructure, DiscoveredPackage, DiscoveredModule
 from .package_node import PackageNode
 from .module_node import ModuleNode
+from ..visualization import TreeVisualizer
 
 
 class ProjectNode(RootNode):
@@ -55,3 +56,13 @@ class ProjectNode(RootNode):
         module_node = ModuleNode(parent=self, source_data=module_data)
         self._modules.append(module_node)
         return module_node
+    
+    def print(self) -> None:
+        """Print hierarchical tree representation to terminal."""
+        visualizer = TreeVisualizer()
+        visualizer.print(self)
+
+    def view(self) -> str:
+        """Get hierarchical tree representation as string."""
+        visualizer = TreeVisualizer()
+        return visualizer.view(self)

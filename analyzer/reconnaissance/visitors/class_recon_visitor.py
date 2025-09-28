@@ -80,11 +80,39 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
             print(f"        Created violation for multi-target class assignment: {', '.join(target_names)}")
     
     def visit_ClassDef(self, node: ast.ClassDef):
-        """Create nested class node if needed."""
-        # For now, skip nested classes as requested
-        # Could be enabled later: self.class_node.create_nested_class(node)
-        pass
-    
+        """
+        Handle ClassDef nodes - traverse body for the main class, skip nested classes.
+        
+        This method is called in two scenarios:
+        1. Initially with the main class (self.class_node.source_data) from ClassNode._create_children()
+        2. During traversal when encountering nested classes within the main class body
+        
+        We use identity comparison (is not) to distinguish between these cases because:
+        - The main class is the specific AST node we were initialized to analyze
+        - Nested classes are different AST node objects encountered during traversal
+        
+        Design Decision: Skip nested classes for now to keep reconnaissance phase focused.
+        Complex nested class relationships are better handled in the analysis phase.
+        """
+        if node is not self.class_node.source_data:
+            return  # Skip nested classes - do not traverse their contents
+        
+        # This is the main class we were initialized to analyze
+        # Use standard AST traversal to find all direct children:
+        # - ast.FunctionDef nodes -> triggers visit_FunctionDef() for method discovery
+        # - ast.AnnAssign nodes -> triggers visit_AnnAssign() for class attributes  
+        # - ast.Assign nodes -> triggers visit_Assign() for class attributes
+        # - ast.ClassDef nodes -> triggers visit_ClassDef() again (will be skipped above)
+        self.generic_visit(node)
+        
+        # Future Enhancement: To enable nested class support, add logic here:
+        # if ENABLE_NESTED_CLASSES and node is not self.class_node.source_data:
+        #     # Create nested class node and recursively analyze it
+        #     nested_class_node = self.class_node.create_nested_class(node)
+        #     nested_visitor = ClassReconnaissanceVisitor(nested_class_node)
+        #     nested_visitor.visit(node)
+        #     return
+
     def _analyze_init_for_instance_attributes(self, init_node: ast.FunctionDef):
         """
         Extract instance attributes from __init__ method body.
@@ -156,8 +184,3 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
             else:
                 names.append(f"<complex:{ast.unparse(target)}>")
         return names
-    
-    def generic_visit(self, node: ast.AST):
-        """Visit class body directly - no control flow filtering needed at class level."""
-        # Class bodies are simpler - just visit direct children
-        super().generic_visit(node)

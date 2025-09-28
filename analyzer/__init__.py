@@ -6,6 +6,8 @@ tree-based reconnaissance, advanced navigation, and precise type analysis.
 
 Enhanced with comprehensive attribute discovery for both class-level
 and instance attributes with violation detection.
+
+NEW: Simple tree visualization via ProjectNode.print() and ProjectNode.view().
 """
 
 # Core base classes
@@ -32,6 +34,9 @@ from .violations import (
 # Navigation system
 from .core.navigation import NavigationMixin, TraversalScope, NavigationQuery
 
+# Visualization system (simple access via ProjectNode.print())
+from .visualization import TreeVisualizer
+
 # Public API exports
 __all__ = [
     # Core classes
@@ -52,5 +57,8 @@ __all__ = [
     'MultipleTargetAttributeAssignment',
     
     # Navigation
-    'NavigationMixin', 'TraversalScope', 'NavigationQuery'
+    'NavigationMixin', 'TraversalScope', 'NavigationQuery',
+    
+    # Visualization
+    'TreeVisualizer'
 ]
