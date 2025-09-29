@@ -2,7 +2,7 @@
 Project Node - Atlas Rewrite
 
 Root node representing the entire project with automatic child creation.
-Extremely focused implementation adhering to strict separation of concerns.
+Now includes serialization capability via mixin.
 """
 
 from typing import List
@@ -10,11 +10,16 @@ from ..core import RootNode
 from ..reconnaissance.discovery import ProjectStructure, DiscoveredPackage, DiscoveredModule
 from .package_node import PackageNode
 from .module_node import ModuleNode
-from ..visualization import TreeVisualizer
+from ..visualization import TreeVisualizer, SerializationMixin
 
 
-class ProjectNode(RootNode):
-    """Root node representing the entire project."""
+class ProjectNode(SerializationMixin, RootNode):
+    """
+    Root node representing the entire project.
+    
+    Inherits from SerializationMixin to provide .dump() capability
+    for complete JSON serialization of the project tree.
+    """
     
     def __init__(self, source_data: ProjectStructure):
         # Initialize collections before parent init (which calls _create_children)
@@ -57,6 +62,8 @@ class ProjectNode(RootNode):
         self._modules.append(module_node)
         return module_node
     
+    # ========== Visualization Methods ==========
+    
     def print(self) -> None:
         """Print hierarchical tree representation to terminal."""
         visualizer = TreeVisualizer()
@@ -66,3 +73,5 @@ class ProjectNode(RootNode):
         """Get hierarchical tree representation as string."""
         visualizer = TreeVisualizer()
         return visualizer.view(self)
+    
+    # dump() method is provided by SerializationMixin
