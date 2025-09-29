@@ -48,9 +48,6 @@ class ProjectDiscovery:
         if not scan_path.exists():
             raise FileNotFoundError(f"Directory {scan_path} not found")
         
-        print(f"=== DISCOVERING PROJECT STRUCTURE ===")
-        print(f"Scanning: {scan_path}")
-        
         # Discover all Python files and packages
         direct_modules, packages = self._scan_directory(scan_path)
         
@@ -61,13 +58,10 @@ class ProjectDiscovery:
             packages=packages
         )
         
-        print(f"Discovery complete: {len(direct_modules)} direct modules, {len(packages)} packages")
         return structure
     
     def _scan_directory(self, dir_path: Path) -> Tuple[List[DiscoveredModule], List[DiscoveredPackage]]:
         """Recursively scan directory and discover Python modules and packages."""
-        print(f"  Scanning directory: {dir_path}")
-        
         # Categorize directory contents
         python_files = []
         subdirectories = []
@@ -101,14 +95,12 @@ class ProjectDiscovery:
         """Discover a single package and its contents."""
         init_file = package_dir / "__init__.py"
         if not init_file.exists():
-            print(f"    Skipping {package_dir.name} (not a Python package)")
             return None
         
         package_name = package_dir.name
         
         # Parse __init__.py
         ast_node = self._parse_file(init_file)
-        print(f"    Found package: {package_name}")
         
         # Recursively discover package contents
         modules, nested_packages = self._scan_directory(package_dir)
@@ -125,8 +117,6 @@ class ProjectDiscovery:
         module_name = py_file.stem
         
         ast_node = self._parse_file(py_file)
-        if ast_node:
-            print(f"    Found module: {module_name}")
         
         return DiscoveredModule(
             name=module_name,
@@ -138,8 +128,7 @@ class ProjectDiscovery:
         try:
             source_code = file_path.read_text(encoding='utf-8')
             return ast.parse(source_code)
-        except Exception as e:
-            print(f"    Warning: Could not parse {file_path}: {e}")
+        except Exception:
             return None
 
 

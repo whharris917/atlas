@@ -38,9 +38,6 @@ class ProjectNode(SerializationMixin, RootNode):
     
     def _create_children(self):
         """Create child nodes from ProjectStructure."""
-        print(f"\n=== BUILDING PROJECT TREE ===")
-        print(f"Project: {self.name}")
-        
         # Create direct modules from ProjectStructure
         for module_data in self.source_data.direct_modules:
             if module_data.ast_node:

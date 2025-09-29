@@ -31,8 +31,6 @@ class PackageNode(TreeNode):
     
     def _create_children(self):
         """Create child nodes from DiscoveredPackage."""
-        print(f"  Creating children in package: {self.fqn}")
-        
         # Create nested packages
         for nested_package in self.source_data.nested_packages:
             self.create_package(nested_package)

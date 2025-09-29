@@ -32,8 +32,6 @@ class FunctionNode(TreeNode):
     
     def _create_children(self):
         """Create argument and return nodes directly from function signature."""
-        print(f"      Creating children in: {self.fqn}")
-        
         # Create arguments directly from function signature
         for arg in self.source_data.args.args:
             self._create_argument(arg)
@@ -45,7 +43,6 @@ class FunctionNode(TreeNode):
         """Create and hook a new argument from AST node (internal use only)."""
         arg_node = ArgumentNode(parent=self, source_data=arg_ast)
         self._arguments.append(arg_node)
-        print(f"        Found argument: {self.fqn}.{arg_ast.arg}")
         return arg_node
     
     def _create_return(self) -> ReturnNode:

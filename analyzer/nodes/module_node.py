@@ -42,8 +42,6 @@ class ModuleNode(TreeNode):
     
     def _create_children(self):
         """Create child nodes using ModuleReconnaissanceVisitor."""
-        print(f"  Creating children in: {self.fqn}")
-        
         # Use specialized visitor for module-level discovery
         visitor = ModuleReconnaissanceVisitor(self)
         # Visit the ast_node from the DiscoveredModule

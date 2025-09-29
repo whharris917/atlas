@@ -6,7 +6,7 @@ Discovers: methods, class-level attributes, and instance attributes from __init_
 """
 
 import ast
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...nodes import ClassNode
@@ -24,7 +24,6 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """Create method node and analyze __init__ for instance attributes."""
         self.class_node.create_method(node)
-        print(f"      Found method: {self.class_node.fqn}.{node.name}")
         
         # Special handling for __init__ method to discover instance attributes
         if node.name == "__init__":
@@ -35,7 +34,6 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         """Create async method node and analyze async __init__ if applicable."""
         self.class_node.create_method(node)
-        print(f"      Found async method: {self.class_node.fqn}.{node.name}")
         
         # Special handling for async __init__ method (rare but possible)
         if node.name == "__init__":
@@ -48,10 +46,9 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
         if isinstance(node.target, ast.Name):
             # Simple class attribute: attr: Type = value
             self.class_node.create_class_attribute(node)
-            print(f"        Found class attribute: {self.class_node.fqn}.{node.target.id}")
         else:
             # Complex target pattern - not a simple class attribute
-            print(f"        Skipping complex annotated assignment target: {ast.unparse(node.target)}")
+            pass
     
     def visit_Assign(self, node: ast.Assign):
         """Create class-level unannotated attribute or violation for multi-target."""
@@ -60,10 +57,9 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
             if isinstance(target, ast.Name):
                 # Simple class attribute: attr = value
                 self.class_node.create_class_attribute(node)
-                print(f"        Found class attribute: {self.class_node.fqn}.{target.id}")
             else:
                 # Complex target pattern - not a simple class attribute
-                print(f"        Skipping complex assignment target: {ast.unparse(target)}")
+                pass
         else:
             # Multi-target assignment: x = y = z = value
             target_names = []
@@ -77,7 +73,6 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
                 target_names=target_names,
                 assignment_context="class-level"
             )
-            print(f"        Created violation for multi-target class assignment: {', '.join(target_names)}")
     
     def visit_ClassDef(self, node: ast.ClassDef):
         """
@@ -120,8 +115,6 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
         Analyzes direct statements in __init__ body for self.attr assignments.
         Ignores nested control flow to keep reconnaissance phase focused.
         """
-        print(f"        Analyzing __init__ for instance attributes...")
-        
         for stmt in init_node.body:
             self._analyze_init_statement(stmt)
     
@@ -140,8 +133,6 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
             if self._is_self_attribute_target(target):
                 # Instance attribute: self.attr = value
                 self.class_node.create_instance_attribute(node)
-                attr_name = target.attr
-                print(f"          Found instance attribute: {self.class_node.fqn}.{attr_name}")
             # Ignore non-self assignments (local variables, other object attributes)
         else:
             # Multi-target assignment in __init__
@@ -156,15 +147,12 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
                     target_names=self_targets,
                     assignment_context="instance-level"
                 )
-                print(f"          Created violation for multi-target instance assignment: {', '.join(self_targets)}")
     
     def _handle_init_ann_assign(self, node: ast.AnnAssign):
         """Handle ast.AnnAssign in __init__ method for annotated instance attributes."""
         if self._is_self_attribute_target(node.target):
             # Annotated instance attribute: self.attr: Type = value
             self.class_node.create_instance_attribute(node)
-            attr_name = node.target.attr
-            print(f"          Found annotated instance attribute: {self.class_node.fqn}.{attr_name}")
         # Ignore non-self annotated assignments
     
     def _is_self_attribute_target(self, target: ast.AST) -> bool:
@@ -172,15 +160,3 @@ class ClassReconnaissanceVisitor(ast.NodeVisitor):
         return (isinstance(target, ast.Attribute) and 
                 isinstance(target.value, ast.Name) and 
                 target.value.id == "self")
-    
-    def _extract_target_names(self, targets: List[ast.AST]) -> List[str]:
-        """Extract names from assignment targets for violation reporting."""
-        names = []
-        for target in targets:
-            if isinstance(target, ast.Name):
-                names.append(target.id)
-            elif isinstance(target, ast.Attribute) and self._is_self_attribute_target(target):
-                names.append(target.attr)
-            else:
-                names.append(f"<complex:{ast.unparse(target)}>")
-        return names

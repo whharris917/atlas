@@ -21,9 +21,6 @@ class AtlasBuilder:
     
     def build_complete_atlas(self, target_dir: str = "sample_files") -> ProjectNode:
         """Build complete Atlas code map through all phases."""
-        print(f"=== ATLAS STATIC ANALYSIS PIPELINE ===")
-        print(f"Target: {target_dir}")
-        
         # Phase 1: Reconnaissance (structural discovery)
         project = self._execute_reconnaissance_phase(target_dir)
         
@@ -33,22 +30,12 @@ class AtlasBuilder:
         # Phase 3: Atlas Code Map Generation - Future implementation
         # atlas_map = self._generate_atlas_code_map(project)
         
-        print(f"\n=== ATLAS ANALYSIS COMPLETE ===")
         return project
     
     def _execute_reconnaissance_phase(self, target_dir: str) -> ProjectNode:
         """Execute the Reconnaissance Phase (structural discovery)."""
-        print(f"\n--- RECONNAISSANCE PHASE ---")
-        
-        # Phase 1: File I/O and Discovery
-        print(f"Phase 1: Project Structure Discovery")
         structure = discover_project_structure(target_dir)
-        
-        # Phase 2: Create ProjectNode (which creates entire tree automatically)
-        print(f"Phase 2: Tree Construction with Entity Discovery")
         project = ProjectNode(structure)  # Pure self-extraction
-        
-        print(f"RECONNAISSANCE PHASE COMPLETE")
         return project
 
 

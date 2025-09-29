@@ -38,8 +38,6 @@ class ClassNode(TreeNode):
     
     def _create_children(self):
         """Create child nodes using ClassReconnaissanceVisitor."""
-        print(f"    Creating children in: {self.fqn}")
-        
         # Use specialized visitor for class-level discovery
         visitor = ClassReconnaissanceVisitor(self)
         visitor.visit(self.source_data)
