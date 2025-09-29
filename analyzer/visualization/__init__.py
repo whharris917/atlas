@@ -8,7 +8,6 @@ Provides multiple visualization options for Atlas project trees:
 """
 
 from .visualizer import TreeVisualizer
-from .html_visualizer import HTMLVisualizer
 from .serialization import SerializationMixin
 
-__all__ = ['TreeVisualizer', 'HTMLVisualizer', 'SerializationMixin']
+__all__ = ['TreeVisualizer', 'SerializationMixin']

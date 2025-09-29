@@ -17,8 +17,8 @@ from enum import Enum
 if TYPE_CHECKING:
     from ..nodes import (
         PackageNode, ModuleNode, ClassNode, FunctionNode, StateNode, 
-        AliasNode, ArgumentNode, AttributeNode, StateContainerNode,
-        ImportNode, ImportFromNode, ReturnNode
+        AliasNode, ArgumentNode, ClassAttributeNode, InstanceAttributeNode, 
+        StateContainerNode, ImportNode, ImportFromNode, ReturnNode
     )
 
 class TraversalScope(Enum):
@@ -192,9 +192,14 @@ class NavigationMixin:
         query = NavigationQuery('state', TraversalScope.DIRECT)
         return self._execute_navigation_query(query)
     
-    def list_child_attributes(self) -> List['AttributeNode']:
-        """Get only immediate child attributes (explicit direct scope)."""
-        query = NavigationQuery('attributes', TraversalScope.DIRECT)
+    def list_child_class_attributes(self) -> List['ClassAttributeNode']:
+        """Get only immediate child class attributes (explicit direct scope)."""
+        query = NavigationQuery('class_attributes', TraversalScope.DIRECT)
+        return self._execute_navigation_query(query)
+    
+    def list_child_instance_attributes(self) -> List['InstanceAttributeNode']:
+        """Get only immediate child instance attributes (explicit direct scope)."""
+        query = NavigationQuery('instance_attributes', TraversalScope.DIRECT)
         return self._execute_navigation_query(query)
     
     def list_child_arguments(self) -> List['ArgumentNode']:
@@ -256,9 +261,14 @@ class NavigationMixin:
         query = NavigationQuery('state', TraversalScope.CASCADE)
         return self._execute_navigation_query(query)
     
-    def list_all_attributes(self) -> List['AttributeNode']:
-        """Get all attributes in subtree (explicit recursive scope)."""
-        query = NavigationQuery('attributes', TraversalScope.CASCADE)
+    def list_all_class_attributes(self) -> List['ClassAttributeNode']:
+        """Get all class attributes in subtree (explicit recursive scope)."""
+        query = NavigationQuery('class_attributes', TraversalScope.CASCADE)
+        return self._execute_navigation_query(query)
+    
+    def list_all_instance_attributes(self) -> List['InstanceAttributeNode']:
+        """Get all instance attributes in subtree (explicit recursive scope)."""
+        query = NavigationQuery('instance_attributes', TraversalScope.CASCADE)
         return self._execute_navigation_query(query)
     
     def list_all_arguments(self) -> List['ArgumentNode']:
@@ -320,9 +330,14 @@ class NavigationMixin:
         query = NavigationQuery('state', TraversalScope.CONTEXT)
         return self._execute_navigation_query(query)
     
-    def list_attributes(self) -> List['AttributeNode']:
-        """Get attributes using context-sensitive scope (entity = cascade)."""
-        query = NavigationQuery('attributes', TraversalScope.CONTEXT)
+    def list_class_attributes(self) -> List['ClassAttributeNode']:
+        """Get class-level attributes using context-sensitive scope (entity = cascade)."""
+        query = NavigationQuery('class_attributes', TraversalScope.CONTEXT)
+        return self._execute_navigation_query(query)
+    
+    def list_instance_attributes(self) -> List['InstanceAttributeNode']:
+        """Get instance attributes using context-sensitive scope (entity = cascade)."""
+        query = NavigationQuery('instance_attributes', TraversalScope.CONTEXT)
         return self._execute_navigation_query(query)
     
     def list_arguments(self) -> List['ArgumentNode']:
@@ -351,70 +366,91 @@ class NavigationMixin:
         return self._execute_navigation_query(query)
     
     # ===============================================
-    # NAVIGATION LOOKUP METHODS - FROM ORIGINAL BASE.PY
+    # NAVIGATION LOOKUP METHODS - Get by Name
     # ===============================================
     
     def get_package(self, name: str) -> Optional['PackageNode']:
         """Get specific package by name."""
         if hasattr(self, '_packages'):
-            return self._packages.get(name)
+            for package in self._packages:
+                if package.name == name:
+                    return package
         return None
     
     def get_module(self, name: str) -> Optional['ModuleNode']:
         """Get specific module by name."""
         if hasattr(self, '_modules'):
-            return self._modules.get(name)
+            for module in self._modules:
+                if module.name == name:
+                    return module
         return None
     
     def get_class(self, name: str) -> Optional['ClassNode']:
         """Get specific class by name."""
         if hasattr(self, '_classes'):
-            return self._classes.get(name)
+            for cls in self._classes:
+                if cls.name == name:
+                    return cls
         return None
     
     def get_function(self, name: str) -> Optional['FunctionNode']:
         """Get specific function by name."""
         if hasattr(self, '_functions'):
-            return self._functions.get(name)
+            for func in self._functions:
+                if func.name == name:
+                    return func
         return None
     
     def get_method(self, name: str) -> Optional['FunctionNode']:
         """Get specific method by name."""
         if hasattr(self, '_methods'):
-            return self._methods.get(name)
+            for method in self._methods:
+                if method.name == name:
+                    return method
         return None
     
     def get_state(self, name: str) -> Optional['StateNode']:
         """Get specific state by name."""
         if hasattr(self, '_state'):
-            return self._state.get(name)
+            for state in self._state:
+                if state.name == name:
+                    return state
         return None
     
-    def get_attribute(self, name: str) -> Optional['AttributeNode']:
-        """Get specific attribute by name."""
-        if hasattr(self, '_attributes'):
-            return self._attributes.get(name)
+    def get_class_attribute(self, name: str) -> Optional['ClassAttributeNode']:
+        """Get specific class attribute by name."""
+        if hasattr(self, '_class_attributes'):
+            for attr in self._class_attributes:
+                if attr.name == name:
+                    return attr
+        return None
+    
+    def get_instance_attribute(self, name: str) -> Optional['InstanceAttributeNode']:
+        """Get specific instance attribute by name."""
+        if hasattr(self, '_instance_attributes'):
+            for attr in self._instance_attributes:
+                if attr.name == name:
+                    return attr
         return None
     
     def get_argument(self, name: str) -> Optional['ArgumentNode']:
         """Get specific argument by name."""
         if hasattr(self, '_arguments'):
-            return self._arguments.get(name)
+            for arg in self._arguments:
+                if arg.name == name:
+                    return arg
         return None
     
     def get_alias(self, name: str) -> Optional['AliasNode']:
         """Get specific alias by name."""
         if hasattr(self, '_aliases'):
-            if isinstance(self._aliases, dict):
-                return self._aliases.get(name)
-            elif isinstance(self._aliases, list):
-                for alias in self._aliases:
-                    if hasattr(alias, 'name') and alias.name == name:
-                        return alias
+            for alias in self._aliases:
+                if hasattr(alias, 'local_name') and alias.local_name == name:
+                    return alias
         return None
     
     def get_return(self, name: str = "return") -> Optional['ReturnNode']:
-        """Get return node - FROM ORIGINAL BASE.PY."""
+        """Get return node."""
         if hasattr(self, '_return'):
             return self._return
         return None
@@ -456,7 +492,8 @@ class NavigationMixin:
             'functions': self.list_functions(),
             'methods': self.list_methods(),
             'state': self.list_state(),
-            'attributes': self.list_attributes(),
+            'class_attributes': self.list_class_attributes(),
+            'instance_attributes': self.list_instance_attributes(),
             'arguments': self.list_arguments(),
             'returns': self.list_returns(),
             'aliases': self.list_aliases(),
