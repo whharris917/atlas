@@ -27,10 +27,14 @@ Type Safety:
 """
 
 import ast
-from typing import Union, Optional, Dict
+from typing import Union, Optional, Dict, List, TYPE_CHECKING
 
 from .navigation import NavigationMixin
 from ..reconnaissance.discovery import ProjectStructure, DiscoveredModule, DiscoveredPackage
+
+if TYPE_CHECKING:
+    from ..analysis.base_note import BaseNote
+
 
 class BaseNode(NavigationMixin):
     """Foundation for all Atlas nodes with shared functionality and enhanced navigation."""
@@ -58,6 +62,7 @@ class BaseNode(NavigationMixin):
             )
             
         self.source_data = source_data
+        self._notes: List['BaseNote'] = []  # Analysis artifacts attached to this node
     
     def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
         """
@@ -86,6 +91,25 @@ class BaseNode(NavigationMixin):
             >>> project.analyze()  # Cascades through entire tree
         """
         raise NotImplementedError(f"{type(self).__name__} must implement analyze()")
+    
+    def get_notes(self, note_type: Optional[type] = None) -> List['BaseNote']:
+        """
+        Query analysis notes attached to this node.
+        
+        Args:
+            note_type: Optional note class to filter by (e.g., TypeNote).
+                      If None, returns all notes.
+        
+        Returns:
+            List of notes, optionally filtered by type
+        
+        Example:
+            >>> function_node.get_notes()  # All notes
+            >>> function_node.get_notes(TypeNote)  # Only TypeNote instances
+        """
+        if note_type is None:
+            return self._notes
+        return [n for n in self._notes if isinstance(n, note_type)]
     
     @property
     def line_number(self) -> int:
@@ -165,15 +189,23 @@ class BaseNode(NavigationMixin):
             This method is called automatically during node construction, after
             all attributes are initialized but before the constructor returns.
             This ensures the tree is immediately navigable after construction.
+        
+        Subclasses must override this method to implement their specific child
+        creation logic.
+        
+        Raises:
+            NotImplementedError: If subclass doesn't override this method
         """
-        pass  # Default: no children (leaf nodes override as needed)
+        raise NotImplementedError(f"{self.__class__.__name__} must implement _create_children()")
     
     @property
     def fqn(self) -> str:
         """
-        Compute fully qualified name by traversing up the tree.
+        Build the fully qualified name from project root to this node.
         
-        The FQN represents the complete hierarchical path to this node within the project.
+        Constructs a dotted path representing the complete hierarchical location
+        of this node within the project structure.
+        
         For example: "myproject.services.auth.TokenManager.validate_token"
         
         Implementation:

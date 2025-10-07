@@ -1,11 +1,5 @@
-"""
-Analysis Package - Atlas Rewrite
+"""Analysis phase infrastructure."""
 
-Future home of the Analysis Phase implementation.
-Will contain behavioral relationship discovery and Expression Traversal engine.
-"""
+from analyzer.analysis.base_note import BaseNote
 
-# Analysis Phase implementation coming in future sessions
-# This package is prepared for clean expansion
-
-__all__ = []
+__all__ = ['BaseNote']
