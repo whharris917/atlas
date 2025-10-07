@@ -27,7 +27,7 @@ Type Safety:
 """
 
 import ast
-from typing import Union
+from typing import Union, Optional, Dict
 
 from .navigation import NavigationMixin
 from ..reconnaissance.discovery import ProjectStructure, DiscoveredModule, DiscoveredPackage
@@ -59,6 +59,34 @@ class BaseNode(NavigationMixin):
             
         self.source_data = source_data
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this node and cascade analysis to all children.
+        
+        This method establishes the Analysis Phase contract that all nodes must implement.
+        It receives scope information from the parent and is responsible for:
+        1. Performing node-specific analysis (via visitors or other mechanisms)
+        2. Cascading analysis to all children with updated scope
+        
+        Args:
+            parent_scope: Dictionary mapping variable names to type strings, representing
+                         all variables accessible from parent scopes. None for root nodes.
+        
+        Design Pattern:
+            The analyze() method follows the same cascading pattern as _create_children()
+            in the Reconnaissance Phase. Each node analyzes itself, then ensures all its
+            children are analyzed with appropriate scope information.
+        
+        Implementation Requirement:
+            All TreeNode subclasses must implement this method. The base implementation
+            raises NotImplementedError to enforce this contract.
+        
+        Example:
+            >>> project = ProjectBuilder("sample_files/").build()
+            >>> project.analyze()  # Cascades through entire tree
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement analyze()")
+    
     @property
     def line_number(self) -> int:
         """Get line number from source data if it's an AST node, or 0 if not available."""
@@ -68,66 +96,63 @@ class BaseNode(NavigationMixin):
     
     def get_depth(self) -> int:
         """
-        Calculate depth within the project tree.
+        Calculate depth of this node in the tree.
         
-        ContainerNodes do not contribute to depth calculations, maintaining their
-        "pass-through" quality just like in FQN generation. Only named entities
-        with meaningful names contribute to depth.
+        Returns the number of meaningful hierarchical levels from the project root
+        to this node. Container nodes are treated as pass-through organizational
+        structures that don't add to the conceptual depth.
+        
+        ContainerNode Behavior:
+            Just like FQN computation, depth calculation skips ContainerNodes since they
+            serve as AST organizational structures rather than meaningful hierarchical
+            levels in the project namespace.
+        
+        Examples:
+            ProjectNode: depth = 0
+            PackageNode (direct child of project): depth = 1
+            ModuleNode (in package): depth = 2
+            ClassNode (in module): depth = 3
+            FunctionNode (in class, with StateContainerNode parent): depth = 4
+                (StateContainerNode doesn't add to depth - pass-through)
         
         Returns:
-            int: Depth of this node (0 for project root, 1 for modules, etc.)
-            
-        Examples:
-            >>> # ProjectNode (root)
-            >>> project.get_depth()
-            0
-            
-            >>> # ModuleNode depth (no packages)
-            >>> module.get_depth()  
-            1
-            
-            >>> # ModuleNode depth (nested in packages)
-            >>> deep_module.get_depth()
-            3  # project -> pkg1 -> pkg2 -> module
-            
-            >>> # ClassNode depth  
-            >>> class_node.get_depth()
-            2  # project -> module -> class
-            
-            >>> # FunctionNode depth (method)
-            >>> method.get_depth()
-            3  # project -> module -> class -> method
-            
-            >>> # ContainerNodes don't add to depth
-            >>> import_node.get_depth()
-            2  # same as parent module (containers are pass-through)
+            int: Depth counting only meaningful hierarchical nodes
         """
         depth = 0
-        current = self.parent
-        
+        current = getattr(self, 'parent', None)
         while current is not None:
-            # Only count nodes with meaningful names (skip ContainerNodes)
-            if hasattr(current, 'name') and current.name:
+            # Only count non-container nodes for depth
+            if not isinstance(current, ContainerNode):
                 depth += 1
             current = getattr(current, 'parent', None)
-        
         return depth
     
     def _create_children(self):
         """
-        Initialize child collections and trigger the self-creating cascade.
+        Create all child nodes for this node.
         
-        This method is a fundamental architectural pillar of Atlas's self-creating
-        tree generation system. By making child creation mandatory at construction
-        time, Atlas ensures complete and automatic tree population with zero
-        possibility of incomplete or missed entities.
+        This is the heart of Atlas's self-creating cascade architecture. When a node is
+        constructed, it automatically creates all of its children based on the source_data
+        it was provided. This mandatory child creation is what enables a single ProjectNode
+        creation to result in a complete, fully-populated tree representing an entire codebase.
+        
+        Architectural Benefits:
+            - **Automatic Tree Population:** No manual tree building required
+            - **Data Integrity:** Children created immediately with all required context
+            - **Guaranteed Consistency:** Tree is always in valid state, never partially built
+            - **Simplified Usage:** Users just create root node, everything else happens automatically
         
         Implementation Pattern:
-            Subclasses override this method to implement their specific child
-            creation logic. This typically involves:
-            1. Using visitors to discover entities in AST nodes
-            2. Iterating over data structures to create children
-            3. Conditionally creating type analysis nodes
+            Subclasses override this method to:
+            1. Discover what children should exist (from AST, filesystem, etc.)
+            2. Instantiate child nodes with appropriate parent reference
+            3. Store children in collections for navigation
+        
+        Common Patterns:
+            - Parsing AST nodes to find nested definitions, often with the use of node visitors
+            - Scanning filesystem to discover packages/modules
+            - Iterating over data structures to create children
+            - Conditionally creating type analysis nodes
         
         Design Philosophy:
             The entire Atlas tree self-populates automatically from a single
@@ -143,6 +168,50 @@ class BaseNode(NavigationMixin):
         """
         pass  # Default: no children (leaf nodes override as needed)
     
+    @property
+    def fqn(self) -> str:
+        """
+        Compute fully qualified name by traversing up the tree.
+        
+        The FQN represents the complete hierarchical path to this node within the project.
+        For example: "myproject.services.auth.TokenManager.validate_token"
+        
+        Implementation:
+            - For nodes with names (RootNode, TreeNode): Builds dotted path from root to node
+            - For ContainerNodes without names: Passes through to parent's FQN
+            - ContainerNodes are skipped during path building (pass-through organizational nodes)
+        
+        ContainerNode Behavior:
+            Container nodes (ImportNode, StateContainerNode, etc.) don't contribute to the FQN.
+            They serve as organizational structures within the AST but don't represent meaningful
+            Python entities in the namespace hierarchy.
+        
+        Examples:
+            RootNode (ProjectNode): "myproject"
+            PackageNode: "myproject.services"
+            ModuleNode: "myproject.services.database.connection"
+            ClassNode: "myproject.services.database.connection.ConnectionPool"
+            Method: "myproject.services.database.connection.ConnectionPool.execute_query"
+            ContainerNode: "myproject.services" (same as parent module - pass-through)
+        
+        Returns:
+            str: The fully qualified name from project root to this node
+        """
+        # ContainerNode case: no name, pass through to parent
+        if not hasattr(self, 'name'):
+            return self.parent.fqn if self.parent else ""
+        
+        # TreeNode/RootNode case: build dotted path
+        parts = [self.name]
+        current = self.parent
+        while current is not None:
+            # Skip container nodes - they don't contribute to FQN
+            if not isinstance(current, ContainerNode):
+                if hasattr(current, 'name'):
+                    parts.append(current.name)
+            current = getattr(current, 'parent', None)
+        return '.'.join(reversed(parts))
+    
     def __repr__(self) -> str:
         """Nice string representation showing node type and name if available."""
         node_type = self.__class__.__name__.replace('Node', '')
@@ -155,8 +224,8 @@ class RootNode(BaseNode):
     """
     Base for parentless nodes like ProjectNode.
     
-    Root nodes are the entry points to tree hierarchies and do not have parent
-    relationships. They still require source material for child creation.
+    Root nodes MUST exist without parents - they are the entry points to tree hierarchies.
+    They still require source material for child creation.
     """
     
     def __init__(self, source_data: ProjectStructure):
@@ -200,11 +269,6 @@ class RootNode(BaseNode):
             NotImplementedError: If subclass doesn't override this method
         """
         raise NotImplementedError(f"{self.__class__.__name__} must implement _extract_name()")
-    
-    @property
-    def fqn(self) -> str:
-        """Return just the name for root nodes."""
-        return self.name
 
 
 class TreeNode(BaseNode):
@@ -269,96 +333,37 @@ class TreeNode(BaseNode):
             NotImplementedError: If subclass doesn't override this method
         """
         raise NotImplementedError(f"{self.__class__.__name__} must implement _extract_name()")
-    
-    @property
-    def fqn(self) -> str:
-        """
-        Generate Fully Qualified Name by walking up the tree.
-        
-        ContainerNodes do not contribute to FQN generation, maintaining their
-        "pass-through" quality. Only named entities with meaningful names
-        contribute to the fully qualified name path.
-        
-        Returns:
-            str: Fully qualified name (e.g., "myproject.services.api.HTTPClient")
-            
-        Examples:
-            >>> # Simple path: project -> module -> class
-            >>> class_node.fqn
-            'myproject.utils.Logger'
-            
-            >>> # Nested packages: project -> pkg1 -> pkg2 -> module -> class
-            >>> nested_class.fqn
-            'myproject.services.api.models.User'
-            
-            >>> # ContainerNodes don't appear in FQN
-            >>> import_node.fqn
-            'myproject.utils'  # Same as parent module
-            
-            >>> # Method inside class
-            >>> method.fqn
-            'myproject.utils.Logger.log_message'
-        """
-        parts = []
-        current = self
-        
-        while current is not None:
-            # Only include nodes with meaningful names (skip ContainerNodes)
-            if hasattr(current, 'name') and current.name:
-                parts.append(current.name)
-            current = getattr(current, 'parent', None)
-        
-        return ".".join(reversed(parts))
+
 
 class ContainerNode(BaseNode):
     """
-    AST parsing artifacts that group related items but have no meaningful identity.
+    AST parsing artifacts without meaningful identity.
     
-    ContainerNodes exist solely to organize AST structures and create child
-    entities. They require a valid parent and source AST node for processing.
+    Container nodes organize other nodes but don't represent named Python entities
+    themselves. They exist solely to organize AST structures and create child
+    entities. Examples: StateContainerNode (holds module-level assignments), ImportNode (holds aliases).
+    They require a parent but have no name.
     """
     
     def __init__(self, parent: BaseNode, source_data: ast.AST):
         """
-        Initialize a container node with validation.
+        Initialize a container node with comprehensive validation.
         
         Args:
-            parent: Valid BaseNode parent (cannot be None)  
+            parent: Valid BaseNode parent (cannot be None)
             source_data: Valid AST node used to create children (cannot be None)
             
         Raises:
             ValueError: If parent is None
-            TypeError: If parent is not a BaseNode instance or source_data is not an AST node
+            TypeError: If parent is not a BaseNode instance or source_data is not ast.AST
         """
         if parent is None:
             raise ValueError("ContainerNode requires valid parent (cannot be None)")
         if not isinstance(parent, BaseNode):
             raise TypeError(f"ContainerNode parent must be BaseNode instance, got {type(parent)}")
         if not isinstance(source_data, ast.AST):
-            raise TypeError(f"ContainerNode source_data must be AST node, got {type(source_data)}")
+            raise TypeError(f"ContainerNode source_data must be ast.AST, got {type(source_data)}")
             
         super().__init__(source_data)
         self.parent = parent
         self._create_children()
-    
-    @property
-    def fqn(self) -> str:
-        """
-        Pass-through FQN to parent since containers have no meaningful identity.
-        
-        ContainerNodes are organizational artifacts without their own names,
-        so they transparently inherit their parent's fully qualified name.
-        
-        Returns:
-            str: Parent's FQN
-            
-        Examples:
-            >>> # ImportNode container
-            >>> import_container.fqn
-            'myproject.utils'  # Same as parent module
-            
-            >>> # StateContainerNode
-            >>> state_container.fqn  
-            'myproject.config'  # Same as parent module
-        """
-        return self.parent.fqn if self.parent else ""
