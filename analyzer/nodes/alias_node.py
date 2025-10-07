@@ -6,6 +6,7 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
+from typing import Optional, Dict
 from ..core import TreeNode, BaseNode
 
 
@@ -26,4 +27,14 @@ class AliasNode(TreeNode):
     
     def _create_children(self):
         """AliasNode is a leaf node - no children to create."""
+        pass
+
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this alias node (import alias).
+        
+        Alias nodes are leaf nodes representing import names.
+        No analysis needed.
+        """
+        # No analysis needed (leaf node, no children)
         pass

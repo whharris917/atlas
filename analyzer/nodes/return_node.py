@@ -6,7 +6,7 @@ Every function has exactly one return position, even if implicitly returning Non
 """
 
 import ast
-from typing import Optional, List
+from typing import Optional, List, Dict
 from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
 from ..violations import MissingReturnTypeHint
@@ -65,6 +65,18 @@ class ReturnNode(TreeNode):
             # Even functions with implicit None returns should document with -> None
             self._create_missing_return_type_violation()
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this return node.
+        
+        Return nodes represent function return type.
+        Type information already captured during reconnaissance.
+        """
+        # No analysis needed yet (leaf node)
+        # Cascade to children (TypeNode if present)
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=parent_scope or {})
+
     def _create_type_node(self, type_ast: ast.AST) -> TypeNode:
         """
         Create TypeNode child from return type annotation AST.

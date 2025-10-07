@@ -7,7 +7,7 @@ Provides shared functionality for both class-level and instance attributes.
 
 import ast
 from abc import abstractmethod
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Dict
 from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
 from ..violations import CodeStandardViolation
@@ -83,3 +83,15 @@ class BaseAttributeNode(TreeNode):
         """
         self._type = TypeNode(parent=self, source_data=type_ast)
         return self._type
+    
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this attribute node.
+        
+        Attributes are leaf nodes in terms of analysis.
+        Type information already captured during reconnaissance.
+        """
+        # No analysis needed for attributes (leaf node)
+        # Cascade to children (TypeNode if present)
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=parent_scope or {})

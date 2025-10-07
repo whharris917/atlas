@@ -6,6 +6,7 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
+from typing import Optional, Dict
 from ..core import TreeNode, BaseNode
 
 
@@ -29,4 +30,14 @@ class TypeNode(TreeNode):
     
     def _create_children(self):
         """TypeNode is a leaf node - no children to create."""
+        pass
+
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this type node.
+        
+        Type nodes are leaf nodes representing type information.
+        No analysis needed - already captured during reconnaissance.
+        """
+        # No analysis needed (leaf node, no children)
         pass

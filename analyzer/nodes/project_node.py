@@ -5,7 +5,7 @@ Root node representing the entire project with automatic child creation.
 Now includes serialization capability via mixin.
 """
 
-from typing import List
+from typing import List, Optional, Dict
 from ..core import RootNode
 from ..reconnaissance.discovery import ProjectStructure, DiscoveredPackage, DiscoveredModule
 from .package_node import PackageNode
@@ -35,6 +35,20 @@ class ProjectNode(SerializationMixin, RootNode):
         if not project_name:
             raise ValueError("ProjectStructure must have valid root_path with name")
         return project_name
+    
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this project and cascade to all children.
+        
+        Project is the root of analysis, so parent_scope is always empty.
+        Cascades analysis to all packages and modules with empty scope.
+        """
+        # Project has no parent scope, start with empty dict
+        scope = {}
+        
+        # Cascade to all children
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=scope)
     
     def _create_children(self):
         """Create child nodes from ProjectStructure."""

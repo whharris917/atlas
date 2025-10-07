@@ -6,7 +6,7 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import Optional, List
+from typing import Optional, List, Dict
 from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
 from ..violations import MissingArgumentTypeHint
@@ -42,6 +42,18 @@ class ArgumentNode(TreeNode):
             # No type annotation - create MissingArgumentTypeHint violation
             self._create_missing_type_violation()
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this argument node.
+        
+        Arguments are leaf nodes in terms of analysis.
+        Type information already captured during reconnaissance.
+        """
+        # No analysis needed for arguments (leaf node)
+        # Cascade to children (TypeNode if present)
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=parent_scope or {})
+
     def _create_type_node(self, type_ast: ast.AST) -> TypeNode:
         """Create TypeNode child from type annotation AST."""
         self._type = TypeNode(parent=self, source_data=type_ast)

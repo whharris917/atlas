@@ -6,7 +6,7 @@ Enhanced with comprehensive attribute discovery for both class-level and instanc
 """
 
 import ast
-from typing import List, Union, TYPE_CHECKING
+from typing import List, Union, Optional, Dict, TYPE_CHECKING
 from ..core import TreeNode, BaseNode
 from ..reconnaissance.visitors import ClassReconnaissanceVisitor
 from .function_node import FunctionNode
@@ -41,7 +41,21 @@ class ClassNode(TreeNode):
         # Use specialized visitor for class-level discovery
         visitor = ClassReconnaissanceVisitor(self)
         visitor.visit(self.source_data)
-    
+
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this class and cascade to all children.
+        
+        Future: ClassAnalysisVisitor will analyze class-level code.
+        Currently: Just cascades to methods and attributes.
+        """
+        # Use parent scope or empty dict
+        scope = parent_scope or {}
+        
+        # Cascade to all children
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=scope)
+
     def create_method(self, method_ast: ast.FunctionDef) -> FunctionNode:
         """Create and hook a new method from AST node."""
         method_node = FunctionNode(parent=self, source_data=method_ast)

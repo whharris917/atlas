@@ -5,7 +5,7 @@ Node representing a Python package with automatic child creation.
 Extremely focused implementation adhering to strict separation of concerns.
 """
 
-from typing import List
+from typing import List, Optional, Dict
 from ..core import TreeNode, BaseNode
 from ..reconnaissance.discovery import DiscoveredPackage, DiscoveredModule
 from .module_node import ModuleNode
@@ -40,6 +40,20 @@ class PackageNode(TreeNode):
             if module_data.ast_node:
                 self.create_module(module_data)
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this package and cascade to all children.
+        
+        Packages don't perform analysis themselves, they just pass scope
+        to their contained packages and modules.
+        """
+        # Use parent scope or empty dict
+        scope = parent_scope or {}
+        
+        # Cascade to all children
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=scope)
+
     def create_package(self, package_data: DiscoveredPackage) -> 'PackageNode':
         """Create and hook a nested package from DiscoveredPackage."""
         package_node = PackageNode(parent=self, source_data=package_data)

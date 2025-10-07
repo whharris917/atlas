@@ -512,3 +512,39 @@ class NavigationMixin:
                     result[collection_name] = [item.name if hasattr(item, 'name') else str(item) for item in items]
         
         return result
+    
+    def _get_direct_children(self) -> List[Any]:
+        """
+        Get all direct children of this node across all collections.
+        
+        Used by analyze() to cascade analysis to all children without
+        needing to know which specific collection attributes exist.
+        
+        Returns:
+            List of all child nodes from all collections (_packages, _modules, etc.)
+        """
+        children = []
+        
+        # Iterate over all attributes to find collection attributes
+        for attr_name in dir(self):
+            # Look for collection attributes (start with _ but not __)
+            if (attr_name.startswith('_') and 
+                not attr_name.startswith('__') and
+                attr_name not in {'_create_children', '_notes', '_violations'} and  # Exclude methods, notes, and violations
+                attr_name != 'parent'):  # Explicitly avoid parent
+                
+                attr_value = getattr(self, attr_name, None)
+                
+                # Handle list collections
+                if isinstance(attr_value, list):
+                    # Only include items that have analyze() method (i.e., are nodes)
+                    children.extend([item for item in attr_value if hasattr(item, 'analyze')])
+                # Handle dict collections
+                elif isinstance(attr_value, dict):
+                    # Only include items that have analyze() method
+                    children.extend([item for item in attr_value.values() if hasattr(item, 'analyze')])
+                # Handle single child (like _return or _type)
+                elif attr_value is not None and hasattr(attr_value, 'analyze'):
+                    children.append(attr_value)
+        
+        return children

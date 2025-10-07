@@ -6,7 +6,7 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import List, Optional
+from typing import List, Optional, Dict
 from ..core import TreeNode, BaseNode
 from .argument_node import ArgumentNode
 from .return_node import ReturnNode
@@ -39,6 +39,20 @@ class FunctionNode(TreeNode):
         # Create return node for return type analysis
         self._create_return()
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this function and cascade to all children.
+        
+        Future: FunctionAnalysisVisitor will analyze function body.
+        Currently: Just cascades to arguments and return node.
+        """
+        # Use parent scope or empty dict
+        scope = parent_scope or {}
+        
+        # Cascade to all children
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=scope)
+
     def _create_argument(self, arg_ast: ast.arg) -> ArgumentNode:
         """Create and hook a new argument from AST node (internal use only)."""
         arg_node = ArgumentNode(parent=self, source_data=arg_ast)

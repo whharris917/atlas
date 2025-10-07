@@ -6,7 +6,7 @@ Creates StateNode for each assignment target following Entity/Container pattern.
 """
 
 import ast
-from typing import List
+from typing import List, Optional, Dict
 from ..core import ContainerNode, BaseNode
 from .state_node import StateNode
 
@@ -31,6 +31,16 @@ class StateContainerNode(ContainerNode):
                 self._create_state_variable(target)
             # Note: Could extend to handle other target types like ast.Tuple for unpacking
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this state container and cascade to state nodes.
+        
+        State containers organize module-level assignments.
+        """
+        # Cascade to all state children
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=parent_scope or {})
+
     def _create_state_variable(self, name_ast: ast.Name) -> StateNode:
         """Create and hook a new state variable from ast.Name target (internal use only)."""
         state_node = StateNode(parent=self, source_data=name_ast)

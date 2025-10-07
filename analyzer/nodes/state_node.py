@@ -6,6 +6,7 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
+from typing import Optional, Dict
 from ..core import TreeNode, BaseNode
 
 
@@ -30,3 +31,15 @@ class StateNode(TreeNode):
     def _create_children(self):
         """StateNode is a leaf node - no children to create."""
         pass
+
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this state node (module-level assignment).
+        
+        State nodes are leaf nodes representing assignments.
+        Future analysis may track variable type evolution.
+        """
+        # No analysis needed yet (leaf node)
+        # Cascade to children (TypeNode if present)
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=parent_scope or {})

@@ -7,7 +7,7 @@ Pure self-extracting architecture with list storage.
 """
 
 import ast
-from typing import List, Union
+from typing import List, Union, Optional, Dict
 from ..core import TreeNode, BaseNode
 from ..reconnaissance.discovery import DiscoveredModule
 from ..reconnaissance.visitors import ModuleReconnaissanceVisitor
@@ -47,6 +47,20 @@ class ModuleNode(TreeNode):
         # Visit the ast_node from the DiscoveredModule
         visitor.visit(self.source_data.ast_node)
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this module and cascade to all children.
+        
+        Future: ModuleAnalysisVisitor will analyze module-level code.
+        Currently: Just cascades to all classes, functions, and other children.
+        """
+        # Use parent scope or empty dict
+        scope = parent_scope or {}
+        
+        # Cascade to all children
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=scope)
+
     def create_class(self, class_ast: ast.ClassDef) -> ClassNode:
         """Create and hook a new class from AST node."""
         class_node = ClassNode(parent=self, source_data=class_ast)

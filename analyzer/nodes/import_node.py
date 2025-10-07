@@ -6,7 +6,7 @@ Creates AliasNode for each imported item.
 """
 
 import ast
-from typing import List, Optional
+from typing import List, Optional, Dict
 from ..core import ContainerNode, BaseNode
 from .alias_node import AliasNode
 
@@ -29,6 +29,16 @@ class ImportNode(ContainerNode):
         for alias_ast in self.source_data.names:
             self._create_alias(alias_ast)
     
+    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+        """
+        Analyze this import container and cascade to aliases.
+        
+        Import containers organize alias nodes.
+        """
+        # Cascade to all alias children
+        for child in self._get_direct_children():
+            child.analyze(parent_scope=parent_scope or {})
+
     def _create_alias(self, alias_ast: ast.alias) -> AliasNode:
         """Create and hook a new alias from AST node (internal use only)."""
         alias_node = AliasNode(parent=self, source_data=alias_ast)
