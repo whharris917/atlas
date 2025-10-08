@@ -2111,6 +2111,73 @@
           ]
         }
       ]
+    },
+    {
+      "type": "Module",
+      "name": "atlas_testbed",
+      "fqn": "sample_files.atlas_testbed",
+      "children": [
+        {
+          "type": "Import",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 13
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 14
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 15
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 18
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 19
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 20
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 21
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 22
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 23
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 24
+        },
+        {
+          "type": "ImportFrom",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 25
+        },
+        {
+          "type": "Import",
+          "fqn": "sample_files.atlas_testbed",
+          "line": 116
+        }
+      ]
     }
   ]
 }
