@@ -48,18 +48,23 @@ class ModuleNode(TreeNode):
         visitor.visit(self.source_data.ast_node)
     
     def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
-        """
-        Analyze this module and cascade to all children.
-        
-        Future: ModuleAnalysisVisitor will analyze module-level code.
-        Currently: Just cascades to all classes, functions, and other children.
-        """
-        # Use parent scope or empty dict
-        scope = parent_scope or {}
-        
-        # Cascade to all children
-        for child in self._get_direct_children():
-            child.analyze(parent_scope=scope)
+            """
+            Analyze this module and cascade to all children.
+            
+            Creates ModuleAnalysisVisitor to analyze module-level code,
+            infer variable types, and build scope for child nodes.
+            """
+            from ..analysis.visitors import ModuleAnalysisVisitor
+            
+            # Create visitor for this module
+            visitor = ModuleAnalysisVisitor(self)
+            
+            # Visit the module's AST to build scope
+            visitor.visit(self.source_data.ast_node)
+            
+            # Cascade to all children with visitor's scope
+            for child in self._get_direct_children():
+                child.analyze(parent_scope=visitor.scope)
 
     def create_class(self, class_ast: ast.ClassDef) -> ClassNode:
         """Create and hook a new class from AST node."""
