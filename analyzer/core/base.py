@@ -229,19 +229,100 @@ class BaseNode(NavigationMixin):
         Returns:
             str: The fully qualified name from project root to this node
         """
+        return self._build_fqn(extended=False, include_containers=False)
+    
+    @property
+    def xfqn(self) -> str:
+        """
+        Extended Fully Qualified Name with type information.
+        
+        Skips ContainerNodes but shows node types for disambiguation.
+        This resolves ambiguity in traditional dot notation where a.b.c
+        could be Package.Module.Class or Module.Class.Function.
+        
+        Example:
+            "Project(sample_files).Package(models).Module(user).Class(User).Function(get_email)"
+        
+        Returns:
+            str: Extended FQN with type prefixes for named nodes
+        """
+        return self._build_fqn(extended=True, include_containers=False)
+    
+    @property
+    def cfqn(self) -> str:
+        """
+        Complete Fully Qualified Name with all nodes including containers.
+        
+        Shows every node in the path, including ContainerNodes, with type
+        information. Useful for debugging and understanding the complete
+        tree structure.
+        
+        Examples:
+            "Project(sample_files).Package(models).Module(user).Class(User).Function(get_email).Return(return)"
+            
+            "Project(sample_files).Module(config).StateContainer().State(DEBUG_MODE)"
+            
+            "Project(sample_files).Module(main).ImportFrom().Alias(User)"
+        
+        Returns:
+            str: Complete FQN showing all nodes with types
+        """
+        return self._build_fqn(extended=True, include_containers=True)
+    
+    def _build_fqn(self, extended: bool, include_containers: bool) -> str:
+        """
+        Internal method to build FQN variants.
+        
+        This unified implementation powers all three FQN properties (fqn, xfqn, cfqn)
+        with different formatting and filtering options.
+        
+        Args:
+            extended: If True, include node type prefixes like "Class(User)"
+            include_containers: If True, include ContainerNodes in the path
+        
+        Returns:
+            Formatted FQN string based on options
+        """
         # ContainerNode case: no name, pass through to parent
         if not hasattr(self, 'name'):
-            return self.parent.fqn if self.parent else ""
+            if extended:
+                # For extended format, show the container type even without name
+                node_type = self.__class__.__name__.replace('Node', '')
+                parent_fqn = self.parent._build_fqn(extended, include_containers) if self.parent else ""
+                return f"{parent_fqn}.{node_type}()" if parent_fqn else f"{node_type}()"
+            else:
+                # For standard format, pass through to parent
+                return self.parent.fqn if self.parent else ""
         
         # TreeNode/RootNode case: build dotted path
-        parts = [self.name]
-        current = self.parent
+        parts = []
+        current = self
+        
         while current is not None:
-            # Skip container nodes - they don't contribute to FQN
-            if not isinstance(current, ContainerNode):
-                if hasattr(current, 'name'):
-                    parts.append(current.name)
+            # Check if this node should be included
+            should_include = True
+            
+            if not include_containers:
+                # Skip nodes without names (ContainerNodes)
+                if not (hasattr(current, 'name') and current.name):
+                    should_include = False
+            
+            if should_include:
+                if extended:
+                    # Extended format: NodeType(name)
+                    node_type = current.__class__.__name__.replace('Node', '')
+                    if hasattr(current, 'name') and current.name:
+                        parts.append(f"{node_type}({current.name})")
+                    else:
+                        # Container without name
+                        parts.append(f"{node_type}()")
+                else:
+                    # Standard format: just name
+                    if hasattr(current, 'name') and current.name:
+                        parts.append(current.name)
+            
             current = getattr(current, 'parent', None)
+        
         return '.'.join(reversed(parts))
     
     def __repr__(self) -> str:

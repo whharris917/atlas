@@ -2,15 +2,15 @@
 Project Node - Atlas Rewrite
 
 Root node representing the entire project with automatic child creation.
-Now includes serialization capability via mixin.
+Now includes serialization capability via mixin and FQN navigation.
 """
 
 from typing import List, Optional, Dict
-from ..core import RootNode
+from ..core import RootNode, BaseNode
 from ..reconnaissance.discovery import ProjectStructure, DiscoveredPackage, DiscoveredModule
 from .package_node import PackageNode
 from .module_node import ModuleNode
-from ..visualization import TreeVisualizer, SerializationMixin
+from ..visualization import SerializationMixin
 
 
 class ProjectNode(SerializationMixin, RootNode):
@@ -73,16 +73,144 @@ class ProjectNode(SerializationMixin, RootNode):
         self._modules.append(module_node)
         return module_node
     
-    # ========== Visualization Methods ==========
+    # ========================================================================
+    # Visualization Methods - Session 28
+    # ========================================================================
     
     def print(self) -> None:
         """Print hierarchical tree representation to terminal."""
+        from ..visualization import TreeVisualizer
         visualizer = TreeVisualizer()
         visualizer.print(self)
-
+    
     def view(self) -> str:
         """Get hierarchical tree representation as string."""
+        from ..visualization import TreeVisualizer
         visualizer = TreeVisualizer()
         return visualizer.view(self)
     
-    # dump() method is provided by SerializationMixin
+    # ========================================================================
+    # FQN Navigation - Session 34
+    # ========================================================================
+    
+    def get_node_by_fqn(self, fqn: str) -> Optional[BaseNode]:
+        """
+        Navigate the project tree to find a node by its fully qualified name.
+        
+        This method performs a depth-first search through the tree structure,
+        trying all possible node types at each level (packages, modules, classes,
+        functions, methods, attributes, state variables).
+        
+        Args:
+            fqn: Fully qualified name, e.g., "sample_files.models.User.validate"
+                 or "sample_files.core.utils.format_timestamp"
+        
+        Returns:
+            The node with the given FQN, or None if not found
+        
+        Examples:
+            >>> project.get_node_by_fqn("sample_files.models.User")
+            <ClassNode: User>
+            
+            >>> project.get_node_by_fqn("sample_files.models.User.validate")
+            <FunctionNode: validate>
+            
+            >>> project.get_node_by_fqn("sample_files.models.User.email")
+            <InstanceAttributeNode: email>
+            
+            >>> project.get_node_by_fqn("sample_files.VERSION")
+            <StateNode: VERSION>
+        """
+        parts = fqn.split('.')
+        
+        # Start at project root
+        current = self
+        
+        # Skip first part if it matches project name
+        start_index = 1 if parts[0] == self.name else 0
+        
+        # Navigate through each part of the FQN
+        for part in parts[start_index:]:
+            next_node = self._find_child_by_name(current, part)
+            
+            if next_node is None:
+                return None  # Path doesn't exist
+            
+            current = next_node
+        
+        return current
+    
+    def _find_child_by_name(self, node: BaseNode, name: str) -> Optional[BaseNode]:
+        """
+        Find a child node by name, trying all possible node types.
+        
+        This helper method encapsulates the logic of checking different
+        node types based on what the current node can contain.
+        
+        IMPORTANT: For PackageNodes, this implements a fallback strategy
+        to handle package-level imports (e.g., `from .user import User`
+        making User available as `models.User`). Since we don't currently
+        process __init__.py imports during reconnaissance, we fall back to
+        searching ALL modules within the package for a matching class/function.
+        
+        This is a MAKESHIFT SOLUTION that assumes everything is exported.
+        TODO: Properly process __init__.py imports during reconnaissance phase.
+        
+        Args:
+            node: The current node to search within
+            name: The name of the child to find
+        
+        Returns:
+            The child node if found, None otherwise
+        """
+        from .package_node import PackageNode
+        from .module_node import ModuleNode
+        from .class_node import ClassNode
+        from .function_node import FunctionNode
+        
+        # ProjectNode can contain: packages, modules
+        if isinstance(node, ProjectNode):
+            return node.get_package(name) or node.get_module(name)
+        
+        # PackageNode can contain: packages, modules
+        # PLUS: fallback search for exported classes/functions
+        elif isinstance(node, PackageNode):
+            # First: Try direct children (sub-packages, sub-modules)
+            direct_child = node.get_package(name) or node.get_module(name)
+            if direct_child:
+                return direct_child
+            
+            # Second: FALLBACK - Search all modules in package for class/function
+            # This handles: from .user import User → models.User
+            # We assume everything is exported (no __init__.py processing yet)
+            for module in node.list_modules():
+                # Try to find class in this module
+                found = module.get_class(name) or module.get_function(name)
+                if found:
+                    return found
+            
+            return None
+        
+        # ModuleNode can contain: classes, functions, state variables
+        elif isinstance(node, ModuleNode):
+            return (node.get_class(name) or 
+                    node.get_function(name) or
+                    node.get_state(name))
+        
+        # ClassNode can contain: methods, class attributes, instance attributes
+        elif isinstance(node, ClassNode):
+            return (node.get_method(name) or
+                    node.get_class_attribute(name) or
+                    node.get_instance_attribute(name))
+        
+        # FunctionNode can contain: arguments, return
+        # Note: Typically you don't navigate INTO functions via FQN,
+        # but we support it for completeness
+        elif isinstance(node, FunctionNode):
+            if name == "return":
+                return node.get_return()
+            return node.get_argument(name)
+        
+        # Other node types (StateNode, AttributeNode, etc.) are leaves
+        else:
+            return None
