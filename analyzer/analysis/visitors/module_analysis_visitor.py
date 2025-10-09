@@ -1,15 +1,16 @@
-"""Module Analysis Visitor - Minimal skeleton for testing."""
+"""Module Analysis Visitor - Type inference for module-level code."""
 
 import ast
-from typing import Dict
+from ..scope import Scope
+from ..expression_traversal import TypeInferenceEngine
 
 
 class ModuleAnalysisVisitor(ast.NodeVisitor):
     """
-    Analyzes module-level code (minimal skeleton).
+    Analyzes module-level code and infers types for assignments.
     
-    This visitor walks the module's AST to demonstrate the visitor pattern.
-    Future versions will infer types and create analysis notes.
+    This visitor walks the module's AST to infer types of module-level
+    variables and build a scope that child visitors can inherit.
     
     All analysis notes are attached to the ModuleNode (locality principle).
     """
@@ -22,19 +23,45 @@ class ModuleAnalysisVisitor(ast.NodeVisitor):
             module_node: The ModuleNode being analyzed (where notes attach)
         """
         self.module_node = module_node
-        self.scope: Dict[str, str] = {}
+        
+        # Create TypeInferenceEngine using project reference from tree
+        project = module_node.get_project()
+        self.engine = TypeInferenceEngine(project)
+        
+        self.scope = Scope()
+        self.scope.push_frame()  # Create the module-level scope frame
         self.assignment_count = 0
     
     def visit_Assign(self, node: ast.Assign):
         """
         Visit module-level assignments: x = 5
         
-        Currently just counts assignments to demonstrate visitor is working.
+        Infers the type of the value and adds it to the scope.
         """
         self.assignment_count += 1
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            var_name = node.targets[0].id
-            print(f"   Found assignment: {var_name} = ... (line {node.lineno})")
+        
+        # Only handle simple single-target assignments for now
+        if len(node.targets) != 1:
+            self.generic_visit(node)
+            return
+        
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            self.generic_visit(node)
+            return
+        
+        # Extract variable name
+        var_name = target.id
+        
+        # Use engine to infer type from the value expression
+        type_fqn = self.engine.get_type(node.value, self.scope)
+        
+        # If we got a type, add it to scope
+        if type_fqn:
+            self.scope.add(var_name, type_fqn)
+            print(f"   Inferred: {var_name} = {type_fqn} (line {node.lineno})")
+        else:
+            print(f"   Could not infer type for: {var_name} (line {node.lineno})")
         
         self.generic_visit(node)
     
@@ -42,11 +69,26 @@ class ModuleAnalysisVisitor(ast.NodeVisitor):
         """
         Visit annotated assignments: x: int = 5
         
-        Currently just counts to demonstrate visitor is working.
+        Infers the type from the value (annotation parsing comes later).
         """
         self.assignment_count += 1
-        if isinstance(node.target, ast.Name):
-            var_name = node.target.id
-            print(f"   Found annotated assignment: {var_name}: ... = ... (line {node.lineno})")
+        
+        if not isinstance(node.target, ast.Name):
+            self.generic_visit(node)
+            return
+        
+        # Extract variable name
+        var_name = node.target.id
+        
+        # For now, infer from value if present
+        # TODO: Also extract type from node.annotation
+        if node.value:
+            type_fqn = self.engine.get_type(node.value, self.scope)
+            
+            if type_fqn:
+                self.scope.add(var_name, type_fqn)
+                print(f"   Inferred: {var_name}: ... = {type_fqn} (line {node.lineno})")
+            else:
+                print(f"   Could not infer type for: {var_name} (line {node.lineno})")
         
         self.generic_visit(node)

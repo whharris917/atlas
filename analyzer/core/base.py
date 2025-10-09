@@ -101,15 +101,11 @@ class BaseNode(NavigationMixin):
                       If None, returns all notes.
         
         Returns:
-            List of notes, optionally filtered by type
-        
-        Example:
-            >>> function_node.get_notes()  # All notes
-            >>> function_node.get_notes(TypeNote)  # Only TypeNote instances
+            List of notes (filtered by type if specified)
         """
         if note_type is None:
             return self._notes
-        return [n for n in self._notes if isinstance(n, note_type)]
+        return [note for note in self._notes if isinstance(note, note_type)]
     
     @property
     def line_number(self) -> int:
@@ -120,27 +116,23 @@ class BaseNode(NavigationMixin):
     
     def get_depth(self) -> int:
         """
-        Calculate depth of this node in the tree.
+        Calculate tree depth from project root to this node.
         
-        Returns the number of meaningful hierarchical levels from the project root
-        to this node. Container nodes are treated as pass-through organizational
-        structures that don't add to the conceptual depth.
-        
-        ContainerNode Behavior:
-            Just like FQN computation, depth calculation skips ContainerNodes since they
-            serve as AST organizational structures rather than meaningful hierarchical
-            levels in the project namespace.
+        Counts meaningful hierarchical levels while treating ContainerNodes
+        as pass-through organizational structures (similar to FQN generation).
+        ContainerNodes don't contribute to depth as they're structural scaffolding
+        rather than meaningful Python entities.
         
         Examples:
-            ProjectNode: depth = 0
-            PackageNode (direct child of project): depth = 1
-            ModuleNode (in package): depth = 2
-            ClassNode (in module): depth = 3
-            FunctionNode (in class, with StateContainerNode parent): depth = 4
-                (StateContainerNode doesn't add to depth - pass-through)
+            ProjectNode: depth 0 (root)
+            PackageNode: depth 1
+            ModuleNode in package: depth 2
+            ClassNode in module: depth 3
+            Method in class: depth 4
+            ContainerNode: same depth as parent (pass-through)
         
         Returns:
-            int: Depth counting only meaningful hierarchical nodes
+            int: Hierarchical depth from root, skipping ContainerNodes
         """
         depth = 0
         current = getattr(self, 'parent', None)
@@ -151,44 +143,72 @@ class BaseNode(NavigationMixin):
             current = getattr(current, 'parent', None)
         return depth
     
+    def get_project(self):
+        """
+        Get the ProjectNode at the root of this tree.
+        
+        Walks up the parent chain to find the ProjectNode. Every node
+        in the Atlas tree is part of a project, so this method enables
+        any node to access the complete project tree for navigation
+        and type resolution.
+        
+        Any node in the tree can use this to access project-level functionality:
+        - Type resolution via get_node_by_fqn()
+        - Project-wide searches
+        - Global type information
+        
+        Returns:
+            ProjectNode: The root project node
+            
+        Raises:
+            RuntimeError: If no ProjectNode is found in parent chain
+        """
+        from ..nodes.project_node import ProjectNode
+        
+        current = self
+        while current is not None:
+            if isinstance(current, ProjectNode):
+                return current
+            current = getattr(current, 'parent', None)
+        
+        # Should never happen in a properly constructed tree
+        raise RuntimeError(f"No ProjectNode found in parent chain for {self}")
+    
     def _create_children(self):
         """
-        Create all child nodes for this node.
+        Create all child nodes via self-creating cascade.
         
-        This is the heart of Atlas's self-creating cascade architecture. When a node is
-        constructed, it automatically creates all of its children based on the source_data
-        it was provided. This mandatory child creation is what enables a single ProjectNode
-        creation to result in a complete, fully-populated tree representing an entire codebase.
+        This method is the cornerstone of Atlas's self-creating architecture.
+        It is called automatically during node construction and must create
+        all appropriate child nodes based on the source_data.
         
-        Architectural Benefits:
-            - **Automatic Tree Population:** No manual tree building required
-            - **Data Integrity:** Children created immediately with all required context
-            - **Guaranteed Consistency:** Tree is always in valid state, never partially built
-            - **Simplified Usage:** Users just create root node, everything else happens automatically
+        The Self-Creating Cascade:
+            When a ProjectNode is created, it creates PackageNodes and ModuleNodes.
+            Those nodes create ClassNodes and FunctionNodes. Those nodes create
+            their children... continuing until the entire tree is populated.
+            
+            This happens automatically. The caller creates only the root ProjectNode,
+            and the entire tree materializes through the cascade.
+        
+        Why Mandatory Child Creation Matters:
+            - Tree is always complete (no partial/lazy initialization)
+            - No need to check "has this been populated yet?"
+            - Navigation works immediately after construction
+            - Architectural simplicity and predictability
         
         Implementation Pattern:
-            Subclasses override this method to:
-            1. Discover what children should exist (from AST, filesystem, etc.)
-            2. Instantiate child nodes with appropriate parent reference
-            3. Store children in collections for navigation
+            Subclasses examine their source_data (AST nodes or discovery classes)
+            and create appropriate child nodes. For example:
+            
+            - ClassNode examines ast.ClassDef for methods and attributes
+            - FunctionNode examines ast.FunctionDef for arguments and returns
+            - ModuleNode examines discovered classes and functions
         
-        Common Patterns:
-            - Parsing AST nodes to find nested definitions, often with the use of node visitors
-            - Scanning filesystem to discover packages/modules
-            - Iterating over data structures to create children
-            - Conditionally creating type analysis nodes
-        
-        Design Philosophy:
-            The entire Atlas tree self-populates automatically from a single
-            ProjectNode creation. When you create the root, it creates packages,
-            which create modules, which create classes, which create methods,
-            which create arguments with type analysis - all automatically through
-            the cascading execution of _create_children() at each level.
-        
-        Execution Timing:
-            This method is called automatically during node construction, after
-            all attributes are initialized but before the constructor returns.
-            This ensures the tree is immediately navigable after construction.
+        The Magic:
+            By requiring every node to create its children during __init__,
+            we ensure that a single root node creation cascades through the
+            entire structure, creating a complete representation of the codebase.
+            This is foundational to Atlas's architecture.
         
         Subclasses must override this method to implement their specific child
         creation logic.
@@ -257,19 +277,15 @@ class BaseNode(NavigationMixin):
         information. Useful for debugging and understanding the complete
         tree structure.
         
-        Examples:
-            "Project(sample_files).Package(models).Module(user).Class(User).Function(get_email).Return(return)"
-            
-            "Project(sample_files).Module(config).StateContainer().State(DEBUG_MODE)"
-            
-            "Project(sample_files).Module(main).ImportFrom().Alias(User)"
+        Example:
+            "Project(sample_files).Package(models).Module(user).StateContainer().State(User)"
         
         Returns:
-            str: Complete FQN showing all nodes with types
+            str: Complete FQN including ContainerNodes with type information
         """
         return self._build_fqn(extended=True, include_containers=True)
     
-    def _build_fqn(self, extended: bool, include_containers: bool) -> str:
+    def _build_fqn(self, extended: bool = False, include_containers: bool = False) -> str:
         """
         Internal method to build FQN variants.
         
@@ -277,18 +293,18 @@ class BaseNode(NavigationMixin):
         with different formatting and filtering options.
         
         Args:
-            extended: If True, include node type prefixes like "Class(User)"
-            include_containers: If True, include ContainerNodes in the path
+            extended: If True, include node types (e.g., "Class(User)")
+            include_containers: If True, include ContainerNodes in path
         
         Returns:
-            Formatted FQN string based on options
+            str: Formatted FQN based on options
         """
-        # ContainerNode case: no name, pass through to parent
-        if not hasattr(self, 'name'):
+        # ContainerNode case: pass through to parent or format with type info
+        if not (hasattr(self, 'name') and self.name):
             if extended:
-                # For extended format, show the container type even without name
+                # Show container type even without name
                 node_type = self.__class__.__name__.replace('Node', '')
-                parent_fqn = self.parent._build_fqn(extended, include_containers) if self.parent else ""
+                parent_fqn = self.parent.fqn if self.parent else ""
                 return f"{parent_fqn}.{node_type}()" if parent_fqn else f"{node_type}()"
             else:
                 # For standard format, pass through to parent
@@ -346,23 +362,21 @@ class RootNode(BaseNode):
         Initialize a root node with comprehensive validation.
         
         Args:
-            source_data: ProjectStructure containing project discovery data
+            source_data: ProjectStructure containing project metadata and filesystem info
             
         Raises:
             ValueError: If extracted name is invalid
-            TypeError: If source_data is not ProjectStructure
+            TypeError: If source_data is not a ProjectStructure instance
         """
-        # Validate source_data is ProjectStructure        
+        # Validate source_data is ProjectStructure
         if not isinstance(source_data, ProjectStructure):
-            raise TypeError(f"RootNode source_data must be ProjectStructure, got {type(source_data)}")
-            
+            raise TypeError(f"RootNode requires ProjectStructure as source_data, got {type(source_data)}")
+        
         super().__init__(source_data)
         self.parent = None  # RootNodes explicitly have no parent
         
-        # Extract name from source_data
+        # Extract and validate name
         self.name = self._extract_name()
-        
-        # Validate extracted name (including whitespace check)
         if not isinstance(self.name, str) or not self.name.strip():
             raise ValueError(f"{self.__class__.__name__} extracted invalid name: {repr(self.name)}")
         
@@ -386,9 +400,9 @@ class RootNode(BaseNode):
 
 class TreeNode(BaseNode):
     """
-    Named entities with parent relationships forming the project tree.
+    Base for named entities within tree hierarchy.
     
-    TreeNodes represent meaningful Python entities (modules, classes, functions, etc.)
+    Tree nodes represent meaningful Python entities (modules, classes, functions, etc.)
     that have names and exist within a hierarchical structure. They require both a valid parent
     and source material for child creation.
     """
@@ -464,18 +478,18 @@ class ContainerNode(BaseNode):
         
         Args:
             parent: Valid BaseNode parent (cannot be None)
-            source_data: Valid AST node used to create children (cannot be None)
+            source_data: AST node used to create children (cannot be None)
             
         Raises:
             ValueError: If parent is None
-            TypeError: If parent is not a BaseNode instance or source_data is not ast.AST
+            TypeError: If parent is not a BaseNode or source_data is not ast.AST
         """
         if parent is None:
             raise ValueError("ContainerNode requires valid parent (cannot be None)")
         if not isinstance(parent, BaseNode):
             raise TypeError(f"ContainerNode parent must be BaseNode instance, got {type(parent)}")
         if not isinstance(source_data, ast.AST):
-            raise TypeError(f"ContainerNode source_data must be ast.AST, got {type(source_data)}")
+            raise TypeError(f"ContainerNode requires ast.AST as source_data, got {type(source_data)}")
             
         super().__init__(source_data)
         self.parent = parent
