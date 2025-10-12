@@ -14,8 +14,9 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
     
     Inherits from BaseAnalysisVisitor to access:
     - linearize() for expression processing
-    - _infer_type() for type determination
+    - _infer_type() for type determination (with Dot and CallFunction support)
     - _infer_literal_type() for literal handling
+    - _extract_type_from_annotation() for type hint extraction
     
     All analysis notes are attached to the ModuleNode (locality principle).
     """
@@ -53,7 +54,7 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         # Extract variable name
         var_name = target.id
         
-        # Infer type using inherited method
+        # Infer type using inherited method (now handles Dot and CallFunction!)
         type_fqn = self._infer_type(node.value)
         
         # If we got a type, add it to scope
@@ -69,7 +70,8 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         """
         Visit annotated assignments: x: int = 5
         
-        Infers the type from the value (annotation parsing comes later).
+        Prioritizes the annotation over value inference, but falls back
+        to value inference if annotation extraction fails.
         """
         self.assignment_count += 1
         
@@ -79,15 +81,21 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
             return
         
         var_name = node.target.id
+        type_fqn = None
         
-        # Infer type from value if present using inherited method
-        if node.value:
+        # First try to extract type from annotation
+        if node.annotation:
+            type_fqn = self._extract_type_from_annotation(node.annotation)
+        
+        # If annotation didn't give us a type and there's a value, infer from value
+        if not type_fqn and node.value:
             type_fqn = self._infer_type(node.value)
-            
-            if type_fqn:
-                self.scope.add(var_name, type_fqn)
-                print(f"   Inferred: {var_name} = {type_fqn} (line {node.lineno})")
-            else:
-                print(f"   Could not infer type for: {var_name} (line {node.lineno})")
+        
+        # If we got a type, add it to scope
+        if type_fqn:
+            self.scope.add(var_name, type_fqn)
+            print(f"   Inferred: {var_name}: {type_fqn} (line {node.lineno})")
+        else:
+            print(f"   Could not infer type for: {var_name} (line {node.lineno})")
         
         self.generic_visit(node)

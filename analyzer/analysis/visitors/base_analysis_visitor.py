@@ -17,7 +17,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
     
     All analysis visitors inherit from this class to access:
     - Expression linearization (converting nested AST to Linear Operation Queue)
-    - Type inference from literals and expressions
+    - Type inference from literals, expressions, and annotations
     - Future shared utilities for analysis
     
     Subclasses should override visit_* methods for specific AST node types
@@ -36,65 +36,51 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         returns, etc.).
         
         Args:
-            expr: An ast.expr node representing the expression to linearize
+            expr: AST expression node (Name, Attribute, Call, Subscript)
             
         Returns:
-            List of Operation objects representing the sequential steps
+            List of Operation objects representing the expression in sequence
             
-        Examples:
-            >>> # Simple: user
-            >>> ops = self.linearize(user_ast)
-            >>> # Result: [GetName('user')]
-            
-            >>> # Chained: user.profile.email
-            >>> ops = self.linearize(user_profile_email_ast)
-            >>> # Result: [GetName('user'), Dot('profile'), Dot('email')]
-            
-            >>> # Method call: user.validate()
-            >>> ops = self.linearize(user_validate_ast)
-            >>> # Result: [GetName('user'), Dot('validate'), CallFunction()]
+        Example:
+            user.profile.email → [GetName('user'), Dot('profile'), Dot('email')]
+            obj.method() → [GetName('obj'), Dot('method'), CallFunction()]
         """
-        loq: List[Operation] = []
+        operations = []
         
-        # Basic dispatch based on expression type
-        if isinstance(expr, ast.Name):
-            # Variable/name access: x, user, count
-            loq.append(GetName(expr.id))
+        def traverse(node):
+            """Recursively traverse AST node to build operation queue."""
+            if isinstance(node, ast.Name):
+                operations.append(GetName(node.id))
+            
+            elif isinstance(node, ast.Attribute):
+                traverse(node.value)
+                operations.append(Dot(node.attr))
+            
+            elif isinstance(node, ast.Call):
+                traverse(node.func)
+                operations.append(CallFunction())
+            
+            elif isinstance(node, ast.Subscript):
+                traverse(node.value)
+                operations.append(GetSubscript())
         
-        elif isinstance(expr, ast.Attribute):
-            # Attribute access: obj.attr
-            # Recursively linearize the value, then add dot operation
-            loq.extend(self.linearize(expr.value))
-            loq.append(Dot(expr.attr))
-        
-        elif isinstance(expr, ast.Call):
-            # Function/method call: func() or obj.method()
-            # Recursively linearize the function being called, then add call
-            loq.extend(self.linearize(expr.func))
-            loq.append(CallFunction())
-        
-        elif isinstance(expr, ast.Subscript):
-            # Subscript access: obj[key] or list[0]
-            # Recursively linearize the value being subscripted, then add subscript
-            loq.extend(self.linearize(expr.value))
-            loq.append(GetSubscript())
-        
-        else:
-            # Other expression types will be added incrementally
-            # For now, we handle the core cases: Name, Attribute, Call, Subscript
-            # Unhandled expressions result in empty LOQ
-            pass
-        
-        return loq
+        traverse(expr)
+        return operations
     
     def _infer_type(self, expr: ast.expr) -> Optional[str]:
         """
-        Infer the type of an expression.
+        Infer the type of an expression using direct tree navigation.
         
         This method handles:
         - Literals (int, str, bool, float, None)
         - Variable lookups (from scope)
-        - Future: complex expressions via LOQ navigation
+        - Attribute access chains (user.profile.email)
+        - Method calls (obj.method())
+        - Subscript operations (list[0])
+        
+        Uses the tree navigation approach: linearize the expression into
+        operations, then navigate the tree directly using .dot() rather
+        than interpreting operations.
         
         Subclasses must have self.scope attribute for variable lookups.
         
@@ -108,15 +94,71 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         if isinstance(expr, ast.Constant):
             return self._infer_literal_type(expr.value)
         
-        # Handle variables and complex expressions via linearization
+        # Linearize expression into operations
         loq = self.linearize(expr)
         
-        # For now, only handle simple variable lookup
-        if len(loq) == 1 and isinstance(loq[0], GetName):
-            return self.scope.lookup(loq[0].name)
+        # Start by resolving the initial GetName operation
+        if not loq or not isinstance(loq[0], GetName):
+            return None
         
-        # Complex expressions not yet implemented
-        return None
+        # Look up the base variable in scope
+        current_type = self.scope.lookup(loq[0].name)
+        if not current_type:
+            return None
+        
+        # If just a simple variable, we're done
+        if len(loq) == 1:
+            return current_type
+        
+        # For complex expressions, we need to navigate the tree
+        # Get the project to find nodes by FQN
+        if not hasattr(self, 'module_node'):
+            return None
+        
+        project = self.module_node.get_project()
+        current_node = project.get_node_by_fqn(current_type)
+        
+        if not current_node:
+            # Type exists in scope but node not found (likely builtin)
+            return current_type
+        
+        # Process each operation by navigating the tree
+        for op in loq[1:]:
+            if isinstance(op, Dot):
+                # Navigate to the named child
+                current_node = current_node.dot(op.attr_name)
+                if not current_node:
+                    return None
+                
+                # Update current type to this node's FQN
+                current_type = current_node.fqn
+            
+            elif isinstance(op, CallFunction):
+                # Navigate to the return node, then to its type
+                return_node = current_node.dot("return")
+                if not return_node:
+                    return None
+                
+                type_node = return_node.dot("type")
+                if not type_node:
+                    return None
+                
+                # Extract the type from the TypeNode
+                current_type = ast.unparse(type_node.source_data)
+                
+                # Try to resolve the type to a node for further navigation
+                current_node = project.get_node_by_fqn(current_type)
+                if not current_node:
+                    # Type is a string but no node exists (builtin or external)
+                    # Can't navigate further, but we have the type
+                    return current_type
+            
+            elif isinstance(op, GetSubscript):
+                # Subscript operation - for now, we can't infer the element type
+                # This requires more sophisticated type tracking
+                return None
+        
+        return current_type
     
     def _infer_literal_type(self, value) -> str:
         """
@@ -142,3 +184,25 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         else:
             # Fallback for other literal types
             return type(value).__name__
+    
+    def _extract_type_from_annotation(self, annotation: ast.expr) -> Optional[str]:
+        """
+        Extract type string from an annotation node.
+        
+        Handles various annotation formats:
+        - Simple names: int, str, bool
+        - Subscripts: List[int], Dict[str, int]
+        - Attributes: typing.Optional[str]
+        
+        Args:
+            annotation: AST annotation node (from ast.AnnAssign.annotation)
+            
+        Returns:
+            Type string extracted from annotation, or None if unparseable
+        """
+        try:
+            # Use ast.unparse to convert annotation AST back to string
+            return ast.unparse(annotation)
+        except Exception:
+            # If unparsing fails, return None
+            return None
