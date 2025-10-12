@@ -3,7 +3,6 @@
 import ast
 from .base_analysis_visitor import BaseAnalysisVisitor
 from ..scope import Scope
-from ..expression_traversal import TypeInferenceEngine
 
 
 class ModuleAnalysisVisitor(BaseAnalysisVisitor):
@@ -13,7 +12,10 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
     This visitor walks the module's AST to infer types of module-level
     variables and build a scope that child visitors can inherit.
     
-    Inherits from BaseAnalysisVisitor to access shared linearize() method.
+    Inherits from BaseAnalysisVisitor to access:
+    - linearize() for expression processing
+    - _infer_type() for type determination
+    - _infer_literal_type() for literal handling
     
     All analysis notes are attached to the ModuleNode (locality principle).
     """
@@ -26,11 +28,6 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
             module_node: The ModuleNode being analyzed (where notes attach)
         """
         self.module_node = module_node
-        
-        # Create TypeInferenceEngine using project reference from tree
-        project = module_node.get_project()
-        self.engine = TypeInferenceEngine(project)
-        
         self.scope = Scope()
         self.scope.push_frame()  # Create the module-level scope frame
         self.assignment_count = 0
@@ -56,8 +53,8 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         # Extract variable name
         var_name = target.id
         
-        # Use engine to infer type from the value expression
-        type_fqn = self.engine.get_type(node.value, self.scope)
+        # Infer type using inherited method
+        type_fqn = self._infer_type(node.value)
         
         # If we got a type, add it to scope
         if type_fqn:
@@ -83,9 +80,9 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         
         var_name = node.target.id
         
-        # Use engine to infer type from value if present
+        # Infer type from value if present using inherited method
         if node.value:
-            type_fqn = self.engine.get_type(node.value, self.scope)
+            type_fqn = self._infer_type(node.value)
             
             if type_fqn:
                 self.scope.add(var_name, type_fqn)

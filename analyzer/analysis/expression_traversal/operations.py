@@ -43,24 +43,28 @@ class GetName(Operation):
         return f"GetName('{self.name}')"
 
 
-class GetAttribute(Operation):
+class Dot(Operation):
     """
-    Operation representing access to an attribute.
+    Operation representing dot access (attribute/method access).
     
-    Example: In the expression `x.y()`, accessing `y` is a GetAttribute operation.
+    Example: In the expression `x.y()`, accessing `y` is a Dot operation.
+    
+    This operation corresponds directly to the .dot() navigation method
+    on tree nodes, representing the fundamental operation of navigating
+    from one node to a named child.
     """
     
-    def __init__(self, attr: str):
+    def __init__(self, attr_name: str):
         """
-        Initialize GetAttribute operation.
+        Initialize Dot operation.
         
         Args:
-            attr: The attribute name being accessed
+            attr_name: The attribute/method name being accessed via dot notation
         """
-        self.attr = attr
+        self.attr_name = attr_name
     
     def __repr__(self) -> str:
-        return f"GetAttribute('{self.attr}')"
+        return f"Dot('{self.attr_name}')"
 
 
 class CallFunction(Operation):

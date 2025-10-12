@@ -2,13 +2,13 @@
 Base Analysis Visitor - Shared functionality for all analysis visitors.
 
 All analysis visitors (ModuleAnalysisVisitor, FunctionAnalysisVisitor, etc.)
-inherit from this base class to access shared linearization functionality.
+inherit from this base class to access shared linearization and type inference.
 """
 
 import ast
-from typing import List
+from typing import List, Optional
 
-from ..expression_traversal.operations import Operation, GetName, GetAttribute, CallFunction, GetSubscript
+from ..expression_traversal.operations import Operation, GetName, Dot, CallFunction, GetSubscript
 
 
 class BaseAnalysisVisitor(ast.NodeVisitor):
@@ -17,10 +17,11 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
     
     All analysis visitors inherit from this class to access:
     - Expression linearization (converting nested AST to Linear Operation Queue)
-    - Future shared utilities for type inference and analysis
+    - Type inference from literals and expressions
+    - Future shared utilities for analysis
     
     Subclasses should override visit_* methods for specific AST node types
-    they need to analyze.
+    they need to analyze, and must provide self.scope for type inference.
     """
     
     def linearize(self, expr: ast.expr) -> List[Operation]:
@@ -47,17 +48,11 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             
             >>> # Chained: user.profile.email
             >>> ops = self.linearize(user_profile_email_ast)
-            >>> # Result: [GetName('user'), GetAttribute('profile'), GetAttribute('email')]
+            >>> # Result: [GetName('user'), Dot('profile'), Dot('email')]
             
             >>> # Method call: user.validate()
             >>> ops = self.linearize(user_validate_ast)
-            >>> # Result: [GetName('user'), GetAttribute('validate'), CallFunction()]
-            
-            >>> # Complex: admin_user.email.lower().strip()
-            >>> ops = self.linearize(complex_ast)
-            >>> # Result: [GetName('admin_user'), GetAttribute('email'), 
-            >>>           GetAttribute('lower'), CallFunction(),
-            >>>           GetAttribute('strip'), CallFunction()]
+            >>> # Result: [GetName('user'), Dot('validate'), CallFunction()]
         """
         loq: List[Operation] = []
         
@@ -68,9 +63,9 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         
         elif isinstance(expr, ast.Attribute):
             # Attribute access: obj.attr
-            # Recursively linearize the value, then add attribute access
+            # Recursively linearize the value, then add dot operation
             loq.extend(self.linearize(expr.value))
-            loq.append(GetAttribute(expr.attr))
+            loq.append(Dot(expr.attr))
         
         elif isinstance(expr, ast.Call):
             # Function/method call: func() or obj.method()
@@ -91,3 +86,59 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             pass
         
         return loq
+    
+    def _infer_type(self, expr: ast.expr) -> Optional[str]:
+        """
+        Infer the type of an expression.
+        
+        This method handles:
+        - Literals (int, str, bool, float, None)
+        - Variable lookups (from scope)
+        - Future: complex expressions via LOQ navigation
+        
+        Subclasses must have self.scope attribute for variable lookups.
+        
+        Args:
+            expr: AST expression node
+            
+        Returns:
+            Type FQN as string, or None if type cannot be determined
+        """
+        # Handle literals directly
+        if isinstance(expr, ast.Constant):
+            return self._infer_literal_type(expr.value)
+        
+        # Handle variables and complex expressions via linearization
+        loq = self.linearize(expr)
+        
+        # For now, only handle simple variable lookup
+        if len(loq) == 1 and isinstance(loq[0], GetName):
+            return self.scope.lookup(loq[0].name)
+        
+        # Complex expressions not yet implemented
+        return None
+    
+    def _infer_literal_type(self, value) -> str:
+        """
+        Infer type from a literal value.
+        
+        Args:
+            value: The literal value from ast.Constant
+            
+        Returns:
+            Type name as string (e.g., "int", "str", "bool")
+        """
+        if isinstance(value, bool):
+            # Must check bool before int (bool is subclass of int)
+            return "bool"
+        elif isinstance(value, int):
+            return "int"
+        elif isinstance(value, float):
+            return "float"
+        elif isinstance(value, str):
+            return "str"
+        elif value is None:
+            return "NoneType"
+        else:
+            # Fallback for other literal types
+            return type(value).__name__
