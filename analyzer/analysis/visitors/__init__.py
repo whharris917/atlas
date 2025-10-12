@@ -1,5 +1,13 @@
-"""Analysis phase visitors."""
+"""
+Analysis Visitors Package
 
-from analyzer.analysis.visitors.module_analysis_visitor import ModuleAnalysisVisitor
+Visitors for the Analysis Phase that inherit from BaseAnalysisVisitor.
+"""
 
-__all__ = ['ModuleAnalysisVisitor']
+from .base_analysis_visitor import BaseAnalysisVisitor
+from .module_analysis_visitor import ModuleAnalysisVisitor
+
+__all__ = [
+    'BaseAnalysisVisitor',
+    'ModuleAnalysisVisitor',
+]
