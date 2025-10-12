@@ -21,12 +21,21 @@ class TypeNode(TreeNode):
         super().__init__(parent, source_data)
     
     def _extract_name(self) -> str:
-        """Extract type representation from AST node."""
-        try:
-            return ast.unparse(self.source_data)
-        except Exception:
-            # Fallback for complex types that can't be unparsed
-            return f"<{type(self.source_data).__name__}>"
+        """
+        Return canonical name for type position.
+        
+        Returns "type" as the canonical name for all TypeNodes, enabling
+        predictable navigation patterns like:
+        - arg_node.dot("type") 
+        - return_node.dot("type")
+        - attribute_node.dot("type")
+        
+        This mirrors ReturnNode's canonical "return" name for consistency.
+        
+        Note: The actual type information (int, str, List[int], etc.) is still
+        available via ast.unparse(self.source_data) if needed for analysis.
+        """
+        return "type"
     
     def _create_children(self):
         """TypeNode is a leaf node - no children to create."""

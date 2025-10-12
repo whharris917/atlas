@@ -174,6 +174,54 @@ class BaseNode(NavigationMixin):
         # Should never happen in a properly constructed tree
         raise RuntimeError(f"No ProjectNode found in parent chain for {self}")
     
+    def dot(self, name: str) -> Optional['BaseNode']:
+        """
+        Navigate to a direct child by name.
+        
+        Searches all child collections (_packages, _modules, _classes, _methods, etc.)
+        and single children (_return, _type) for a child with the given name.
+        
+        This method provides simple direct navigation without needing to know which
+        specific collection a child belongs to. It's the foundation for direct tree
+        navigation in type inference and analysis.
+        
+        Args:
+            name: Name of the child to find
+            
+        Returns:
+            The child node if found, None otherwise
+            
+        Examples:
+            >>> class_node = module.dot("MyClass")
+            >>> method_node = class_node.dot("my_method")
+            >>> return_node = method_node.dot("return")
+            >>> type_node = return_node.dot("type")
+        """
+        # Check all attributes for children
+        for attr_name in dir(self):
+            # Look for collection/child attributes (start with _ but not __)
+            if (attr_name.startswith('_') and 
+                not attr_name.startswith('__') and
+                attr_name not in {'_create_children', '_notes', '_violations'} and
+                attr_name != 'parent'):
+                
+                attr_value = getattr(self, attr_name, None)
+                
+                # Handle list collections
+                if isinstance(attr_value, list):
+                    for item in attr_value:
+                        if hasattr(item, 'name') and item.name == name:
+                            return item
+                # Handle dict collections  
+                elif isinstance(attr_value, dict):
+                    for item in attr_value.values():
+                        if hasattr(item, 'name') and item.name == name:
+                            return item
+                # Handle single child (like _return, _type)
+                elif attr_value is not None and hasattr(attr_value, 'name'):
+                    if attr_value.name == name:
+                        return attr_value
+
     def _create_children(self):
         """
         Create all child nodes via self-creating cascade.
