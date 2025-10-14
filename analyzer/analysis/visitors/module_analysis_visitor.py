@@ -2,7 +2,6 @@
 
 import ast
 from .base_analysis_visitor import BaseAnalysisVisitor
-from ..scope import Scope
 
 
 class ModuleAnalysisVisitor(BaseAnalysisVisitor):
@@ -28,10 +27,7 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         Args:
             module_node: The ModuleNode being analyzed (where notes attach)
         """
-        self.module_node = module_node
-        self.scope = Scope()
-        self.scope.push_frame()  # Create the module-level scope frame
-        self.assignment_count = 0
+        super().__init__(module_node)
     
     def visit_Assign(self, node: ast.Assign):
         """
@@ -39,8 +35,6 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         
         Infers the type of the value and adds it to the scope.
         """
-        self.assignment_count += 1
-        
         # Only handle simple single-target assignments for now
         if len(node.targets) != 1:
             self.generic_visit(node)
@@ -73,28 +67,24 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         Prioritizes the annotation over value inference, but falls back
         to value inference if annotation extraction fails.
         """
-        self.assignment_count += 1
-        
         # Only handle simple Name targets
         if not isinstance(node.target, ast.Name):
             self.generic_visit(node)
             return
         
         var_name = node.target.id
-        type_fqn = None
         
-        # First try to extract type from annotation
-        if node.annotation:
-            type_fqn = self._extract_type_from_annotation(node.annotation)
+        # Try to extract type from annotation first
+        type_fqn = self._extract_type_from_annotation(node.annotation)
         
-        # If annotation didn't give us a type and there's a value, infer from value
+        # Fallback: Try value inference
         if not type_fqn and node.value:
             type_fqn = self._infer_type(node.value)
         
         # If we got a type, add it to scope
         if type_fqn:
             self.scope.add(var_name, type_fqn)
-            print(f"   Inferred: {var_name}: {type_fqn} (line {node.lineno})")
+            print(f"   Inferred: {var_name} = {type_fqn} (line {node.lineno})")
         else:
             print(f"   Could not infer type for: {var_name} (line {node.lineno})")
         

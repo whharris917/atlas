@@ -9,6 +9,7 @@ import ast
 from typing import List, Optional
 
 from ..expression_traversal.operations import Operation, GetName, Dot, CallFunction, GetSubscript
+from ..scope import Scope
 
 
 class BaseAnalysisVisitor(ast.NodeVisitor):
@@ -18,11 +19,26 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
     All analysis visitors inherit from this class to access:
     - Expression linearization (converting nested AST to Linear Operation Queue)
     - Type inference from literals, expressions, and annotations
+    - Scope management for variable type tracking
     - Future shared utilities for analysis
     
-    Subclasses should override visit_* methods for specific AST node types
-    they need to analyze, and must provide self.scope for type inference.
+    Subclasses should call super().__init__(node) to initialize the base visitor,
+    where node is the specific node being analyzed (ModuleNode, FunctionNode, etc.).
     """
+    
+    def __init__(self, node):
+        """
+        Initialize base visitor with the node being analyzed.
+        
+        All analysis visitors need access to their node to navigate to the
+        project for FQN resolution during type inference.
+        
+        Args:
+            node: The tree node being analyzed (ModuleNode, FunctionNode, ClassNode, etc.)
+        """
+        self.node = node
+        self.scope = Scope()
+        self.scope.push_frame()
     
     def linearize(self, expr: ast.expr) -> List[Operation]:
         """
@@ -82,8 +98,6 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         operations, then navigate the tree directly using .dot() rather
         than interpreting operations.
         
-        Subclasses must have self.scope attribute for variable lookups.
-        
         Args:
             expr: AST expression node
             
@@ -112,10 +126,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         
         # For complex expressions, we need to navigate the tree
         # Get the project to find nodes by FQN
-        if not hasattr(self, 'module_node'):
-            return None
-        
-        project = self.module_node.get_project()
+        project = self.node.get_project()
         current_node = project.get_node_by_fqn(current_type)
         
         if not current_node:
@@ -168,41 +179,24 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             value: The literal value from ast.Constant
             
         Returns:
-            Type name as string (e.g., "int", "str", "bool")
+            Type name as string (e.g., "int", "str", "bool", "NoneType")
         """
-        if isinstance(value, bool):
-            # Must check bool before int (bool is subclass of int)
-            return "bool"
-        elif isinstance(value, int):
-            return "int"
-        elif isinstance(value, float):
-            return "float"
-        elif isinstance(value, str):
-            return "str"
-        elif value is None:
-            return "NoneType"
-        else:
-            # Fallback for other literal types
-            return type(value).__name__
+        return type(value).__name__
     
     def _extract_type_from_annotation(self, annotation: ast.expr) -> Optional[str]:
         """
-        Extract type string from an annotation node.
+        Extract type from a type annotation node.
         
-        Handles various annotation formats:
-        - Simple names: int, str, bool
-        - Subscripts: List[int], Dict[str, int]
-        - Attributes: typing.Optional[str]
+        Handles both simple types (int, str) and complex generic types
+        (List[int], Dict[str, User], Optional[str]).
         
         Args:
-            annotation: AST annotation node (from ast.AnnAssign.annotation)
+            annotation: The ast.annotation node from AnnAssign
             
         Returns:
-            Type string extracted from annotation, or None if unparseable
+            Type as string, or None if extraction fails
         """
         try:
-            # Use ast.unparse to convert annotation AST back to string
             return ast.unparse(annotation)
         except Exception:
-            # If unparsing fails, return None
             return None
