@@ -202,6 +202,36 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         except Exception:
             return None
     
+    def _resolve_annotation(self, annotation_str: str) -> str:
+        """
+        Resolve an annotation string to its FQN.
+        
+        Takes an annotation like "User" and resolves it to its full FQN
+        like "sample_files.models.User" by looking it up in scope.
+        
+        For simple type names, uses scope lookup.
+        For complex types like List[User], recursively resolves inner types.
+        For builtins and already-qualified names, returns as-is.
+        
+        Args:
+            annotation_str: The annotation string (e.g., "User", "List[User]")
+            
+        Returns:
+            Resolved FQN or annotation string
+        """
+        # If it's a simple name (no dots, no brackets), try scope lookup
+        if '.' not in annotation_str and '[' not in annotation_str:
+            resolved = self.scope.lookup(annotation_str)
+            if resolved:
+                return resolved
+            # If not in scope, return as-is (might be external type)
+            return annotation_str
+        
+        # If it has brackets, it's a generic type like List[User] or Optional[User]
+        # For now, return as-is - we can add recursive resolution later
+        # TODO: Parse and resolve inner types (e.g., "List[User]" → "List[sample_files.models.User]")
+        return annotation_str
+    
     # ========================================================================
     # Scope Population Methods - Inherited by All Visitors
     # ========================================================================

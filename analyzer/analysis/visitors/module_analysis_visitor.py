@@ -77,8 +77,9 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         """
         Visit annotated assignments: x: int = 5
         
-        Prioritizes the annotation over value inference, but falls back
-        to value inference if annotation extraction fails.
+        Validates that the annotation matches the inferred type.
+        Creates IncorrectTypeAnnotation violation if there's a mismatch.
+        Always adds the inferred type to scope (ground truth is runtime behavior).
         """
         # Only handle simple Name targets
         if not isinstance(node.target, ast.Name):
@@ -87,18 +88,48 @@ class ModuleAnalysisVisitor(BaseAnalysisVisitor):
         
         var_name = node.target.id
         
-        # Try to extract type from annotation first
-        type_fqn = self._extract_type_from_annotation(node.annotation)
+        # Extract and resolve annotation to FQN
+        annotation_str = self._extract_type_from_annotation(node.annotation)
+        annotation_fqn = None
+        if annotation_str:
+            annotation_fqn = self._resolve_annotation(annotation_str)
+            print(f"   Annotation: {var_name}: {annotation_str} → {annotation_fqn}")
         
-        # Fallback: Try value inference
-        if not type_fqn and node.value:
-            type_fqn = self._infer_type(node.value)
+        # Infer type from value if present
+        inferred_type = None
+        if node.value:
+            inferred_type = self._infer_type(node.value)
+            if inferred_type:
+                print(f"   Inferred from value: {var_name} = {inferred_type}")
         
-        # If we got a type, add it to scope
-        if type_fqn:
-            self.scope.add(var_name, type_fqn)
-            print(f"   Inferred: {var_name} = {type_fqn} (line {node.lineno})")
+        # Determine which type to use in scope
+        type_for_scope = None
+        
+        if annotation_fqn and inferred_type:
+            # Both annotation and inferred type available - compare them
+            if annotation_fqn != inferred_type:
+                # Mismatch! Create violation
+                from ...violations import IncorrectTypeAnnotation
+                violation = IncorrectTypeAnnotation(self.node)
+                # TODO: Attach violation to node (needs violation infrastructure)
+                print(f"   VIOLATION: Annotation '{annotation_fqn}' doesn't match inferred '{inferred_type}' (line {node.lineno})")
+            
+            # Use inferred type (ground truth is runtime behavior)
+            type_for_scope = inferred_type
+        
+        elif annotation_fqn:
+            # Only annotation available (no value, or couldn't infer)
+            type_for_scope = annotation_fqn
+        
+        elif inferred_type:
+            # Only inferred type available (no annotation, or couldn't extract)
+            type_for_scope = inferred_type
+        
+        # Add to scope if we have a type
+        if type_for_scope:
+            self.scope.add(var_name, type_for_scope)
+            print(f"   Added to scope: {var_name} = {type_for_scope} (line {node.lineno})")
         else:
-            print(f"   Could not infer type for: {var_name} (line {node.lineno})")
+            print(f"   Could not determine type for: {var_name} (line {node.lineno})")
         
         self.generic_visit(node)

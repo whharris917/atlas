@@ -64,6 +64,20 @@ class MultipleTargetAttributeAssignment(CodeStandardViolation):
     pass
 
 
+class IncorrectTypeAnnotation(CodeStandardViolation):
+    """
+    Violation indicating a type annotation that doesn't match the inferred type.
+    
+    Example:
+        user: User = "not a user"  # Annotation says User, value is str
+        count: int = 3.14           # Annotation says int, value is float
+    
+    The annotation (type hint) doesn't match what the value actually is.
+    This helps catch bugs where type hints are incorrect or misleading.
+    """
+    pass
+
+
 # Public API exports
 __all__ = [
     'CodeStandardViolation',
@@ -71,5 +85,6 @@ __all__ = [
     'MissingReturnTypeHint',
     'MissingClassAttributeTypeHint', 
     'MissingInstanceAttributeTypeHint',
-    'MultipleTargetAttributeAssignment'
+    'MultipleTargetAttributeAssignment',
+    'IncorrectTypeAnnotation'
 ]
