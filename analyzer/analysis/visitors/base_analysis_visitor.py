@@ -20,6 +20,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
     - Expression linearization (converting nested AST to Linear Operation Queue)
     - Type inference from literals, expressions, and annotations
     - Scope management for variable type tracking
+    - Scope population (imports, classes, functions)
     - Future shared utilities for analysis
     
     Subclasses should call super().__init__(node) to initialize the base visitor,
@@ -200,3 +201,147 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             return ast.unparse(annotation)
         except Exception:
             return None
+    
+    # ========================================================================
+    # Scope Population Methods - Inherited by All Visitors
+    # ========================================================================
+    
+    def visit_Import(self, node: ast.Import):
+        """
+        Visit import statements: import json, import os.path
+        
+        Adds imported names to scope. For simple imports like 'import json',
+        the name 'json' maps to 'json'. For 'import os.path', the name 'os'
+        maps to 'os'.
+        """
+        for alias in node.names:
+            # Use alias if provided (import json as j), otherwise use module name
+            name = alias.asname if alias.asname else alias.name
+            
+            # For imports, store the module name as-is
+            # Examples: 'import json' → scope['json'] = 'json'
+            #           'import os.path' → scope['os'] = 'os'
+            self.scope.add(name, alias.name)
+            print(f"   Import: {name} → {alias.name}")
+        
+        self.generic_visit(node)
+    
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        """
+        Visit from-import statements: from models import User
+        
+        Resolves imported names to their FQNs and adds to scope.
+        Handles both absolute and relative imports.
+        """
+        # Determine the base module being imported from
+        if node.module:
+            # Absolute or relative import with explicit module
+            if node.level > 0:
+                # Relative import: from .models import User
+                # Need to resolve relative to current module
+                base_module = self._resolve_relative_import(node.module, node.level)
+            else:
+                # Absolute import: from models import User
+                base_module = node.module
+        else:
+            # Relative import without module: from . import utils
+            # Imports from parent package
+            base_module = self._resolve_relative_import(None, node.level)
+        
+        # Add each imported name to scope
+        for alias in node.names:
+            if alias.name == '*':
+                # from models import * - skip for now
+                print(f"   ImportFrom: * (wildcard imports not tracked)")
+                continue
+            
+            # Use alias if provided, otherwise use imported name
+            name = alias.asname if alias.asname else alias.name
+            
+            # Build FQN: base_module.name
+            if base_module:
+                fqn = f"{base_module}.{alias.name}"
+            else:
+                fqn = alias.name
+            
+            self.scope.add(name, fqn)
+            print(f"   ImportFrom: {name} → {fqn}")
+        
+        self.generic_visit(node)
+    
+    def _resolve_relative_import(self, module: str, level: int) -> str:
+        """
+        Resolve a relative import to absolute module path.
+        
+        Args:
+            module: The module name (or None for package imports)
+            level: Number of dots (1 = current package, 2 = parent, etc.)
+            
+        Returns:
+            Resolved absolute module path
+        """
+        # Get the current node's FQN
+        current_fqn = self.node.fqn
+        
+        # Split into parts: sample_files.models.user → ['sample_files', 'models', 'user']
+        parts = current_fqn.split('.')
+        
+        # Remove 'level' parts from the end (including current module name)
+        # level=1 means current package, level=2 means parent package
+        base_parts = parts[:-level] if level <= len(parts) else []
+        
+        # Add the module if specified
+        if module:
+            base_parts.append(module)
+        
+        return '.'.join(base_parts) if base_parts else ''
+    
+    def visit_ClassDef(self, node: ast.ClassDef):
+        """
+        Visit class definitions: class User:
+        
+        Adds class name to scope with its FQN.
+        Does not traverse into class body - subclasses can override for deeper analysis.
+        """
+        class_name = node.name
+        
+        # Build FQN: parent_fqn.class_name
+        class_fqn = f"{self.node.fqn}.{class_name}"
+        
+        self.scope.add(class_name, class_fqn)
+        print(f"   ClassDef: {class_name} → {class_fqn}")
+        
+        # Don't traverse into class body by default
+        # Subclasses can override this behavior
+    
+    def visit_FunctionDef(self, node: ast.FunctionDef):
+        """
+        Visit function definitions: def process():
+        
+        Adds function name to scope with its FQN.
+        Does not traverse into function body - subclasses can override for deeper analysis.
+        """
+        func_name = node.name
+        
+        # Build FQN: parent_fqn.func_name
+        func_fqn = f"{self.node.fqn}.{func_name}"
+        
+        self.scope.add(func_name, func_fqn)
+        print(f"   FunctionDef: {func_name} → {func_fqn}")
+        
+        # Don't traverse into function body by default
+        # Subclasses can override this behavior
+    
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+        """
+        Visit async function definitions: async def fetch():
+        
+        Adds function name to scope with its FQN.
+        """
+        func_name = node.name
+        
+        # Build FQN: parent_fqn.func_name
+        func_fqn = f"{self.node.fqn}.{func_name}"
+        
+        self.scope.add(func_name, func_fqn)
+        print(f"   AsyncFunctionDef: {func_name} → {func_fqn}")

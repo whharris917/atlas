@@ -9,6 +9,7 @@ Classes:
 - Scope: Stack of ScopeFrames with lookup traversal
 """
 
+import builtins
 from typing import Optional, Dict
 
 
@@ -52,6 +53,8 @@ class Scope:
     
     Manages a stack of ScopeFrames, searching from innermost to outermost
     during lookup. Used by analysis visitors to track variable types.
+    
+    Lookup falls back to Python builtins if name not found in any frame.
     """
     
     def __init__(self):
@@ -82,15 +85,24 @@ class Scope:
         """
         Look up a name by searching frames from innermost to outermost.
         
+        Falls back to checking Python builtins if not found in any frame.
+        Uses the builtins module to dynamically check for builtin names,
+        avoiding the need for a hardcoded list.
+        
         Args:
             name: Variable name to look up
             
         Returns:
-            Type FQN if found in any frame, None otherwise
+            Type FQN if found in any frame or builtins, None otherwise
         """
         # Search from innermost (end of list) to outermost (start of list)
         for frame in reversed(self._frames):
             type_fqn = frame.get(name)
             if type_fqn is not None:
                 return type_fqn
+        
+        # Fallback: check if it's a Python builtin
+        if hasattr(builtins, name):
+            return name  # Builtins return as-is (e.g., "int", "str")
+        
         return None
