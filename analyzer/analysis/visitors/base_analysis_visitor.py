@@ -233,6 +233,106 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         return annotation_str
     
     # ========================================================================
+    # Assignment Processing - Inherited by All Visitors
+    # ========================================================================
+    
+    def visit_Assign(self, node: ast.Assign):
+        """
+        Visit un-annotated assignments: x = 5
+        
+        Delegates to unified assignment processing.
+        """
+        self._process_assignment(node, annotated=False)
+    
+    def visit_AnnAssign(self, node: ast.AnnAssign):
+        """
+        Visit annotated assignments: x: int = 5
+        
+        Delegates to unified assignment processing with annotation validation.
+        """
+        self._process_assignment(node, annotated=True)
+    
+    def _process_assignment(self, node, annotated: bool):
+        """
+        Unified assignment processing for both annotated and un-annotated assignments.
+        
+        Handles:
+        - Type inference from values
+        - Annotation resolution to FQNs
+        - Annotation vs inferred type validation
+        - Violation creation on mismatch
+        - Scope population
+        
+        Args:
+            node: ast.Assign or ast.AnnAssign node
+            annotated: True for AnnAssign, False for Assign
+        """
+        # Extract target (different structure for Assign vs AnnAssign)
+        if annotated:
+            # AnnAssign: node.target (single target)
+            if not isinstance(node.target, ast.Name):
+                self.generic_visit(node)
+                return
+            var_name = node.target.id
+        else:
+            # Assign: node.targets (list of targets)
+            if len(node.targets) != 1:
+                self.generic_visit(node)
+                return
+            target = node.targets[0]
+            if not isinstance(target, ast.Name):
+                self.generic_visit(node)
+                return
+            var_name = target.id
+        
+        # Extract and resolve annotation if present
+        annotation_fqn = None
+        if annotated and hasattr(node, 'annotation'):
+            annotation_str = self._extract_type_from_annotation(node.annotation)
+            if annotation_str:
+                annotation_fqn = self._resolve_annotation(annotation_str)
+                print(f"   Annotation: {var_name}: {annotation_str} → {annotation_fqn}")
+        
+        # Infer type from value if present
+        inferred_type = None
+        if hasattr(node, 'value') and node.value:
+            inferred_type = self._infer_type(node.value)
+            if inferred_type:
+                print(f"   Inferred from value: {var_name} = {inferred_type}")
+        
+        # Determine which type to use in scope
+        type_for_scope = None
+        
+        if annotation_fqn and inferred_type:
+            # Both annotation and inferred type available - compare them
+            if annotation_fqn != inferred_type:
+                # Mismatch! Create violation
+                from ...violations import IncorrectTypeAnnotation
+                violation = IncorrectTypeAnnotation(self.node)
+                # TODO: Attach violation to node (needs violation infrastructure)
+                print(f"   ⚠️  VIOLATION: Annotation '{annotation_fqn}' doesn't match inferred '{inferred_type}' (line {node.lineno})")
+            
+            # Use inferred type (ground truth is runtime behavior)
+            type_for_scope = inferred_type
+        
+        elif annotation_fqn:
+            # Only annotation available (no value, or couldn't infer)
+            type_for_scope = annotation_fqn
+        
+        elif inferred_type:
+            # Only inferred type available (no annotation, or couldn't extract)
+            type_for_scope = inferred_type
+        
+        # Add to scope if we have a type
+        if type_for_scope:
+            self.scope.add(var_name, type_for_scope)
+            print(f"   Added to scope: {var_name} = {type_for_scope} (line {node.lineno})")
+        else:
+            print(f"   Could not determine type for: {var_name} (line {node.lineno})")
+        
+        self.generic_visit(node)
+    
+    # ========================================================================
     # Scope Population Methods - Inherited by All Visitors
     # ========================================================================
     
