@@ -141,76 +141,101 @@ class ProjectNode(SerializationMixin, RootNode):
         return current
     
     def _find_child_by_name(self, node: BaseNode, name: str) -> Optional[BaseNode]:
-        """
-        Find a child node by name, trying all possible node types.
-        
-        This helper method encapsulates the logic of checking different
-        node types based on what the current node can contain.
-        
-        IMPORTANT: For PackageNodes, this implements a fallback strategy
-        to handle package-level imports (e.g., `from .user import User`
-        making User available as `models.User`). Since we don't currently
-        process __init__.py imports during reconnaissance, we fall back to
-        searching ALL modules within the package for a matching class/function.
-        
-        This is a MAKESHIFT SOLUTION that assumes everything is exported.
-        TODO: Properly process __init__.py imports during reconnaissance phase.
-        
-        Args:
-            node: The current node to search within
-            name: The name of the child to find
-        
-        Returns:
-            The child node if found, None otherwise
-        """
-        from .package_node import PackageNode
-        from .module_node import ModuleNode
-        from .class_node import ClassNode
-        from .function_node import FunctionNode
-        
-        # ProjectNode can contain: packages, modules
-        if isinstance(node, ProjectNode):
-            return node.get_package(name) or node.get_module(name)
-        
-        # PackageNode can contain: packages, modules
-        # PLUS: fallback search for exported classes/functions
-        elif isinstance(node, PackageNode):
-            # First: Try direct children (sub-packages, sub-modules)
-            direct_child = node.get_package(name) or node.get_module(name)
-            if direct_child:
-                return direct_child
+            """
+            Find a child node by name, trying all possible node types.
             
-            # Second: FALLBACK - Search all modules in package for class/function
-            # This handles: from .user import User → models.User
-            # We assume everything is exported (no __init__.py processing yet)
-            for module in node.list_modules():
-                # Try to find class in this module
-                found = module.get_class(name) or module.get_function(name)
-                if found:
-                    return found
+            This helper method encapsulates the logic of checking different
+            node types based on what the current node can contain.
             
-            return None
-        
-        # ModuleNode can contain: classes, functions, state variables
-        elif isinstance(node, ModuleNode):
-            return (node.get_class(name) or 
-                    node.get_function(name) or
-                    node.get_state(name))
-        
-        # ClassNode can contain: methods, class attributes, instance attributes
-        elif isinstance(node, ClassNode):
-            return (node.get_method(name) or
-                    node.get_class_attribute(name) or
-                    node.get_instance_attribute(name))
-        
-        # FunctionNode can contain: arguments, return
-        # Note: Typically you don't navigate INTO functions via FQN,
-        # but we support it for completeness
-        elif isinstance(node, FunctionNode):
-            if name == "return":
-                return node.get_return()
-            return node.get_argument(name)
-        
-        # Other node types (StateNode, AttributeNode, etc.) are leaves
-        else:
-            return None
+            IMPORTANT: For PackageNodes, this implements a fallback strategy
+            to handle package-level imports (e.g., `from .user import User`
+            making User available as `models.User`). Since we don't currently
+            process __init__.py imports during reconnaissance, we fall back to
+            searching ALL modules within the package for a matching class/function.
+            
+            This is a MAKESHIFT SOLUTION that assumes everything is exported.
+            TODO: Properly process __init__.py imports during reconnaissance phase.
+            
+            INHERITANCE SUPPORT: For ClassNodes, if a member is not found directly,
+            this method automatically searches through base classes (via base_class_fqns)
+            to enable transparent method/attribute resolution through inheritance chains.
+            This implements Python's method resolution order (MRO) for static analysis.
+            
+            Args:
+                node: The current node to search within
+                name: The name of the child to find
+            
+            Returns:
+                The child node if found, None otherwise
+            """
+            from .package_node import PackageNode
+            from .module_node import ModuleNode
+            from .class_node import ClassNode
+            from .function_node import FunctionNode
+            
+            # ProjectNode can contain: packages, modules
+            if isinstance(node, ProjectNode):
+                return node.get_package(name) or node.get_module(name)
+            
+            # PackageNode can contain: packages, modules
+            # PLUS: fallback search for exported classes/functions
+            elif isinstance(node, PackageNode):
+                # First: Try direct children (sub-packages, sub-modules)
+                direct_child = node.get_package(name) or node.get_module(name)
+                if direct_child:
+                    return direct_child
+                
+                # Second: FALLBACK - Search all modules in package for class/function
+                # This handles: from .user import User → models.User
+                # We assume everything is exported (no __init__.py processing yet)
+                for module in node.list_modules():
+                    # Try to find class in this module
+                    found = module.get_class(name) or module.get_function(name)
+                    if found:
+                        return found
+                
+                return None
+            
+            # ModuleNode can contain: classes, functions, state variables
+            elif isinstance(node, ModuleNode):
+                return (node.get_class(name) or 
+                        node.get_function(name) or
+                        node.get_state(name))
+            
+            # ClassNode can contain: methods, class attributes, instance attributes
+            # PLUS: inheritance-aware resolution through base classes
+            elif isinstance(node, ClassNode):
+                # First: Try direct children
+                child = (node.get_method(name) or
+                        node.get_class_attribute(name) or
+                        node.get_instance_attribute(name))
+                
+                # If found, return immediately
+                if child:
+                    return child
+                
+                # Second: If not found and class has base classes, search inheritance chain
+                if hasattr(node, 'base_class_fqns') and node.base_class_fqns:
+                    for base_fqn in node.base_class_fqns:
+                        # Navigate to the base class node
+                        base_node = self.get_node_by_fqn(base_fqn)
+                        if base_node:
+                            # Recursively search in the base class
+                            # This handles multi-level inheritance automatically
+                            child = self._find_child_by_name(base_node, name)
+                            if child:
+                                return child
+                
+                return None
+            
+            # FunctionNode can contain: arguments, return
+            # Note: Typically you don't navigate INTO functions via FQN,
+            # but we support it for completeness
+            elif isinstance(node, FunctionNode):
+                if name == "return":
+                    return node.get_return()
+                return node.get_argument(name)
+            
+            # Other node types (StateNode, AttributeNode, etc.) are leaves
+            else:
+                return None
