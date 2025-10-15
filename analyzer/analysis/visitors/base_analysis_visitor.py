@@ -23,11 +23,38 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
     - Scope population (imports, classes, functions)
     - Future shared utilities for analysis
     
-    Subclasses should call super().__init__(node) to initialize the base visitor,
-    where node is the specific node being analyzed (ModuleNode, FunctionNode, etc.).
+    Subclasses should call super().__init__(node, parent_scope) to initialize
+    the base visitor, where node is the specific node being analyzed and
+    parent_scope is the optional scope from the parent visitor.
+    
+    
+    OVERRIDE PATTERN FOR SUBCLASSES:
+    
+    The base class handles scope population (adding entities to scope as they're
+    encountered during traversal). Subclasses override visit_* methods to add
+    specialized behavior like dispatching child visitors.
+    
+    The pattern is ALWAYS:
+        1. Call super().visit_*() FIRST to handle scope building
+        2. Then add specialized logic (usually child visitor dispatch)
+    
+    This order is critical because:
+        - Entities must be in scope BEFORE analyzing their bodies
+        - Enables self-reference (class can reference itself)
+        - Maintains use-before-definition detection
+    
+    Methods that subclasses commonly override:
+        - visit_ClassDef: Dispatch ClassAnalysisVisitor to analyze class body
+        - visit_FunctionDef: Dispatch FunctionAnalysisVisitor to analyze function body
+        - visit_AsyncFunctionDef: Same as FunctionDef for async functions
+    
+    Methods that subclasses typically DON'T override:
+        - visit_Import, visit_ImportFrom: Imports fully handled in base
+        - visit_Assign, visit_AnnAssign: Assignments fully handled in base
+        - _process_assignment: Override this if you need custom assignment logic
     """
     
-    def __init__(self, node):
+    def __init__(self, node, parent_scope: Optional[Scope] = None):
         """
         Initialize base visitor with the node being analyzed.
         
@@ -36,10 +63,21 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         
         Args:
             node: The tree node being analyzed (ModuleNode, FunctionNode, ClassNode, etc.)
+            parent_scope: Optional Scope from parent visitor. If provided, inherits parent's
+                         scope and pushes a new frame for this level. If None, creates a
+                         fresh Scope (used by root-level ModuleAnalysisVisitor).
         """
         self.node = node
-        self.scope = Scope()
-        self.scope.push_frame()
+        
+        # Scope inheritance: child visitors inherit parent scope
+        if parent_scope:
+            # Child visitor: inherit parent scope and push new frame
+            self.scope = parent_scope
+            self.scope.push_frame()
+        else:
+            # Root visitor: create fresh scope and push initial frame
+            self.scope = Scope()
+            self.scope.push_frame()
     
     def linearize(self, expr: ast.expr) -> List[Operation]:
         """
@@ -241,6 +279,15 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         Visit un-annotated assignments: x = 5
         
         Delegates to unified assignment processing.
+        
+        Subclasses typically do NOT need to override this method.
+        The base implementation handles:
+        - Type inference from values
+        - Scope population
+        - All common assignment patterns
+        
+        If you have specialized assignment handling needs, override
+        _process_assignment() instead of this method.
         """
         self._process_assignment(node, annotated=False)
     
@@ -249,6 +296,17 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         Visit annotated assignments: x: int = 5
         
         Delegates to unified assignment processing with annotation validation.
+        
+        Subclasses typically do NOT need to override this method.
+        The base implementation handles:
+        - Type inference from values
+        - Annotation resolution to FQNs
+        - Annotation vs inferred type validation
+        - Violation creation on mismatch
+        - Scope population
+        
+        If you have specialized assignment handling needs, override
+        _process_assignment() instead of this method.
         """
         self._process_assignment(node, annotated=True)
     
@@ -310,7 +368,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                 from ...violations import IncorrectTypeAnnotation
                 violation = IncorrectTypeAnnotation(self.node)
                 # TODO: Attach violation to node (needs violation infrastructure)
-                print(f"   ⚠️  VIOLATION: Annotation '{annotation_fqn}' doesn't match inferred '{inferred_type}' (line {node.lineno})")
+                print(f"   VIOLATION: Annotation '{annotation_fqn}' doesn't match inferred '{inferred_type}' (line {node.lineno})")
             
             # Use inferred type (ground truth is runtime behavior)
             type_for_scope = inferred_type
@@ -343,6 +401,16 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         Adds imported names to scope. For simple imports like 'import json',
         the name 'json' maps to 'json'. For 'import os.path', the name 'os'
         maps to 'os'.
+        
+        Subclasses typically do NOT need to override this method.
+        Imports don't have bodies to analyze, so no child visitor dispatch needed.
+        The base implementation handles all import scope population.
+        
+        If you do override (rarely needed), call super() to ensure imports
+        are added to scope:
+            def visit_Import(self, node):
+                super().visit_Import(node)  # Add to scope
+                # Your specialized logic here
         """
         for alias in node.names:
             # Use alias if provided (import json as j), otherwise use module name
@@ -362,6 +430,16 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         
         Resolves imported names to their FQNs and adds to scope.
         Handles both absolute and relative imports.
+        
+        Subclasses typically do NOT need to override this method.
+        Imports don't have bodies to analyze, so no child visitor dispatch needed.
+        The base implementation handles all import scope population.
+        
+        If you do override (rarely needed), call super() to ensure imports
+        are added to scope:
+            def visit_ImportFrom(self, node):
+                super().visit_ImportFrom(node)  # Add to scope
+                # Your specialized logic here
         """
         # Determine the base module being imported from
         if node.module:
@@ -430,8 +508,24 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         """
         Visit class definitions: class User:
         
-        Adds class name to scope with its FQN.
-        Does not traverse into class body - subclasses can override for deeper analysis.
+        Base implementation adds class name to scope with its FQN.
+        Does not traverse into class body.
+        
+        Subclasses should override this method to dispatch child visitors:
+        
+        Example override in ModuleAnalysisVisitor:
+            def visit_ClassDef(self, node):
+                # FIRST: Call super() to add class to scope
+                super().visit_ClassDef(node)
+                
+                # SECOND: Dispatch ClassAnalysisVisitor to analyze class body
+                class_node = self.node.get_class(node.name)
+                ClassAnalysisVisitor(class_node, self.scope).visit(...)
+        
+        Why this order matters:
+        - Class must be in scope BEFORE analyzing its body
+        - Body analysis can reference the class itself (self-reference)
+        - Maintains use-before-definition detection
         """
         class_name = node.name
         
@@ -448,8 +542,33 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         """
         Visit function definitions: def process():
         
-        Adds function name to scope with its FQN.
-        Does not traverse into function body - subclasses can override for deeper analysis.
+        Base implementation adds function name to scope with its FQN.
+        Does not traverse into function body.
+        
+        Subclasses should override this method to dispatch child visitors:
+        
+        Example override in ModuleAnalysisVisitor:
+            def visit_FunctionDef(self, node):
+                # FIRST: Call super() to add function to scope
+                super().visit_FunctionDef(node)
+                
+                # SECOND: Dispatch FunctionAnalysisVisitor to analyze function body
+                func_node = self.node.get_function(node.name)
+                FunctionAnalysisVisitor(func_node, self.scope).visit(...)
+        
+        Example override in ClassAnalysisVisitor (for methods):
+            def visit_FunctionDef(self, node):
+                # FIRST: Call super() to add method to class scope
+                super().visit_FunctionDef(node)
+                
+                # SECOND: Dispatch FunctionAnalysisVisitor to analyze method body
+                method_node = self.node.get_method(node.name)
+                FunctionAnalysisVisitor(method_node, self.scope).visit(...)
+        
+        Why this order matters:
+        - Function must be in scope BEFORE analyzing its body
+        - Enables recursive function calls (function can call itself)
+        - Maintains use-before-definition detection
         """
         func_name = node.name
         
@@ -466,7 +585,24 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         """
         Visit async function definitions: async def fetch():
         
-        Adds function name to scope with its FQN.
+        Base implementation adds function name to scope with its FQN.
+        Does not traverse into function body.
+        
+        Subclasses should override this method to dispatch child visitors
+        (same pattern as visit_FunctionDef):
+        
+        Example override:
+            def visit_AsyncFunctionDef(self, node):
+                # FIRST: Call super() to add async function to scope
+                super().visit_AsyncFunctionDef(node)
+                
+                # SECOND: Dispatch FunctionAnalysisVisitor to analyze body
+                func_node = self.node.get_function(node.name)
+                FunctionAnalysisVisitor(func_node, self.scope).visit(...)
+        
+        Why this order matters:
+        - Async function must be in scope BEFORE analyzing its body
+        - Same rationale as regular function definitions
         """
         func_name = node.name
         
