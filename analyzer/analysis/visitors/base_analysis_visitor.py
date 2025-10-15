@@ -124,18 +124,23 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
     
     def _infer_type(self, expr: ast.expr) -> Optional[str]:
         """
-        Infer the type of an expression using direct tree navigation.
+        Infer the type of an expression by navigating the tree.
         
         This method handles:
-        - Literals (int, str, bool, float, None)
-        - Variable lookups (from scope)
-        - Attribute access chains (user.profile.email)
-        - Method calls (obj.method())
-        - Subscript operations (list[0])
-        
+            - Literals (int, str, bool, float, None)
+            - Variable lookups (from scope)
+            - Attribute access chains (user.profile.email, self.name)
+            - Method calls (obj.method())
+            - Subscript operations (list[0])
+            
         Uses the tree navigation approach: linearize the expression into
         operations, then navigate the tree directly using .dot() rather
         than interpreting operations.
+        
+        Special handling for attributes: When navigation encounters an
+        InstanceAttributeNode or ClassAttributeNode, it extracts the TYPE
+        of that attribute for further navigation, enabling self.name.upper()
+        style chains.
         
         Args:
             expr: AST expression node
@@ -176,12 +181,33 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         for op in loq[1:]:
             if isinstance(op, Dot):
                 # Navigate to the named child
-                current_node = current_node.dot(op.attr_name)
-                if not current_node:
+                child_node = current_node.dot(op.attr_name)
+                if not child_node:
                     return None
                 
-                # Update current type to this node's FQN
-                current_type = current_node.fqn
+                # CRITICAL: Check if we landed on an attribute node
+                # Attributes should yield their TYPE for further navigation
+                from ...nodes import InstanceAttributeNode, ClassAttributeNode
+                if isinstance(child_node, (InstanceAttributeNode, ClassAttributeNode)):
+                    # Get the type of this attribute
+                    type_node = child_node.dot("type")
+                    if type_node:
+                        # Extract type string from TypeNode
+                        import ast
+                        current_type = ast.unparse(type_node.source_data)
+                        # Try to resolve to a node for further navigation
+                        current_node = project.get_node_by_fqn(current_type)
+                        if not current_node:
+                            # Type exists but no node (builtin like str, int)
+                            # Can't navigate further but we have the type
+                            return current_type
+                    else:
+                        # Attribute has no type annotation
+                        return None
+                else:
+                    # Not an attribute - use the node's FQN directly
+                    current_node = child_node
+                    current_type = current_node.fqn
             
             elif isinstance(op, CallFunction):
                 # Navigate to the return node, then to its type
@@ -194,6 +220,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                     return None
                 
                 # Extract the type from the TypeNode
+                import ast
                 current_type = ast.unparse(type_node.source_data)
                 
                 # Try to resolve the type to a node for further navigation

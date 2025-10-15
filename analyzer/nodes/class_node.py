@@ -62,7 +62,10 @@ class ClassNode(TreeNode):
         visitor = ClassAnalysisVisitor(self, parent_scope)
         
         try:
-            visitor.visit(self.source_data)
+            # Visit the class BODY, not the ClassDef itself
+            # This prevents the visitor from seeing the class definition again
+            for item in self.source_data.body:
+                visitor.visit(item)
         finally:
             # Pop the frame that ClassAnalysisVisitor pushed in __init__
             if parent_scope:

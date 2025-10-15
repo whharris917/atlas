@@ -47,6 +47,10 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
             parent_scope: The scope from the parent visitor (ModuleAnalysisVisitor)
         """
         super().__init__(class_node, parent_scope)
+        
+        # Add "self" to class scope, mapped to this class's FQN
+        # This enables method bodies to resolve self.attribute naturally
+        self.scope.add("self", self.node.fqn)
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """

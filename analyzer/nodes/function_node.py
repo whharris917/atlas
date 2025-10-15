@@ -59,7 +59,10 @@ class FunctionNode(TreeNode):
         visitor = FunctionAnalysisVisitor(self, parent_scope)
         
         try:
-            visitor.visit(self.source_data)
+            # Visit the function BODY, not the FunctionDef itself
+            # This prevents the visitor from seeing the function definition again
+            for item in self.source_data.body:
+                visitor.visit(item)
         finally:
             # Pop the frame that FunctionAnalysisVisitor pushed in __init__
             if parent_scope:
