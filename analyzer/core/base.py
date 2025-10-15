@@ -40,14 +40,15 @@ if TYPE_CHECKING:
 class BaseNode(NavigationMixin):
     """Foundation for all Atlas nodes with shared functionality and enhanced navigation."""
     
-    def __init__(self, source_data: Union[ast.AST, ProjectStructure, DiscoveredModule, DiscoveredPackage]):
+    def __init__(self, source_data: Union[ast.AST, ProjectStructure, DiscoveredModule, DiscoveredPackage], 
+                 parent: Optional['BaseNode'] = None):
         """
         Initialize BaseNode with source data for child creation.
         
         Args:
             source_data: The source material used to create this node and its children.
-                        Can be an AST node or a discovery data class.
-                        
+                         Can be an AST node or a discovery data class.
+            parent: The parent node in the tree hierarchy. None for root nodes only.
         Raises:
             ValueError: If source_data is None
             TypeError: If source_data is not one of the allowed types
@@ -63,6 +64,7 @@ class BaseNode(NavigationMixin):
             )
             
         self.source_data = source_data
+        self.parent = parent
         self._notes: List['BaseNote'] = []  # Analysis artifacts attached to this node
         self._violations: List['CodeStandardViolation'] = []
     
@@ -439,8 +441,8 @@ class RootNode(BaseNode):
         if not isinstance(source_data, ProjectStructure):
             raise TypeError(f"RootNode requires ProjectStructure as source_data, got {type(source_data)}")
         
-        super().__init__(source_data)
-        self.parent = None  # RootNodes explicitly have no parent
+        # Parent is explicitly None for root nodes
+        super().__init__(source_data, parent=None)
         
         # Extract and validate name
         self.name = self._extract_name()
@@ -500,9 +502,9 @@ class TreeNode(BaseNode):
                 f"TreeNode source_data must be ast.AST, DiscoveredModule, or DiscoveredPackage, "
                 f"got {type(source_data)}"
             )
-            
-        super().__init__(source_data)
-        self.parent = parent
+        
+        # Parent is required and validated above
+        super().__init__(source_data, parent=parent)
         
         # Extract name from source_data
         self.name = self._extract_name()
@@ -557,7 +559,8 @@ class ContainerNode(BaseNode):
             raise TypeError(f"ContainerNode parent must be BaseNode instance, got {type(parent)}")
         if not isinstance(source_data, ast.AST):
             raise TypeError(f"ContainerNode requires ast.AST as source_data, got {type(source_data)}")
-            
-        super().__init__(source_data)
-        self.parent = parent
+        
+        # Parent is required and validated above
+        super().__init__(source_data, parent=parent)
+        
         self._create_children()
