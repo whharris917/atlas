@@ -42,19 +42,33 @@ class ClassNode(TreeNode):
         visitor = ClassReconnaissanceVisitor(self)
         visitor.visit(self.source_data)
 
-    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+    def analyze(self, parent_scope=None):
         """
-        Analyze this class and cascade to all children.
+        Analyze this class by running ClassAnalysisVisitor.
         
-        Future: ClassAnalysisVisitor will analyze class-level code.
-        Currently: Just cascades to methods and attributes.
+        Creates a ClassAnalysisVisitor for this node and runs it to perform
+        type inference and scope building for class-level code. The visitor
+        pushes a new scope frame in its __init__, which we pop after analysis.
+        
+        Child nodes (methods, nested classes) will be analyzed via their own
+        analyze() methods when the visitor encounters them.
+        
+        Args:
+            parent_scope: Scope from parent visitor (ModuleAnalysisVisitor)
         """
-        # Use parent scope or empty dict
-        scope = parent_scope or {}
+        from ..analysis.visitors import ClassAnalysisVisitor
         
-        # Cascade to all children
-        for child in self._get_direct_children():
-            child.analyze(parent_scope=scope)
+        print(f"   Analyzing class: {self.name}")
+        visitor = ClassAnalysisVisitor(self, parent_scope)
+        
+        try:
+            visitor.visit(self.source_data)
+        finally:
+            # Pop the frame that ClassAnalysisVisitor pushed in __init__
+            if parent_scope:
+                parent_scope.pop_frame()
+        
+        print(f"   Class analysis complete: {self.name}")
 
     def create_method(self, method_ast: ast.FunctionDef) -> FunctionNode:
         """Create and hook a new method from AST node."""

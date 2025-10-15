@@ -47,24 +47,28 @@ class ModuleNode(TreeNode):
         # Visit the ast_node from the DiscoveredModule
         visitor.visit(self.source_data.ast_node)
     
-    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
-            """
-            Analyze this module and cascade to all children.
-            
-            Creates ModuleAnalysisVisitor to analyze module-level code,
-            infer variable types, and build scope for child nodes.
-            """
-            from ..analysis.visitors import ModuleAnalysisVisitor
-            
-            # Create visitor for this module
-            visitor = ModuleAnalysisVisitor(self)
-            
-            # Visit the module's AST to build scope
-            visitor.visit(self.source_data.ast_node)
-            
-            # Cascade to all children with visitor's scope
-            for child in self._get_direct_children():
-                child.analyze(parent_scope=visitor.scope)
+    def analyze(self, parent_scope=None):
+        """
+        Analyze this module by running ModuleAnalysisVisitor.
+        
+        Creates a ModuleAnalysisVisitor for this node and runs it to perform
+        type inference and scope building. This is the entry point for the
+        analysis cascade - child nodes (classes, functions) will be analyzed
+        via their own analyze() methods when the visitor encounters them.
+        
+        Args:
+            parent_scope: Optional parent scope (None for module level)
+        """
+        from ..analysis.visitors import ModuleAnalysisVisitor
+        
+        print(f"\nAnalyzing module: {self.name}")
+        visitor = ModuleAnalysisVisitor(self)
+        
+        # ModuleAnalysisVisitor doesn't inherit a parent_scope, so no frame to pop
+        visitor.visit(self.source_data.ast_node)
+        
+        print(f"Module analysis complete: {self.name}")
+        print(f"Scope frames remaining: {len(visitor.scope._frames)}")
 
     def create_class(self, class_ast: ast.ClassDef) -> ClassNode:
         """Create and hook a new class from AST node."""

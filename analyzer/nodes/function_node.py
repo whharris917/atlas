@@ -39,19 +39,33 @@ class FunctionNode(TreeNode):
         # Create return node for return type analysis
         self._create_return()
     
-    def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
+    def analyze(self, parent_scope=None):
         """
-        Analyze this function and cascade to all children.
+        Analyze this function by running FunctionAnalysisVisitor.
         
-        Future: FunctionAnalysisVisitor will analyze function body.
-        Currently: Just cascades to arguments and return node.
+        Creates a FunctionAnalysisVisitor for this node and runs it to perform
+        type inference and scope building for function-level code. The visitor
+        pushes a new scope frame in its __init__, which we pop after analysis.
+        
+        The visitor also populates the scope with function parameters before
+        analyzing the function body.
+        
+        Args:
+            parent_scope: Scope from parent visitor (Module/ClassAnalysisVisitor)
         """
-        # Use parent scope or empty dict
-        scope = parent_scope or {}
+        from ..analysis.visitors import FunctionAnalysisVisitor
         
-        # Cascade to all children
-        for child in self._get_direct_children():
-            child.analyze(parent_scope=scope)
+        print(f"      Analyzing function: {self.name}")
+        visitor = FunctionAnalysisVisitor(self, parent_scope)
+        
+        try:
+            visitor.visit(self.source_data)
+        finally:
+            # Pop the frame that FunctionAnalysisVisitor pushed in __init__
+            if parent_scope:
+                parent_scope.pop_frame()
+        
+        print(f"      Function analysis complete: {self.name}")
 
     def _create_argument(self, arg_ast: ast.arg) -> ArgumentNode:
         """Create and hook a new argument from AST node (internal use only)."""

@@ -29,8 +29,12 @@ class FunctionAnalysisVisitor(BaseAnalysisVisitor):
     - _resolve_annotation() for annotation-to-FQN resolution
     - _process_assignment() for unified assignment handling
     
-    Extends BaseAnalysisVisitor by adding function parameters to scope before
-    analyzing the function body.
+    Extends BaseAnalysisVisitor by:
+    1. Adding function parameters to scope before analyzing body
+    2. Cascading to nested functions via FunctionNode.analyze()
+    
+    Instead of directly dispatching child visitors, delegates to node.analyze() which
+    follows the Session 32 cascade pattern.
     
     All analysis notes are attached to the FunctionNode (locality principle).
     """
@@ -63,3 +67,37 @@ class FunctionAnalysisVisitor(BaseAnalysisVisitor):
             # Just mark that the parameter exists
             self.scope.add(param.name, None)
             print(f"   Parameter: {param.name} (type unknown)")
+    
+    def visit_FunctionDef(self, node: ast.FunctionDef):
+        """
+        Visit nested function definitions and cascade to node.analyze().
+        
+        Overrides base implementation to:
+        1. Add nested function to function scope (via super())
+        2. Delegate to nested FunctionNode.analyze() for nested scope analysis
+        """
+        # FIRST: Call super() to add nested function to scope
+        super().visit_FunctionDef(node)
+        
+        # SECOND: Cascade to child node via analyze()
+        nested_function_node = self.node.get_function(node.name)
+        if not nested_function_node:
+            raise ValueError(f"Nested FunctionNode for '{node.name}' not found in tree")
+        nested_function_node.analyze(parent_scope=self.scope)
+    
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+        """
+        Visit nested async function definitions and cascade to node.analyze().
+        
+        Overrides base implementation to:
+        1. Add nested async function to function scope (via super())
+        2. Delegate to nested FunctionNode.analyze() for nested scope analysis
+        """
+        # FIRST: Call super() to add nested function to scope
+        super().visit_AsyncFunctionDef(node)
+        
+        # SECOND: Cascade to child node via analyze()
+        nested_function_node = self.node.get_function(node.name)
+        if not nested_function_node:
+            raise ValueError(f"Nested async FunctionNode for '{node.name}' not found in tree")
+        nested_function_node.analyze(parent_scope=self.scope)

@@ -17,7 +17,7 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
     - visit_Assign() - handles un-annotated assignments
     - visit_AnnAssign() - handles annotated assignments with validation
     - visit_ClassDef() - adds nested class definitions to scope
-    - visit_FunctionDef() - adds method definitions to scope
+    - visit_FunctionDef() - adds method definitions to scope (overridden for cascade)
     - visit_AsyncFunctionDef() - adds async method definitions to scope
     
     Also inherits shared functionality:
@@ -28,7 +28,12 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
     - _resolve_annotation() for annotation-to-FQN resolution
     - _process_assignment() for unified assignment handling
     
-    Extends BaseAnalysisVisitor by dispatching FunctionAnalysisVisitor for methods.
+    Extends BaseAnalysisVisitor by cascading to child nodes for nested scope analysis:
+    - Methods via FunctionNode.analyze()
+    - Nested classes via ClassNode.analyze()
+    
+    Instead of directly dispatching child visitors, delegates to node.analyze() which
+    follows the Session 32 cascade pattern.
     
     All analysis notes are attached to the ClassNode (locality principle).
     """
@@ -45,64 +50,51 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """
-        Visit method definitions within the class.
+        Visit method definitions and cascade to node.analyze().
         
-        Overrides base implementation to dispatch FunctionAnalysisVisitor
-        for analyzing method bodies with nested scope.
+        Overrides base implementation to:
+        1. Add method to class scope (via super())
+        2. Delegate to FunctionNode.analyze() for nested scope analysis
         """
         # FIRST: Call super() to add method to class scope
         super().visit_FunctionDef(node)
         
-        # SECOND: Dispatch FunctionAnalysisVisitor to analyze method body
+        # SECOND: Cascade to child node via analyze()
         method_node = self.node.get_method(node.name)
-        if method_node:
-            print(f"      Dispatching FunctionAnalysisVisitor for method: {node.name}")
-            from .function_analysis_visitor import FunctionAnalysisVisitor
-            visitor = FunctionAnalysisVisitor(method_node, self.scope)
-            try:
-                visitor.visit(method_node.source_data)
-            finally:
-                # Pop the child visitor's frame after it finishes
-                self.scope.pop_frame()
+        if not method_node:
+            raise ValueError(f"FunctionNode for method '{node.name}' not found in tree")
+        method_node.analyze(parent_scope=self.scope)
     
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         """
-        Visit async method definitions within the class.
+        Visit async method definitions and cascade to node.analyze().
         
-        Overrides base implementation to dispatch FunctionAnalysisVisitor
-        for analyzing async method bodies with nested scope.
+        Overrides base implementation to:
+        1. Add async method to class scope (via super())
+        2. Delegate to FunctionNode.analyze() for nested scope analysis
         """
-        # FIRST: Call super() to add async method to class scope
+        # FIRST: Call super() to add method to class scope
         super().visit_AsyncFunctionDef(node)
         
-        # SECOND: Dispatch FunctionAnalysisVisitor to analyze method body
+        # SECOND: Cascade to child node via analyze()
         method_node = self.node.get_method(node.name)
-        if method_node:
-            print(f"      Dispatching FunctionAnalysisVisitor for async method: {node.name}")
-            from .function_analysis_visitor import FunctionAnalysisVisitor
-            visitor = FunctionAnalysisVisitor(method_node, self.scope)
-            try:
-                visitor.visit(method_node.source_data)
-            finally:
-                # Pop the child visitor's frame after it finishes
-                self.scope.pop_frame()
+        if not method_node:
+            raise ValueError(f"FunctionNode for async method '{node.name}' not found in tree")
+        method_node.analyze(parent_scope=self.scope)
     
     def visit_ClassDef(self, node: ast.ClassDef):
         """
-        Visit nested class definitions within the class.
+        Visit nested class definitions and cascade to node.analyze().
         
-        Overrides base implementation to dispatch ClassAnalysisVisitor
-        for analyzing nested class bodies with nested scope.
+        Overrides base implementation to:
+        1. Add nested class to class scope (via super())
+        2. Delegate to nested ClassNode.analyze() for nested scope analysis
         """
         # FIRST: Call super() to add nested class to scope
         super().visit_ClassDef(node)
         
-        # SECOND: Dispatch ClassAnalysisVisitor to analyze nested class body
-        nested_class = self.node.get_class(node.name)
-        if nested_class:
-            visitor = ClassAnalysisVisitor(nested_class, self.scope)
-            try:
-                visitor.visit(nested_class.source_data)
-            finally:
-                # Pop the child visitor's frame after it finishes
-                self.scope.pop_frame()
+        # SECOND: Cascade to child node via analyze()
+        nested_class_node = self.node.get_class(node.name)
+        if not nested_class_node:
+            raise ValueError(f"Nested ClassNode for '{node.name}' not found in tree")
+        nested_class_node.analyze(parent_scope=self.scope)
