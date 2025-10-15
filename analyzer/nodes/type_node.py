@@ -3,6 +3,9 @@ Type Node - Atlas Rewrite
 
 Node representing a type annotation with comprehensive type analysis.
 Extremely focused implementation adhering to strict separation of concerns.
+
+ENHANCED: Now stores the actual type hint string during Reconnaissance Phase,
+eliminating the need for repeated ast.unparse() calls during Analysis Phase.
 """
 
 import ast
@@ -11,7 +14,13 @@ from ..core import TreeNode, BaseNode
 
 
 class TypeNode(TreeNode):
-    """Node representing a type annotation."""
+    """
+    Node representing a type annotation.
+    
+    Attributes:
+        type_string: The actual type hint string (e.g., "int", "List[User]", "Optional[str]")
+                    extracted during reconnaissance for convenient Analysis Phase access.
+    """
     
     def __init__(self, parent: BaseNode, source_data: ast.AST):
         if not isinstance(source_data, ast.AST):
@@ -19,6 +28,10 @@ class TypeNode(TreeNode):
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
+        
+        # ENHANCEMENT: Store the actual type hint string during Reconnaissance Phase
+        # This eliminates the need for repeated ast.unparse() calls during Analysis Phase
+        self.type_string: str = ast.unparse(source_data)
     
     def _extract_name(self) -> str:
         """
@@ -32,8 +45,8 @@ class TypeNode(TreeNode):
         
         This mirrors ReturnNode's canonical "return" name for consistency.
         
-        Note: The actual type information (int, str, List[int], etc.) is still
-        available via ast.unparse(self.source_data) if needed for analysis.
+        Note: The actual type information is now stored in self.type_string
+        for convenient access without needing ast.unparse(self.source_data).
         """
         return "type"
     
