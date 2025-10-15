@@ -34,6 +34,7 @@ from ..reconnaissance.discovery import ProjectStructure, DiscoveredModule, Disco
 
 if TYPE_CHECKING:
     from ..analysis.base_note import BaseNote
+    from ..violations import CodeStandardViolation
 
 
 class BaseNode(NavigationMixin):
@@ -63,6 +64,7 @@ class BaseNode(NavigationMixin):
             
         self.source_data = source_data
         self._notes: List['BaseNote'] = []  # Analysis artifacts attached to this node
+        self._violations: List['CodeStandardViolation'] = []
     
     def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
         """
@@ -221,6 +223,23 @@ class BaseNode(NavigationMixin):
                 elif attr_value is not None and hasattr(attr_value, 'name'):
                     if attr_value.name == name:
                         return attr_value
+
+    def add_violation(self, violation: 'CodeStandardViolation') -> 'CodeStandardViolation':
+        """
+        Store a violation ornament on this node.
+        
+        Violations are simple labels that hang off nodes to indicate code
+        standard issues. This universal storage allows any node type to
+        track violations discovered during reconnaissance or analysis.
+        
+        Args:
+            violation: The violation ornament to store
+            
+        Returns:
+            The stored violation (for fluent chaining)
+        """
+        self._violations.append(violation)
+        return violation
 
     def _create_children(self):
         """

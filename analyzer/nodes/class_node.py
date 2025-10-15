@@ -137,4 +137,5 @@ class ClassNode(TreeNode):
             The created MultipleTargetAttributeAssignment
         """
         violation = MultipleTargetAttributeAssignment(self)
+        self.add_violation(violation)  # FIXED: Now actually stores the violation
         return violation
