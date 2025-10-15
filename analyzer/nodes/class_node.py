@@ -4,6 +4,7 @@ Class Node - Atlas Rewrite
 Node representing a Python class with automatic child creation.
 Enhanced with comprehensive attribute discovery for both class-level and instance attributes.
 Enhanced with base class extraction following self-extraction pattern.
+Enhanced with base_class_fqns for Analysis Phase inheritance resolution.
 """
 
 import ast
@@ -35,6 +36,10 @@ class ClassNode(TreeNode):
         
         # Extract base class names during initialization (self-extraction pattern)
         self._base_classes: List[str] = self._extract_base_classes()
+        
+        # Analysis Phase will populate this with resolved FQNs
+        # Starts empty, filled by ClassAnalysisVisitor during analyze()
+        self.base_class_fqns: List[str] = []
     
     def _extract_name(self) -> str:
         """Extract class name from ast.ClassDef node."""
@@ -168,7 +173,7 @@ class ClassNode(TreeNode):
             The created MultipleTargetAttributeAssignment
         """
         violation = MultipleTargetAttributeAssignment(self)
-        self.add_violation(violation)  # FIXED: Now actually stores the violation
+        self.add_violation(violation)
         return violation
     
     @property

@@ -193,7 +193,6 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                     type_node = child_node.dot("type")
                     if type_node:
                         # Extract type string from TypeNode
-                        import ast
                         current_type = ast.unparse(type_node.source_data)
                         # Try to resolve to a node for further navigation
                         current_node = project.get_node_by_fqn(current_type)
@@ -220,7 +219,6 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                     return None
                 
                 # Extract the type from the TypeNode
-                import ast
                 current_type = ast.unparse(type_node.source_data)
                 
                 # Try to resolve the type to a node for further navigation

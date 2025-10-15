@@ -51,6 +51,40 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
         # Add "self" to class scope, mapped to this class's FQN
         # This enables method bodies to resolve self.attribute naturally
         self.scope.add("self", self.node.fqn)
+        
+        # Resolve base class names to FQNs and populate base_class_fqns
+        # This enables inheritance resolution during navigation
+        self._resolve_base_classes()
+    
+    def _resolve_base_classes(self):
+        """
+        Resolve base class names to FQNs using scope lookup.
+        
+        Takes the unresolved base class names from Reconnaissance Phase
+        (e.g., "BaseEntity", "LoggingMixin") and resolves them to FQNs
+        (e.g., "sample_files.core.base.BaseEntity") using the current scope.
+        
+        Handles both simple names and qualified names:
+        - Simple: "BaseEntity" → scope.lookup() → "sample_files.core.base.BaseEntity"
+        - Qualified: "collections.abc.Mapping" → used as-is (already a FQN)
+        
+        Stores resolved FQNs in self.node.base_class_fqns for use by
+        navigation methods during inheritance resolution.
+        
+        This runs during Analysis Phase initialization, so subsequent
+        navigation operations can use the resolved FQNs.
+        """
+        for base_name in self.node.base_classes:
+            base_fqn = self.scope.lookup(base_name)
+            
+            # If not found in scope but name is already qualified (has dots),
+            # treat it as a valid FQN (e.g., collections.abc.Mapping)
+            if not base_fqn and '.' in base_name:
+                base_fqn = base_name
+            
+            if base_fqn:
+                self.node.base_class_fqns.append(base_fqn)
+                print(f"      Resolved base class: {base_name} → {base_fqn}")
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """
@@ -58,12 +92,18 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
         
         Overrides base implementation to:
         1. Add method to class scope (via super())
-        2. Delegate to FunctionNode.analyze() for nested scope analysis
+        2. Cascade to method's analyze() for function-level analysis
+        
+        The cascade follows established pattern where nodes orchestrate
+        their own analysis by creating appropriate visitors.
+        
+        Args:
+            node: ast.FunctionDef for method definition
         """
-        # FIRST: Call super() to add method to class scope
+        # First: Call super() to add method to scope
         super().visit_FunctionDef(node)
         
-        # SECOND: Cascade to child node via analyze()
+        # Second: Cascade to method's analyze() if it exists
         method_node = self.node.get_method(node.name)
         if not method_node:
             raise ValueError(f"FunctionNode for method '{node.name}' not found in tree")
@@ -73,14 +113,15 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
         """
         Visit async method definitions and cascade to node.analyze().
         
-        Overrides base implementation to:
-        1. Add async method to class scope (via super())
-        2. Delegate to FunctionNode.analyze() for nested scope analysis
+        Same pattern as visit_FunctionDef but for async methods.
+        
+        Args:
+            node: ast.AsyncFunctionDef for async method definition
         """
-        # FIRST: Call super() to add method to class scope
+        # First: Call super() to add method to scope
         super().visit_AsyncFunctionDef(node)
         
-        # SECOND: Cascade to child node via analyze()
+        # Second: Cascade to method's analyze() if it exists
         method_node = self.node.get_method(node.name)
         if not method_node:
             raise ValueError(f"FunctionNode for async method '{node.name}' not found in tree")
@@ -90,15 +131,16 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
         """
         Visit nested class definitions and cascade to node.analyze().
         
-        Overrides base implementation to:
-        1. Add nested class to class scope (via super())
-        2. Delegate to nested ClassNode.analyze() for nested scope analysis
+        Same pattern as visit_FunctionDef but for nested classes.
+        
+        Args:
+            node: ast.ClassDef for nested class definition
         """
-        # FIRST: Call super() to add nested class to scope
+        # First: Call super() to add class to scope
         super().visit_ClassDef(node)
         
-        # SECOND: Cascade to child node via analyze()
-        nested_class_node = self.node.get_class(node.name)
-        if not nested_class_node:
+        # Second: Cascade to nested class's analyze() if it exists
+        nested_class = self.node.get_class(node.name)
+        if not nested_class:
             raise ValueError(f"Nested ClassNode for '{node.name}' not found in tree")
-        nested_class_node.analyze(parent_scope=self.scope)
+        nested_class.analyze(parent_scope=self.scope)
