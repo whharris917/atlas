@@ -3,6 +3,7 @@ Class Node - Atlas Rewrite
 
 Node representing a Python class with automatic child creation.
 Enhanced with comprehensive attribute discovery for both class-level and instance attributes.
+Enhanced with base class extraction following self-extraction pattern.
 """
 
 import ast
@@ -31,10 +32,40 @@ class ClassNode(TreeNode):
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
+        
+        # Extract base class names during initialization (self-extraction pattern)
+        self._base_classes: List[str] = self._extract_base_classes()
     
     def _extract_name(self) -> str:
         """Extract class name from ast.ClassDef node."""
         return self.source_data.name
+    
+    def _extract_base_classes(self) -> List[str]:
+        """
+        Extract base class names from ast.ClassDef.bases.
+        
+        Returns raw base class names exactly as they appear in source code.
+        This is pure Reconnaissance Phase work - just extracting what's present
+        in the AST without any resolution or semantic analysis.
+        
+        Resolution of these names to actual FQNs happens during Analysis Phase
+        using scope lookup, similar to how any other identifier is resolved.
+        
+        Examples:
+            class Child(Parent): → ["Parent"]
+            class User(BaseModel, JSONMixin): → ["BaseModel", "JSONMixin"]
+            class Handler(http.BaseHandler): → ["http.BaseHandler"]
+            class Foo: → [] (no explicit bases)
+        
+        Returns:
+            List of base class names as strings. Empty list if no bases.
+        """
+        bases = []
+        for base in self.source_data.bases:
+            # Use ast.unparse to handle both simple names (ast.Name)
+            # and qualified names (ast.Attribute)
+            bases.append(ast.unparse(base))
+        return bases
     
     def _create_children(self):
         """Create child nodes using ClassReconnaissanceVisitor."""
@@ -109,7 +140,7 @@ class ClassNode(TreeNode):
         
         Args:
             attr_ast: Either ast.AnnAssign (annotated) or ast.Assign (unannotated)
-                     for instance attribute definition (self.attr = value)
+                      for instance attribute assignment
         
         Returns:
             The created InstanceAttributeNode
@@ -139,3 +170,28 @@ class ClassNode(TreeNode):
         violation = MultipleTargetAttributeAssignment(self)
         self.add_violation(violation)  # FIXED: Now actually stores the violation
         return violation
+    
+    @property
+    def base_classes(self) -> List[str]:
+        """
+        Base class names as they appear in the source code.
+        
+        These are unresolved names extracted during Reconnaissance Phase.
+        They represent what was written in the class definition, not what
+        they reference. Resolution to FQNs happens during Analysis Phase
+        using scope lookup, similar to any other identifier resolution.
+        
+        Examples:
+            class Child(Parent): → ["Parent"]
+            class User(BaseModel, JSONMixin): → ["BaseModel", "JSONMixin"]
+            class Handler(http.BaseHandler): → ["http.BaseHandler"]
+            class Foo: → [] (no explicit bases, implicitly inherits from object)
+        
+        Note:
+            Empty list means no explicit base classes were specified.
+            Python's implicit object inheritance is not included.
+        
+        Returns:
+            List of base class names as strings. Empty if no bases.
+        """
+        return self._base_classes[:]
