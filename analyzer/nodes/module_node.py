@@ -56,6 +56,26 @@ class ModuleNode(TreeNode):
         analysis cascade - child nodes (classes, functions) will be analyzed
         via their own analyze() methods when the visitor encounters them.
         
+        ARCHITECTURAL NOTE - Full AST Visit vs Body-Only:
+        
+        ModuleNode visits the complete ast.Module node, while ClassNode and
+        FunctionNode visit only their body items. This difference is correct
+        and intentional:
+        
+        - Modules: ast.Module is just a container of statements. Visiting it
+        does not cause the visitor to "see the module definition" because
+        there is no module definition node in Python's AST. The visitor
+        directly encounters the module's top-level statements.
+        
+        - Classes/Functions: ast.ClassDef and ast.FunctionDef are definition
+        nodes. If we visited the entire ClassDef/FunctionDef, the visitor
+        would encounter the definition itself as a nested entity, causing
+        false "nested class/function" detection. Body-only visiting prevents
+        this by skipping the definition wrapper.
+        
+        Think of it as: modules are transparent containers, while classes and
+        functions are opaque wrappers that must be opened to see their contents.
+        
         Args:
             parent_scope: Optional parent scope (None for module level)
         """
@@ -65,6 +85,7 @@ class ModuleNode(TreeNode):
         visitor = ModuleAnalysisVisitor(self)
         
         # ModuleAnalysisVisitor doesn't inherit a parent_scope, so no frame to pop
+        # Visit the full ast.Module node (see architectural note in docstring)
         visitor.visit(self.source_data.ast_node)
         
         print(f"Module analysis complete: {self.name}")
