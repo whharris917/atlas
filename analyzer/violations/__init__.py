@@ -78,6 +78,46 @@ class IncorrectTypeAnnotation(CodeStandardViolation):
     pass
 
 
+class UnsupportedExpressionType(CodeStandardViolation):
+    """
+    Violation indicating an expression type that cannot be linearized for type inference.
+    
+    The linearization engine converts nested expressions into a Linear Operation Queue (LOQ)
+    for type propagation. When it encounters an AST node type that isn't yet implemented,
+    it creates this violation to alert that type inference will be incomplete.
+    
+    Examples of currently unsupported expressions:
+        - Binary operations: user.age + 10, x * y
+        - Boolean operations: user.is_active and user.is_verified
+        - Comparison operations: user.age > 18
+        - Unary operations: -balance, not is_active
+        - Conditional expressions: "admin" if is_admin else "user"
+        - Comprehensions: [x.name for x in users]
+        - Lambda expressions: lambda x: x.name
+        - Await expressions: await fetch_data()
+    
+    The violation stores the AST node type name to help prioritize future implementation.
+    """
+    
+    def __init__(self, parent: 'BaseNode', expression_type: str, line_number: int):
+        """
+        Create an unsupported expression type violation.
+        
+        Args:
+            parent: The node where type inference was attempted
+            expression_type: The AST node class name (e.g., "BinOp", "Compare")
+            line_number: Line number where the unsupported expression appears
+        """
+        super().__init__(parent)
+        self.expression_type = expression_type
+        self.line_number = line_number
+    
+    def __repr__(self) -> str:
+        """Enhanced representation including expression type and line number."""
+        return (f"UnsupportedExpressionType(parent={self.parent.__class__.__name__}, "
+                f"type={self.expression_type}, line={self.line_number})")
+
+
 # Public API exports
 __all__ = [
     'CodeStandardViolation',
@@ -86,5 +126,6 @@ __all__ = [
     'MissingClassAttributeTypeHint', 
     'MissingInstanceAttributeTypeHint',
     'MultipleTargetAttributeAssignment',
-    'IncorrectTypeAnnotation'
+    'IncorrectTypeAnnotation',
+    'UnsupportedExpressionType'
 ]

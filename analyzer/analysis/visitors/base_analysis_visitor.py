@@ -98,11 +98,17 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         any visitor may need to analyze expressions (assignments, calls,
         returns, etc.).
         
+        CRITICAL: When encountering unsupported AST node types, this method
+        creates an UnsupportedExpressionType violation on self.node instead
+        of silently failing. This ensures developers are alerted to incomplete
+        type inference.
+        
         Args:
-            expr: AST expression node (Name, Attribute, Call, Subscript)
+            expr: AST expression node (Name, Attribute, Call, Subscript, etc.)
             
         Returns:
-            List of Operation objects representing the expression in sequence
+            List of Operation objects representing the expression in sequence.
+            May be incomplete if unsupported node types were encountered.
             
         Example:
             user.profile.email → [GetName('user'), Dot('profile'), Dot('email')]
@@ -111,7 +117,12 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         operations = []
         
         def traverse(node):
-            """Recursively traverse AST node to build operation queue."""
+            """
+            Recursively traverse AST node to build operation queue.
+            
+            Creates violations for unsupported node types instead of silently
+            skipping them, ensuring incomplete type inference is visible.
+            """
             if isinstance(node, ast.Name):
                 operations.append(GetName(node.id))
             
@@ -126,6 +137,29 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             elif isinstance(node, ast.Subscript):
                 traverse(node.value)
                 operations.append(GetSubscript())
+            
+            elif isinstance(node, ast.Constant):
+                # Literals are handled separately in _infer_type()
+                # No operation needed - just skip
+                pass
+            
+            else:
+                # UNSUPPORTED EXPRESSION TYPE
+                # Create violation to alert that type inference will be incomplete
+                from ...violations import UnsupportedExpressionType
+                
+                line_number = node.lineno if hasattr(node, 'lineno') else self.node.line_number
+                expression_type = node.__class__.__name__
+                
+                violation = UnsupportedExpressionType(
+                    parent=self.node,
+                    expression_type=expression_type,
+                    line_number=line_number
+                )
+                self.node.add_violation(violation)
+                
+                print(f"   VIOLATION: Unsupported expression type '{expression_type}' "
+                    f"at line {line_number}. Type inference may be incomplete.")
         
         traverse(expr)
         return operations
