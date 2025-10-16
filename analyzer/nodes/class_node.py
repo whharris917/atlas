@@ -176,6 +176,52 @@ class ClassNode(TreeNode):
         self.add_violation(violation)
         return violation
     
+    def dot(self, name: str) -> Optional['BaseNode']:
+        """
+        Navigate to a child by name with inheritance-aware fallback.
+        
+        Searches in this order:
+        1. Direct children (methods, class attributes, instance attributes)
+        2. Base classes (if child not found directly)
+        
+        This override of BaseNode.dot() enables transparent navigation through
+        inheritance chains, making inherited methods and attributes accessible
+        as if they were direct children.
+        
+        Examples:
+            user_node.dot('get_id')  # Finds in BaseEntity if not in User
+            order_node.dot('id')     # Finds attribute through inheritance chain
+        
+        Args:
+            name: The name of the child to find
+            
+        Returns:
+            The child node if found (directly or via inheritance), None otherwise
+        """
+        # First: Try direct children using parent's dot() method
+        child = super().dot(name)
+        if child:
+            return child  # Found directly - early exit
+        
+        # Second: Search inheritance chain if available
+        # Note: base_class_fqns is populated during Analysis Phase
+        if hasattr(self, 'base_class_fqns') and self.base_class_fqns:
+            # Get the project for navigation to base classes
+            project = self.get_project()
+            
+            for base_fqn in self.base_class_fqns:
+                # Navigate to the base class node
+                base_node = project.get_node_by_fqn(base_fqn)
+                if base_node:
+                    # Recursively search in the base class
+                    # This handles multi-level inheritance automatically
+                    # because base_node.dot() will also check ITS bases
+                    child = base_node.dot(name)
+                    if child:
+                        return child  # Found in a base class
+        
+        return None  # Not found anywhere in the hierarchy
+
     @property
     def base_classes(self) -> List[str]:
         """

@@ -26,7 +26,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
     Subclasses should call super().__init__(node, parent_scope) to initialize
     the base visitor, where node is the specific node being analyzed and
     parent_scope is the optional scope from the parent visitor.
-    
+
     
     OVERRIDE PATTERN FOR SUBCLASSES:
     
