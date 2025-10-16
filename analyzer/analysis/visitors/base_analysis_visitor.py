@@ -113,6 +113,8 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         Example:
             user.profile.email → [GetName('user'), Dot('profile'), Dot('email')]
             obj.method() → [GetName('obj'), Dot('method'), CallFunction()]
+            users[0] → [GetName('users'), GetSubscript()]
+            [1, 2, 3] → [] (container literals handled directly in _infer_type)
         """
         operations = []
         
@@ -122,25 +124,61 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             
             Creates violations for unsupported node types instead of silently
             skipping them, ensuring incomplete type inference is visible.
+            
+            Supported node types:
+            - ast.Name: Variable access (x, user, config)
+            - ast.Attribute: Dot access (user.email, obj.method)
+            - ast.Call: Function calls (func(), obj.method())
+            - ast.Subscript: Index access (list[0], dict["key"])
+            - ast.Constant: Literals (5, "hello", True, None)
+            - ast.List, ast.Dict, ast.Set, ast.Tuple: Container literals
+            
+            Examples:
+                user.profile.email → Name, Attribute, Attribute
+                obj.method() → Name, Attribute, Call
+                list[0] → Name, Subscript
+                {"key": "value"} → Dict (no operations, handled directly)
             """
             if isinstance(node, ast.Name):
+                # Variable name access: x, user, config
                 operations.append(GetName(node.id))
             
             elif isinstance(node, ast.Attribute):
+                # Attribute access: user.email, obj.method, self.name
+                # First process the object being accessed, then the attribute
                 traverse(node.value)
                 operations.append(Dot(node.attr))
             
             elif isinstance(node, ast.Call):
+                # Function/method call: func(), obj.method(), User()
+                # First process what's being called, then add the call operation
                 traverse(node.func)
                 operations.append(CallFunction())
             
             elif isinstance(node, ast.Subscript):
+                # Subscript access: list[0], dict["key"], matrix[i][j]
+                # First process the container, then add subscript operation
                 traverse(node.value)
                 operations.append(GetSubscript())
             
             elif isinstance(node, ast.Constant):
-                # Literals are handled separately in _infer_type()
+                # Literal values: 5, "hello", True, None, 3.14
+                # Handled separately in _infer_type() via _infer_literal_type()
                 # No operation needed - just skip
+                pass
+            
+            # NEW: Container literals
+            elif isinstance(node, (ast.List, ast.Dict, ast.Set, ast.Tuple)):
+                # Container literals: [], {}, set(), ()
+                # Examples:
+                #   [1, 2, 3] → ast.List
+                #   {"key": "value"} → ast.Dict
+                #   {1, 2, 3} → ast.Set
+                #   (1, 2) → ast.Tuple
+                #
+                # These are terminal expressions (don't chain), so they're
+                # handled directly in _infer_type() with no operations needed.
+                # They return simple builtin type names: 'list', 'dict', 'set', 'tuple'
                 pass
             
             else:
@@ -163,13 +201,14 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         
         traverse(expr)
         return operations
-    
+
     def _infer_type(self, expr: ast.expr) -> Optional[str]:
         """
         Infer the type of an expression by navigating the tree.
         
         This method handles:
             - Literals (int, str, bool, float, None)
+            - Container literals (list, dict, set, tuple)
             - Variable lookups (from scope)
             - Attribute access chains (user.profile.email, self.name)
             - Method calls (obj.method())
@@ -184,100 +223,116 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         of that attribute for further navigation, enabling self.name.upper()
         style chains.
         
+        Examples:
+            5 → 'int'
+            "hello" → 'str'
+            [1, 2, 3] → 'list'
+            {"key": "value"} → 'dict'
+            user → 'sample_files.models.user.User' (from scope)
+            user.email → 'str' (from User's email attribute type)
+            User() → 'sample_files.models.user.User' (constructor)
+            list() → 'list' (builtin constructor)
+        
         Args:
-            expr: AST expression node
+            expr: AST expression node to analyze
             
         Returns:
             Type FQN as string, or None if type cannot be determined
         """
-        # Handle literals directly
+        # Handle simple literals directly (no linearization needed)
+        # Examples: 5 → 'int', "hello" → 'str', True → 'bool', None → 'NoneType'
         if isinstance(expr, ast.Constant):
             return self._infer_literal_type(expr.value)
         
-        # Linearize expression into operations
-        loq = self.linearize(expr)
+        # NEW: Handle container literals
+        # These return builtin type names directly since they're terminal expressions
         
-        # Start by resolving the initial GetName operation
-        if not loq or not isinstance(loq[0], GetName):
+        if isinstance(expr, ast.List):
+            # List literal: [1, 2, 3], [], [x, y, z]
+            # Future enhancement: could analyze elements for List[int], List[User], etc.
+            return 'list'
+        
+        if isinstance(expr, ast.Dict):
+            # Dict literal: {"key": "value"}, {}, {1: "one", 2: "two"}
+            # Future enhancement: could analyze keys/values for Dict[str, int], etc.
+            return 'dict'
+        
+        if isinstance(expr, ast.Set):
+            # Set literal: {1, 2, 3}, set()
+            # Note: {} is ast.Dict (empty dict), not set
+            # Future enhancement: could analyze elements for Set[int], etc.
+            return 'set'
+        
+        if isinstance(expr, ast.Tuple):
+            # Tuple literal: (1, 2), (x, y, z), ()
+            # Future enhancement: could analyze elements for Tuple[int, str], etc.
+            return 'tuple'
+        
+        # Linearize expression into operation queue
+        # This converts nested expressions into sequential operations
+        operations = self.linearize(expr)
+        
+        # Empty operation queue - cannot infer type
+        if not operations:
             return None
         
-        # Look up the base variable in scope
-        current_type = self.scope.lookup(loq[0].name)
-        if not current_type:
-            return None
-        
-        # If just a simple variable, we're done
-        if len(loq) == 1:
-            return current_type
-        
-        # For complex expressions, we need to navigate the tree
-        # Get the project to find nodes by FQN
+        # Navigate the tree using the operation queue
+        # Process each operation in sequence, where output of one becomes input of next
+        current_type = None
+        current_node = None
         project = self.node.get_project()
-        current_node = project.get_node_by_fqn(current_type)
         
-        if not current_node:
-            # Type exists in scope but node not found (likely builtin)
-            return current_type
-        
-        # Process each operation by navigating the tree
-        for op in loq[1:]:
-            if isinstance(op, Dot):
-                # Navigate to the named child
-                child_node = current_node.dot(op.attr_name)
-                if not child_node:
+        for op in operations:
+            if isinstance(op, GetName):
+                # Variable lookup in scope
+                # Example: 'user' → 'sample_files.models.user.User'
+                current_type = self.scope.lookup(op.name)
+                if current_type:
+                    # Try to get tree node for further navigation
+                    current_node = project.get_node_by_fqn(current_type)
+                else:
+                    # Variable not in scope - cannot continue
                     return None
-                
-                # CRITICAL: Check if we landed on an attribute node
-                # Attributes should yield their TYPE for further navigation
-                from ...nodes import InstanceAttributeNode, ClassAttributeNode
-                if isinstance(child_node, (InstanceAttributeNode, ClassAttributeNode)):
-                    # Get the type of this attribute
-                    type_node = child_node.dot("type")
-                    if type_node:
-                        # Extract type string from TypeNode
-                        current_type = ast.unparse(type_node.source_data)
-                        # Try to resolve to a node for further navigation
-                        current_node = project.get_node_by_fqn(current_type)
-                        if not current_node:
-                            # Type exists but no node (builtin like str, int)
-                            # Can't navigate further but we have the type
-                            return current_type
+            
+            elif isinstance(op, Dot):
+                # Navigate to child via .dot() method
+                # Example: user.email → navigate from User node to email attribute
+                if current_node:
+                    child = current_node.dot(op.attr_name)
+                    if child:
+                        current_node = child
+                        current_type = child.fqn if hasattr(child, 'fqn') else None
                     else:
-                        # Attribute has no type annotation
+                        # Navigation failed - child not found
                         return None
                 else:
-                    # Not an attribute - use the node's FQN directly
-                    current_node = child_node
-                    current_type = current_node.fqn
+                    # No current node to navigate from
+                    return None
             
             elif isinstance(op, CallFunction):
-                # CONSTRUCTOR RESOLUTION - Handle three distinct cases:
-                # 1. Class constructors (User() creates User instance)
-                # 2. Builtin constructors (list() creates list instance)
-                # 3. Function/method calls (func() returns annotated type)
+                # Three-case constructor/function resolution
                 
-                # Case 1: CLASS CONSTRUCTOR
-                # Calling a class creates an instance of that class
+                # CASE 1: CLASS CONSTRUCTOR
+                # If current_node is a ClassNode, calling it creates an instance
+                # Example: User() → returns instance of User class
                 if current_node and isinstance(current_node, ClassNode):
-                    # Example: User() where User is a ClassNode
-                    # The type of User() is the class itself (an instance of User)
+                    # Constructor call returns instance of the class
                     current_type = current_node.fqn
-                    # Keep current_node for potential method chaining
-                    # Example: User().get_name() continues navigation
-                    # Continue to next operation (don't return yet)
+                    # Keep current_node for chaining: User().get_email()
                 
-                # Case 2: BUILTIN CONSTRUCTOR
-                # Builtins don't have tree nodes but are valid constructor calls
+                # CASE 2: BUILTIN CONSTRUCTOR
+                # If current_type is a builtin constructor name
+                # Example: list() → 'list', dict() → 'dict'
                 elif current_type in BUILTIN_CONSTRUCTORS:
-                    # Example: list() where list is a builtin
-                    # The type is the builtin name itself
-                    # current_type is already correct ('list', 'dict', etc.)
+                    # list() → 'list', dict() → 'dict'
+                    # current_type already correct
                     # No tree node means no further navigation possible
                     current_node = None
                     # Continue to next operation (or return at loop end)
                 
-                # Case 3: FUNCTION/METHOD CALL
+                # CASE 3: FUNCTION/METHOD CALL
                 # Regular functions/methods have return type annotations
+                # Example: get_user() → navigate to return type annotation
                 elif current_node:
                     # Navigate to the return type annotation
                     return_node = current_node.dot("return")
@@ -308,8 +363,10 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                     return None
             
             elif isinstance(op, GetSubscript):
-                # Subscript operation - for now, we can't infer the element type
-                # This requires more sophisticated type tracking
+                # Subscript operation: list[0], dict["key"], matrix[i][j]
+                # For now, we can't infer the element type
+                # This requires extracting element types from generic annotations
+                # Future enhancement: List[User] → User, Dict[str, int] → int
                 return None
         
         return current_type
