@@ -10,6 +10,14 @@ from typing import List, Optional
 
 from ..expression_traversal.operations import Operation, GetName, Dot, CallFunction, GetSubscript
 from ..scope import Scope
+from ...nodes import ClassNode
+
+BUILTIN_CONSTRUCTORS = {
+    'list', 'dict', 'set', 'tuple', 'frozenset',
+    'str', 'int', 'float', 'bool', 'bytes', 'bytearray',
+    'object', 'type', 'range', 'slice',
+    'complex', 'memoryview'
+}
 
 
 class BaseAnalysisVisitor(ast.NodeVisitor):
@@ -209,24 +217,61 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                     current_type = current_node.fqn
             
             elif isinstance(op, CallFunction):
-                # Navigate to the return node, then to its type
-                return_node = current_node.dot("return")
-                if not return_node:
+                # CONSTRUCTOR RESOLUTION - Handle three distinct cases:
+                # 1. Class constructors (User() creates User instance)
+                # 2. Builtin constructors (list() creates list instance)
+                # 3. Function/method calls (func() returns annotated type)
+                
+                # Case 1: CLASS CONSTRUCTOR
+                # Calling a class creates an instance of that class
+                if current_node and isinstance(current_node, ClassNode):
+                    # Example: User() where User is a ClassNode
+                    # The type of User() is the class itself (an instance of User)
+                    current_type = current_node.fqn
+                    # Keep current_node for potential method chaining
+                    # Example: User().get_name() continues navigation
+                    # Continue to next operation (don't return yet)
+                
+                # Case 2: BUILTIN CONSTRUCTOR
+                # Builtins don't have tree nodes but are valid constructor calls
+                elif current_type in BUILTIN_CONSTRUCTORS:
+                    # Example: list() where list is a builtin
+                    # The type is the builtin name itself
+                    # current_type is already correct ('list', 'dict', etc.)
+                    # No tree node means no further navigation possible
+                    current_node = None
+                    # Continue to next operation (or return at loop end)
+                
+                # Case 3: FUNCTION/METHOD CALL
+                # Regular functions/methods have return type annotations
+                elif current_node:
+                    # Navigate to the return type annotation
+                    return_node = current_node.dot("return")
+                    if not return_node:
+                        # No return node found (no annotation or doesn't exist)
+                        return None
+                    
+                    type_node = return_node.dot("type")
+                    if not type_node:
+                        # Return node exists but no type annotation
+                        return None
+                    
+                    # Extract the return type from TypeNode
+                    current_type = ast.unparse(type_node.source_data)
+                    
+                    # Try to resolve return type to tree node for chaining
+                    # Example: get_user().get_email() continues navigation
+                    current_node = project.get_node_by_fqn(current_type)
+                    
+                    if not current_node:
+                        # Type exists but no node (builtin or external)
+                        # Can't navigate further but have the type
+                        return current_type
+                
+                else:
+                    # No current_node and not a builtin - cannot infer
+                    # This happens when we have expressions like undefined_var()
                     return None
-                
-                type_node = return_node.dot("type")
-                if not type_node:
-                    return None
-                
-                # Extract the type from the TypeNode
-                current_type = ast.unparse(type_node.source_data)
-                
-                # Try to resolve the type to a node for further navigation
-                current_node = project.get_node_by_fqn(current_type)
-                if not current_node:
-                    # Type is a string but no node exists (builtin or external)
-                    # Can't navigate further, but we have the type
-                    return current_type
             
             elif isinstance(op, GetSubscript):
                 # Subscript operation - for now, we can't infer the element type
