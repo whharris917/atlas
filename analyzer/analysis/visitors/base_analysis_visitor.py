@@ -178,7 +178,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                 #
                 # These are terminal expressions (don't chain), so they're
                 # handled directly in _infer_type() with no operations needed.
-                # They return simple builtin type names: 'list', 'dict', 'set', 'tuple'
+                # They return full generic types: 'List[int]', 'Dict[str, User]', etc.
                 pass
             
             else:
@@ -208,11 +208,11 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         
         This method handles:
             - Literals (int, str, bool, float, None)
-            - Container literals (list, dict, set, tuple)
+            - Container literals with element type inference (List[User], Dict[str, int])
             - Variable lookups (from scope)
             - Attribute access chains (user.profile.email, self.name)
             - Method calls (obj.method())
-            - Subscript operations (list[0])
+            - Subscript operations (list[0], dict["key"])
             
         Uses the tree navigation approach: linearize the expression into
         operations, then navigate the tree directly using .dot() rather
@@ -226,12 +226,14 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         Examples:
             5 → 'int'
             "hello" → 'str'
-            [1, 2, 3] → 'list'
-            {"key": "value"} → 'dict'
+            [1, 2, 3] → 'List[int]'
+            [User(), User()] → 'List[sample_files.models.user.User]'
+            {"key": "value"} → 'Dict[str, str]'
             user → 'sample_files.models.user.User' (from scope)
             user.email → 'str' (from User's email attribute type)
             User() → 'sample_files.models.user.User' (constructor)
             list() → 'list' (builtin constructor)
+            users[0] → 'sample_files.models.user.User' (from List[User] annotation)
         
         Args:
             expr: AST expression node to analyze
@@ -244,29 +246,22 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         if isinstance(expr, ast.Constant):
             return self._infer_literal_type(expr.value)
         
-        # NEW: Handle container literals
-        # These return builtin type names directly since they're terminal expressions
-        
-        if isinstance(expr, ast.List):
-            # List literal: [1, 2, 3], [], [x, y, z]
-            # Future enhancement: could analyze elements for List[int], List[User], etc.
-            return 'list'
-        
-        if isinstance(expr, ast.Dict):
-            # Dict literal: {"key": "value"}, {}, {1: "one", 2: "two"}
-            # Future enhancement: could analyze keys/values for Dict[str, int], etc.
-            return 'dict'
-        
-        if isinstance(expr, ast.Set):
-            # Set literal: {1, 2, 3}, set()
-            # Note: {} is ast.Dict (empty dict), not set
-            # Future enhancement: could analyze elements for Set[int], etc.
-            return 'set'
-        
-        if isinstance(expr, ast.Tuple):
-            # Tuple literal: (1, 2), (x, y, z), ()
-            # Future enhancement: could analyze elements for Tuple[int, str], etc.
-            return 'tuple'
+        # Handle container literals with element type inference
+        # These return full generic types by analyzing their contents
+        if isinstance(expr, (ast.List, ast.Dict, ast.Set, ast.Tuple)):
+            # Container literals: [], {}, set(), ()
+            # Analyze elements to infer full generic type
+            # Examples:
+            #   [User(), User()] → 'List[sample_files.models.user.User]'
+            #   [1, 2, 3] → 'List[int]'
+            #   {"key": 1} → 'Dict[str, int]'
+            #   {1, 2, 3} → 'Set[int]'
+            #   (1, 2) → 'Tuple[int, ...]'
+            #
+            # Falls back to plain types for heterogeneous or empty containers:
+            #   [1, "hello"] → 'list' (heterogeneous)
+            #   [] → 'list' (empty)
+            return self._infer_container_element_type(expr)
         
         # Linearize expression into operation queue
         # This converts nested expressions into sequential operations
@@ -300,44 +295,61 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                 if current_node:
                     child = current_node.dot(op.attr_name)
                     if child:
-                        current_node = child
-                        current_type = child.fqn if hasattr(child, 'fqn') else None
+                        # Special handling for attribute nodes (InstanceAttributeNode, ClassAttributeNode)
+                        # Attributes store LOCATION in their FQN, but we need their TYPE
+                        from ...nodes.instance_attribute_node import InstanceAttributeNode
+                        from ...nodes.class_attribute_node import ClassAttributeNode
+                        
+                        if isinstance(child, (InstanceAttributeNode, ClassAttributeNode)):
+                            # Extract type from attribute's TypeNode child
+                            type_node = child.dot("type")
+                            if type_node:
+                                # Get the actual type string (e.g., "str", "List[User]")
+                                current_type = type_node.type_string
+                                
+                                # Try to resolve to tree node for further navigation
+                                current_node = project.get_node_by_fqn(current_type)
+                                # If None (builtin type), we have the type but can't navigate further
+                            else:
+                                # Attribute has no type annotation
+                                return None
+                        else:
+                            # Standard navigation for methods, classes, etc.
+                            current_node = child
+                            current_type = child.fqn if hasattr(child, 'fqn') else None
                     else:
                         # Navigation failed - child not found
                         return None
                 else:
-                    # No current node to navigate from
+                    # No node to navigate from - cannot continue
                     return None
             
             elif isinstance(op, CallFunction):
-                # Three-case constructor/function resolution
+                # Function or method call: func(), obj.method(), User()
+                # Three cases: class constructor, builtin constructor, function/method
                 
-                # CASE 1: CLASS CONSTRUCTOR
-                # If current_node is a ClassNode, calling it creates an instance
-                # Example: User() → returns instance of User class
+                # CASE 1: Class constructor call
+                # Example: User() where current_node is User ClassNode
                 if current_node and isinstance(current_node, ClassNode):
-                    # Constructor call returns instance of the class
+                    # Constructor returns instance of the class
                     current_type = current_node.fqn
-                    # Keep current_node for chaining: User().get_email()
+                    # Keep current_node for potential chaining: User().method()
                 
-                # CASE 2: BUILTIN CONSTRUCTOR
-                # If current_type is a builtin constructor name
-                # Example: list() → 'list', dict() → 'dict'
+                # CASE 2: Builtin constructor call  
+                # Example: list(), dict() where current_type is 'list' or 'dict'
                 elif current_type in BUILTIN_CONSTRUCTORS:
-                    # list() → 'list', dict() → 'dict'
-                    # current_type already correct
-                    # No tree node means no further navigation possible
-                    current_node = None
-                    # Continue to next operation (or return at loop end)
+                    # Constructor returns instance of the builtin type
+                    # current_type is already correct ('list', 'dict', etc.)
+                    current_node = None  # No tree node for builtins
                 
-                # CASE 3: FUNCTION/METHOD CALL
-                # Regular functions/methods have return type annotations
-                # Example: get_user() → navigate to return type annotation
+                # CASE 3: Function or method call
+                # Example: get_user() or obj.method()
                 elif current_node:
-                    # Navigate to the return type annotation
+                    # Get return type from function's return annotation
                     return_node = current_node.dot("return")
                     if not return_node:
-                        # No return node found (no annotation or doesn't exist)
+                        # No return annotation (returns None implicitly or
+                        # no annotation or doesn't exist)
                         return None
                     
                     type_node = return_node.dot("type")
@@ -364,10 +376,39 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             
             elif isinstance(op, GetSubscript):
                 # Subscript operation: list[0], dict["key"], matrix[i][j]
-                # For now, we can't infer the element type
-                # This requires extracting element types from generic annotations
-                # Future enhancement: List[User] → User, Dict[str, int] → int
-                return None
+                # Extract element type from generic annotations
+                # Examples:
+                #   users: List[User] → users[0] returns User
+                #   data: Dict[str, int] → data["key"] returns int
+                #   matrix: List[List[int]] → matrix[0] returns List[int]
+                
+                if not current_type:
+                    # No type to subscript
+                    return None
+                
+                # Try to extract element type from generic annotation
+                element_type = self._extract_element_type_from_generic(current_type)
+                
+                if element_type:
+                    # Successfully extracted element type
+                    # Update current_type for potential chaining: matrix[i][j]
+                    current_type = element_type
+                    
+                    # Try to get tree node for the element type
+                    # This enables further navigation: users[0].email
+                    current_node = project.get_node_by_fqn(element_type)
+                    
+                    # If no tree node, keep the type string but clear node
+                    # (e.g., for builtins like int, str)
+                    if not current_node:
+                        current_node = None
+                else:
+                    # Could not extract element type
+                    # This happens for:
+                    # 1. Non-generic types (e.g., subscripting a plain 'list' without type param)
+                    # 2. Unsupported generic patterns
+                    # Return None to indicate we can't infer the element type
+                    return None
         
         return current_type
     
@@ -382,6 +423,113 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             Type name as string (e.g., "int", "str", "bool", "NoneType")
         """
         return type(value).__name__
+    
+    def _infer_container_element_type(self, expr: ast.expr) -> Optional[str]:
+        """
+        Infer the element type from a container literal by analyzing its contents.
+        
+        For homogeneous containers, returns the full generic type string.
+        For heterogeneous containers, returns the plain container type.
+        
+        This enables type inference without requiring annotations:
+            [User(), User()] → 'List[sample_files.models.user.User]'
+            [1, 2, 3] → 'List[int]'
+            {"key": User()} → 'Dict[str, sample_files.models.user.User]'
+            [1, "hello"] → 'list' (heterogeneous - fall back to plain type)
+            [] → 'list' (empty - no type info)
+        
+        Args:
+            expr: ast.List, ast.Dict, ast.Set, or ast.Tuple node
+            
+        Returns:
+            Full generic type string if elements are homogeneous, plain type otherwise
+        """
+        if isinstance(expr, ast.List):
+            if not expr.elts:
+                # Empty list - no type information
+                return 'list'
+            
+            # Infer type of first element
+            first_type = self._infer_type(expr.elts[0])
+            if not first_type:
+                return 'list'
+            
+            # Check if all elements have the same type
+            for element in expr.elts[1:]:
+                elem_type = self._infer_type(element)
+                if elem_type != first_type:
+                    # Heterogeneous list - return plain type
+                    return 'list'
+            
+            # Homogeneous list - return generic type
+            return f'List[{first_type}]'
+        
+        elif isinstance(expr, ast.Dict):
+            if not expr.keys:
+                # Empty dict - no type information
+                return 'dict'
+            
+            # Infer type of first key and value
+            first_key_type = self._infer_type(expr.keys[0])
+            first_value_type = self._infer_type(expr.values[0])
+            
+            if not first_key_type or not first_value_type:
+                return 'dict'
+            
+            # Check if all keys and values have consistent types
+            for key, value in zip(expr.keys[1:], expr.values[1:]):
+                key_type = self._infer_type(key)
+                value_type = self._infer_type(value)
+                
+                if key_type != first_key_type or value_type != first_value_type:
+                    # Heterogeneous dict - return plain type
+                    return 'dict'
+            
+            # Homogeneous dict - return generic type
+            return f'Dict[{first_key_type}, {first_value_type}]'
+        
+        elif isinstance(expr, ast.Set):
+            if not expr.elts:
+                # Empty set - no type information
+                return 'set'
+            
+            # Infer type of first element
+            first_type = self._infer_type(expr.elts[0])
+            if not first_type:
+                return 'set'
+            
+            # Check if all elements have the same type
+            for element in expr.elts[1:]:
+                elem_type = self._infer_type(element)
+                if elem_type != first_type:
+                    # Heterogeneous set - return plain type
+                    return 'set'
+            
+            # Homogeneous set - return generic type
+            return f'Set[{first_type}]'
+        
+        elif isinstance(expr, ast.Tuple):
+            if not expr.elts:
+                # Empty tuple - no type information
+                return 'tuple'
+            
+            # For tuples, we use homogeneous approach with ellipsis notation
+            # Tuple[int, int, int] becomes Tuple[int, ...]
+            first_type = self._infer_type(expr.elts[0])
+            if not first_type:
+                return 'tuple'
+            
+            # Check if all elements have the same type
+            for element in expr.elts[1:]:
+                elem_type = self._infer_type(element)
+                if elem_type != first_type:
+                    # Heterogeneous tuple - return plain type
+                    return 'tuple'
+            
+            # Homogeneous tuple - return generic type with ellipsis notation
+            return f'Tuple[{first_type}, ...]'
+        
+        return None
     
     def _extract_type_from_annotation(self, annotation: ast.expr) -> Optional[str]:
         """
@@ -430,6 +578,124 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         # For now, return as-is - we can add recursive resolution later
         # TODO: Parse and resolve inner types (e.g., "List[User]" → "List[sample_files.models.User]")
         return annotation_str
+    
+    def _extract_element_type_from_generic(self, generic_type_str: str) -> Optional[str]:
+        """
+        Extract element type from a generic type annotation.
+        
+        Handles common generic container types and extracts their element types:
+        - List[User] → User
+        - Set[int] → int  
+        - Tuple[str, ...] → str
+        - Dict[str, User] → User (returns value type)
+        - Optional[User] → User
+        
+        This enables type inference through subscript operations:
+            users: List[User] = [...]
+            first_user = users[0]  # Infers type: User
+        
+        Args:
+            generic_type_str: Generic type annotation string (e.g., "List[User]", "Dict[str, int]")
+            
+        Returns:
+            Element type as string, or None if extraction fails
+            
+        Examples:
+            _extract_element_type_from_generic("List[User]") → "User"
+            _extract_element_type_from_generic("Dict[str, int]") → "int"
+            _extract_element_type_from_generic("Set[str]") → "str"
+            _extract_element_type_from_generic("User") → None (not generic)
+        """
+        # Not a generic type if no brackets
+        if '[' not in generic_type_str or ']' not in generic_type_str:
+            return None
+        
+        # Extract the container type and inner content
+        # Example: "List[User]" → container="List", inner="User"
+        try:
+            bracket_start = generic_type_str.index('[')
+            bracket_end = generic_type_str.rindex(']')
+            
+            container = generic_type_str[:bracket_start]
+            inner = generic_type_str[bracket_start + 1:bracket_end]
+            
+            # Handle Dict specially - return value type (second type parameter)
+            # Dict[str, User] → User
+            if container in ('Dict', 'dict'):
+                # Split by comma, handling nested generics
+                parts = self._split_type_parameters(inner)
+                if len(parts) >= 2:
+                    element_type = parts[1].strip()
+                    # Recursively resolve if the value type is also generic
+                    # e.g., Dict[str, Optional[User]] → Optional[User] → User
+                    resolved = self._resolve_annotation(element_type)
+                    return resolved
+                return None
+            
+            # Handle Optional - unwrap to inner type
+            # Optional[User] → User
+            elif container == 'Optional':
+                element_type = inner.strip()
+                resolved = self._resolve_annotation(element_type)
+                return resolved
+            
+            # Handle List, Set, Tuple - return first type parameter
+            # List[User] → User
+            # Set[int] → int
+            # Tuple[str, ...] → str
+            elif container in ('List', 'list', 'Set', 'set', 'Tuple', 'tuple'):
+                # For Tuple, handle varargs notation: Tuple[str, ...]
+                parts = self._split_type_parameters(inner)
+                if parts:
+                    element_type = parts[0].strip()
+                    resolved = self._resolve_annotation(element_type)
+                    return resolved
+                return None
+            
+            # Unknown generic type - return None
+            return None
+            
+        except (ValueError, IndexError):
+            # Malformed generic type
+            return None
+
+    def _split_type_parameters(self, params_str: str) -> list:
+        """
+        Split type parameters by comma, respecting nested brackets.
+        
+        Handles cases like:
+        - "str, int" → ["str", "int"]
+        - "List[int], Dict[str, User]" → ["List[int]", "Dict[str, User]"]
+        
+        Args:
+            params_str: String of comma-separated type parameters
+            
+        Returns:
+            List of parameter strings
+        """
+        parts = []
+        current = []
+        depth = 0
+        
+        for char in params_str:
+            if char == '[':
+                depth += 1
+                current.append(char)
+            elif char == ']':
+                depth -= 1
+                current.append(char)
+            elif char == ',' and depth == 0:
+                # Top-level comma - split here
+                parts.append(''.join(current))
+                current = []
+            else:
+                current.append(char)
+        
+        # Add the last part
+        if current:
+            parts.append(''.join(current))
+        
+        return parts
     
     # ========================================================================
     # Assignment Processing - Inherited by All Visitors
@@ -772,3 +1038,6 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         
         self.scope.add(func_name, func_fqn)
         print(f"   AsyncFunctionDef: {func_name} → {func_fqn}")
+        
+        # Don't traverse into function body by default
+        # Subclasses can override this behavior
