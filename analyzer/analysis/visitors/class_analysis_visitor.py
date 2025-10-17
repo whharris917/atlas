@@ -68,11 +68,16 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
         - Simple: "BaseEntity" → scope.lookup() → "sample_files.core.base.BaseEntity"
         - Qualified: "collections.abc.Mapping" → used as-is (already a FQN)
         
-        Stores resolved FQNs in self.node.base_class_fqns for use by
-        navigation methods during inheritance resolution.
+        Stores resolved FQNs in self.node.base_class_fqns dictionary mapping
+        base class name to resolved FQN. This enables debugging and validation
+        of resolution while providing natural idempotency for multi-pass analysis.
+        
+        The dictionary structure:
+        - Key: base class name as it appears in source (e.g., "BaseEntity")
+        - Value: resolved FQN (e.g., "sample_files.core.base.BaseEntity")
         
         This runs during Analysis Phase initialization, so subsequent
-        navigation operations can use the resolved FQNs.
+        navigation operations can use the resolved FQNs via .values().
         """
         for base_name in self.node.base_classes:
             base_fqn = self.scope.lookup(base_name)
@@ -83,7 +88,9 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
                 base_fqn = base_name
             
             if base_fqn:
-                self.node.base_class_fqns.append(base_fqn)
+                # CHANGED: Dict assignment instead of list append
+                # This is naturally idempotent - multi-pass safe!
+                self.node.base_class_fqns[base_name] = base_fqn
                 print(f"      Resolved base class: {base_name} → {base_fqn}")
     
     def visit_FunctionDef(self, node: ast.FunctionDef):

@@ -39,7 +39,7 @@ class ClassNode(TreeNode):
         
         # Analysis Phase will populate this with resolved FQNs
         # Starts empty, filled by ClassAnalysisVisitor during analyze()
-        self.base_class_fqns: List[str] = []
+        self.base_class_fqns: Dict[str, str] = {}
     
     def _extract_name(self) -> str:
         """Extract class name from ast.ClassDef node."""
@@ -209,7 +209,7 @@ class ClassNode(TreeNode):
             # Get the project for navigation to base classes
             project = self.get_project()
             
-            for base_fqn in self.base_class_fqns:
+            for base_fqn in self.base_class_fqns.values():
                 # Navigate to the base class node
                 base_node = project.get_node_by_fqn(base_fqn)
                 if base_node:
