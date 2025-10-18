@@ -369,12 +369,17 @@ class BaseNode(NavigationMixin):
         # ContainerNode case: pass through to parent or format with type info
         if not (hasattr(self, 'name') and self.name):
             if extended:
-                # Show container type even without name
-                node_type = self.__class__.__name__.replace('Node', '')
-                parent_fqn = self.parent.fqn if self.parent else ""
-                return f"{parent_fqn}.{node_type}()" if parent_fqn else f"{node_type}()"
+                if include_containers:
+                    # CFQN: Show container type with type-prefixed parent
+                    node_type = self.__class__.__name__.replace('Node', '')
+                    parent_fqn = self.parent._build_fqn(extended=True, include_containers=True) if self.parent else ""
+                    return f"{parent_fqn}.{node_type}()" if parent_fqn else f"{node_type}()"
+                else:
+                    # XFQN: Skip container, pass through to parent's xfqn
+                    # CRITICAL FIX (Session 54): Use parent's xfqn (extended) not fqn
+                    return self.parent._build_fqn(extended=True, include_containers=False) if self.parent else ""
             else:
-                # For standard format, pass through to parent
+                # FQN: Standard format, pass through to parent's fqn
                 return self.parent.fqn if self.parent else ""
         
         # TreeNode/RootNode case: build dotted path
