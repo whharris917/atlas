@@ -106,25 +106,28 @@ class IncorrectTypeAnnotation(Warning):
     This helps catch bugs where type hints are incorrect or misleading.
     """
     
-    def __init__(self, parent: 'BaseNode', annotation: str, inferred: str, line_number: int):
+    def __init__(self, parent: 'BaseNode', variable_name: str, annotation: str, inferred: str, line_number: int):
         """
         Create an incorrect type annotation warning.
         
         Args:
             parent: The node where the mismatch occurred
+            variable_name: Name of the variable with incorrect annotation
             annotation: The declared type annotation
             inferred: The inferred runtime type
             line_number: Line number where the mismatch appears
         """
         super().__init__(parent)
+        self.variable_name = variable_name
         self.annotation = annotation
         self.inferred = inferred
         self.line_number = line_number
     
     def __repr__(self) -> str:
-        """Enhanced representation with annotation details."""
-        return (f"IncorrectTypeAnnotation(annotation={self.annotation}, "
-                f"inferred={self.inferred}, line={self.line_number})")
+        """Enhanced representation with variable name and annotation details."""
+        return (f"IncorrectTypeAnnotation({self.variable_name}: "
+                f"annotation={self.annotation}, inferred={self.inferred}, "
+                f"line={self.line_number})")
 
 
 # =============================================================================

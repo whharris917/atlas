@@ -803,6 +803,7 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                 # Mismatch! Create violation
                 note = IncorrectTypeAnnotation(
                     parent=self.node,
+                    variable_name=var_name,
                     annotation=annotation_fqn,
                     inferred=inferred_type,
                     line_number=node.lineno
