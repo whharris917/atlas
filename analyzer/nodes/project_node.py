@@ -146,7 +146,7 @@ class ProjectNode(SerializationMixin, RootNode):
         
         For ClassNode, this delegates to node.dot() which handles inheritance
         automatically. For other node types, uses specific navigation patterns
-        including fallback logic for PackageNode exports.
+        including fallback logic for PackageNode exports and ModuleNode state containers.
         
         Args:
             node: The node to search within
@@ -183,13 +183,24 @@ class ProjectNode(SerializationMixin, RootNode):
             return None
         
         # ModuleNode can contain: classes, functions, state variables
+        # State variables are stored within StateContainerNodes,
+        # so we must search through all _state_containers and their _state_variables
         elif isinstance(node, ModuleNode):
-            return (node.get_class(name) or 
-                    node.get_function(name) or
-                    node.get_state(name))
+            # Try classes and functions first
+            found = node.get_class(name) or node.get_function(name)
+            if found:
+                return found
+            
+            # Search for state variables within state containers
+            for container in node._state_containers:
+                for state_var in container._state_variables:
+                    if state_var.name == name:
+                        return state_var
+            
+            return None
         
         # ClassNode can contain: methods, class attributes, instance attributes
-        # CRITICAL: Use node.dot() which is inheritance-aware via ClassNode override!
+        # Use node.dot() which is inheritance-aware via ClassNode override!
         elif isinstance(node, ClassNode):
             return node.dot(name)
         
