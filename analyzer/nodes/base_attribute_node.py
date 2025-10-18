@@ -7,10 +7,9 @@ Provides shared functionality for both class-level and instance attributes.
 
 import ast
 from abc import abstractmethod
-from typing import Union, Optional, List, Dict
+from typing import Union, Optional, Dict
 from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
-from ..violations import CodeStandardViolation
 
 
 class BaseAttributeNode(TreeNode):
@@ -27,7 +26,6 @@ class BaseAttributeNode(TreeNode):
         
         # Initialize collections before parent init (which calls _create_children)
         self._type: Optional[TypeNode] = None
-        self._violations: List[CodeStandardViolation] = []
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
@@ -38,8 +36,8 @@ class BaseAttributeNode(TreeNode):
         pass
     
     @abstractmethod
-    def _create_missing_type_hint_violation(self) -> CodeStandardViolation:
-        """Create appropriate missing type hint violation - implemented by subclasses."""
+    def _create_missing_type_hint_note(self):
+        """Create appropriate missing type hint note - implemented by subclasses."""
         pass
     
     def _create_children(self):
@@ -50,7 +48,7 @@ class BaseAttributeNode(TreeNode):
         analysis coverage:
         
         - TypeNode: when attribute has type annotation
-        - MissingTypeHint violation: when type hint is missing
+        - MissingTypeHint note: when type hint is missing
         
         This ensures Atlas identifies ALL attributes requiring type documentation.
         """
@@ -59,8 +57,8 @@ class BaseAttributeNode(TreeNode):
             # Type annotation exists - create TypeNode child
             self._create_type_node(annotation)
         else:
-            # No type annotation - create violation ornament
-            self._create_missing_type_hint_violation()
+            # No type annotation - create note
+            self._create_missing_type_hint_note()
     
     def _get_annotation(self) -> Optional[ast.AST]:
         """Get the type annotation AST node, or None if no annotation exists."""

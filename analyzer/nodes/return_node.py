@@ -6,10 +6,10 @@ Every function has exactly one return position, even if implicitly returning Non
 """
 
 import ast
-from typing import Optional, List, Dict
+from typing import Optional, Dict
 from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
-from ..violations import MissingReturnTypeHint
+from ..notes import MissingReturnTypeHint
 
 
 class ReturnNode(TreeNode):
@@ -27,7 +27,6 @@ class ReturnNode(TreeNode):
         
         # Initialize collections before parent init (which calls _create_children)
         self._type: Optional[TypeNode] = None
-        self._violations: List[MissingReturnTypeHint] = []
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
@@ -61,9 +60,9 @@ class ReturnNode(TreeNode):
             # This includes explicit `-> None` annotations for side-effect functions
             self._create_type_node(self.source_data.returns)
         else:
-            # No return type annotation - create MissingReturnTypeHint violation
+            # No return type annotation - create MissingReturnTypeHint note
             # Even functions with implicit None returns should document with -> None
-            self._create_missing_return_type_violation()
+            self._create_missing_return_type_note()
     
     def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
         """
@@ -94,21 +93,17 @@ class ReturnNode(TreeNode):
         self._type = TypeNode(parent=self, source_data=type_ast)
         return self._type
     
-    def _create_missing_return_type_violation(self) -> MissingReturnTypeHint:
+    def _create_missing_return_type_note(self):
         """
-        Create MissingReturnTypeHint violation ornament.
+        Create MissingReturnTypeHint note.
         
         Private method - only called internally when no type hint exists.
         This includes functions that implicitly return None without documenting
         it, as best practice requires explicit `-> None` annotation even for
         side-effect-only functions.
         
-        Violation ornaments hang off the tree but aren't considered part
-        of the structural tree hierarchy (reserved for BaseNode subclasses).
-        
-        Returns:
-            The created violation ornament
+        Notes are lightweight ornamental objects that attach to nodes but aren't
+        part of the structural tree hierarchy (reserved for BaseNode subclasses).
         """
-        violation = MissingReturnTypeHint(self)
-        self._violations.append(violation)
-        return violation
+        note = MissingReturnTypeHint(self)
+        self.add_note(note)

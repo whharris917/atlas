@@ -9,7 +9,7 @@ import ast
 from typing import Union
 from .base_attribute_node import BaseAttributeNode
 from ..core import BaseNode
-from ..violations import MissingInstanceAttributeTypeHint
+from ..notes import MissingInstanceAttributeTypeHint
 
 
 class InstanceAttributeNode(BaseAttributeNode):
@@ -51,13 +51,12 @@ class InstanceAttributeNode(BaseAttributeNode):
             # ClassReconnaissanceVisitor ensures single target
             return self.source_data.targets[0].attr
     
-    def _create_missing_type_hint_violation(self) -> MissingInstanceAttributeTypeHint:
+    def _create_missing_type_hint_note(self):
         """
-        Create MissingInstanceAttributeTypeHint violation ornament.
+        Create MissingInstanceAttributeTypeHint note.
         
         Private method - only called internally when no type hint exists.
         Best practice requires explicit type annotations for all instance attributes.
         """
-        violation = MissingInstanceAttributeTypeHint(self)
-        self._violations.append(violation)
-        return violation
+        note = MissingInstanceAttributeTypeHint(self)
+        self.add_note(note)

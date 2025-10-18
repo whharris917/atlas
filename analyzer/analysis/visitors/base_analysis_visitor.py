@@ -190,21 +190,18 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             
             else:
                 # UNSUPPORTED EXPRESSION TYPE
-                # Create violation to alert that type inference will be incomplete
-                from ...violations import UnsupportedExpressionType
+                # Create note to alert that type inference will be incomplete
+                from ...notes import UnsupportedExpressionType
                 
                 line_number = node.lineno if hasattr(node, 'lineno') else self.node.line_number
                 expression_type = node.__class__.__name__
                 
-                violation = UnsupportedExpressionType(
+                note = UnsupportedExpressionType(
                     parent=self.node,
                     expression_type=expression_type,
                     line_number=line_number
                 )
-                self.node.add_violation(violation)
-                
-                print(f"   VIOLATION: Unsupported expression type '{expression_type}' "
-                    f"at line {line_number}. Type inference may be incomplete.")
+                self.node.add_note(note)
         
         traverse(expr)
         return operations
@@ -783,7 +780,6 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             annotation_str = self._extract_type_from_annotation(node.annotation)
             if annotation_str:
                 annotation_fqn = self._resolve_annotation(annotation_str)
-                print(f"   Annotation: {var_name}: {annotation_str} → {annotation_fqn}")
         
         # Infer type from value if present
         inferred_type = None

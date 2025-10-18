@@ -6,10 +6,10 @@ Extremely focused implementation adhering to strict separation of concerns.
 """
 
 import ast
-from typing import Optional, List, Dict
+from typing import Optional, Dict
 from ..core import TreeNode, BaseNode
 from .type_node import TypeNode
-from ..violations import MissingArgumentTypeHint
+from ..notes import MissingArgumentTypeHint
 
 
 class ArgumentNode(TreeNode):
@@ -21,7 +21,6 @@ class ArgumentNode(TreeNode):
         
         # Initialize collections before parent init (which calls _create_children)
         self._type: Optional[TypeNode] = None
-        self._violations: List[MissingArgumentTypeHint] = []
         
         # Parent class handles name extraction and validation
         super().__init__(parent, source_data)
@@ -33,14 +32,14 @@ class ArgumentNode(TreeNode):
     def _create_children(self):
         """
         Final step of Reconnaissance Phase: analyze type information.
-        Creates either TypeNode child or MissingArgumentTypeHint violation.
+        Creates either TypeNode child or MissingArgumentTypeHint note.
         """
         if self.source_data.annotation:
             # Type annotation exists - create TypeNode
             self._create_type_node(self.source_data.annotation)
         else:
-            # No type annotation - create MissingArgumentTypeHint violation
-            self._create_missing_type_violation()
+            # No type annotation - create MissingArgumentTypeHint note
+            self._create_missing_type_note()
     
     def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
         """
@@ -59,8 +58,7 @@ class ArgumentNode(TreeNode):
         self._type = TypeNode(parent=self, source_data=type_ast)
         return self._type
     
-    def _create_missing_type_violation(self) -> MissingArgumentTypeHint:
-        """Create MissingArgumentTypeHint violation ornament."""
-        violation = MissingArgumentTypeHint(self)
-        self._violations.append(violation)
-        return violation
+    def _create_missing_type_note(self):
+        """Create MissingArgumentTypeHint note."""
+        note = MissingArgumentTypeHint(self)
+        self.add_note(note)
