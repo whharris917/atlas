@@ -81,15 +81,11 @@ class ModuleNode(TreeNode):
         """
         from ..analysis.visitors import ModuleAnalysisVisitor
         
-        print(f"\nAnalyzing module: {self.name}")
         visitor = ModuleAnalysisVisitor(self)
         
         # ModuleAnalysisVisitor doesn't inherit a parent_scope, so no frame to pop
         # Visit the full ast.Module node (see architectural note in docstring)
         visitor.visit(self.source_data.ast_node)
-        
-        print(f"Module analysis complete: {self.name}")
-        print(f"Scope frames remaining: {len(visitor.scope._frames)}")
 
     def create_class(self, class_ast: ast.ClassDef) -> ClassNode:
         """Create and hook a new class from AST node."""
@@ -115,7 +111,9 @@ class ModuleNode(TreeNode):
             import_node = ImportNode(parent=self, source_data=import_ast)
             self._imports.append(import_node)
             return import_node
-        else:  # ast.ImportFrom
+        elif isinstance(import_ast, ast.ImportFrom):
             import_from_node = ImportFromNode(parent=self, source_data=import_ast)
             self._imports.append(import_from_node)
             return import_from_node
+        else:
+            raise TypeError(f"create_import requires ast.Import or ast.ImportFrom, got {type(import_ast)}")

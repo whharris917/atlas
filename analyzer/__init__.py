@@ -5,7 +5,7 @@ Comprehensive static analysis framework for Python codebases featuring
 tree-based reconnaissance, advanced navigation, and precise type analysis.
 
 Enhanced with comprehensive attribute discovery for both class-level
-and instance attributes with violation detection.
+and instance attributes with note-based discovery tracking.
 
 NEW: Simple tree visualization via ProjectNode.print() and ProjectNode.view().
 """
@@ -24,12 +24,38 @@ from .nodes import (
 # Main Atlas Builder
 from .builder import AtlasBuilder, build_complete_atlas, build_sample_project
 
-# Violation system
-from .violations import (
-    CodeStandardViolation, MissingArgumentTypeHint, MissingReturnTypeHint,
-    MissingClassAttributeTypeHint, MissingInstanceAttributeTypeHint,
-    MultipleTargetAttributeAssignment, IncorrectTypeAnnotation,
-    UnsupportedExpressionType
+# Note system - unified hierarchy for all analysis artifacts
+from .notes import (
+    # Base classes
+    Note,
+    CodeStandardViolation,
+    Warning,
+    AtlasLimitation,
+    AnalysisResult,
+    AnalysisSuccess,
+    AnalysisFailure,
+    
+    # Code standard violations
+    MissingArgumentTypeHint,
+    MissingReturnTypeHint,
+    MissingClassAttributeTypeHint,
+    MissingInstanceAttributeTypeHint,
+    MultipleTargetAttributeAssignment,
+    
+    # Warnings
+    IncorrectTypeAnnotation,
+    
+    # Atlas limitations
+    UnsupportedExpressionType,
+    
+    # Analysis successes
+    ScopeAddition,
+    BaseClassResolution,
+    TypeInference,
+    ParameterDiscovery,
+    
+    # Analysis failures
+    TypeInferenceFailure,
 )
 
 # Navigation system
@@ -52,11 +78,36 @@ __all__ = [
     # Main builder
     'AtlasBuilder', 'build_complete_atlas', 'build_sample_project',
     
-    # Violations
-    'CodeStandardViolation', 'MissingArgumentTypeHint', 'MissingReturnTypeHint',
-    'MissingClassAttributeTypeHint', 'MissingInstanceAttributeTypeHint',
-    'MultipleTargetAttributeAssignment', 'IncorrectTypeAnnotation',
+    # Note system - base classes
+    'Note',
+    'CodeStandardViolation',
+    'Warning',
+    'AtlasLimitation',
+    'AnalysisResult',
+    'AnalysisSuccess',
+    'AnalysisFailure',
+    
+    # Code standard violations
+    'MissingArgumentTypeHint',
+    'MissingReturnTypeHint',
+    'MissingClassAttributeTypeHint',
+    'MissingInstanceAttributeTypeHint',
+    'MultipleTargetAttributeAssignment',
+    
+    # Warnings
+    'IncorrectTypeAnnotation',
+    
+    # Atlas limitations
     'UnsupportedExpressionType',
+    
+    # Analysis successes
+    'ScopeAddition',
+    'BaseClassResolution',
+    'TypeInference',
+    'ParameterDiscovery',
+    
+    # Analysis failures
+    'TypeInferenceFailure',
     
     # Navigation
     'NavigationMixin', 'TraversalScope', 'NavigationQuery',

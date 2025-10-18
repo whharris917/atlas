@@ -55,7 +55,6 @@ class FunctionNode(TreeNode):
         """
         from ..analysis.visitors import FunctionAnalysisVisitor
         
-        print(f"      Analyzing function: {self.name}")
         visitor = FunctionAnalysisVisitor(self, parent_scope)
         
         try:
@@ -67,8 +66,6 @@ class FunctionNode(TreeNode):
             # Pop the frame that FunctionAnalysisVisitor pushed in __init__
             if parent_scope:
                 parent_scope.pop_frame()
-        
-        print(f"      Function analysis complete: {self.name}")
 
     def _create_argument(self, arg_ast: ast.arg) -> ArgumentNode:
         """Create and hook a new argument from AST node (internal use only)."""
@@ -77,6 +74,9 @@ class FunctionNode(TreeNode):
         return arg_node
     
     def _create_return(self) -> ReturnNode:
-        """Create and hook return node for this function (internal use only)."""
-        self._return = ReturnNode(parent=self, source_data=self.source_data)
-        return self._return
+        """Create and hook a new return node (internal use only)."""
+        # Always create a ReturnNode, even if no annotation exists
+        # ReturnNode will create violation if type hint is missing
+        return_node = ReturnNode(parent=self, source_data=self.source_data)
+        self._return = return_node
+        return return_node

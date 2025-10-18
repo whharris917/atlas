@@ -12,7 +12,7 @@ from typing import List, Union, Optional, Dict, TYPE_CHECKING
 from ..core import TreeNode, BaseNode
 from ..reconnaissance.visitors import ClassReconnaissanceVisitor
 from .function_node import FunctionNode
-from ..violations import MultipleTargetAttributeAssignment
+from ..notes import MultipleTargetAttributeAssignment
 
 if TYPE_CHECKING:
     from .class_attribute_node import ClassAttributeNode
@@ -94,7 +94,6 @@ class ClassNode(TreeNode):
         """
         from ..analysis.visitors import ClassAnalysisVisitor
         
-        print(f"   Analyzing class: {self.name}")
         visitor = ClassAnalysisVisitor(self, parent_scope)
         
         try:
@@ -106,8 +105,6 @@ class ClassNode(TreeNode):
             # Pop the frame that ClassAnalysisVisitor pushed in __init__
             if parent_scope:
                 parent_scope.pop_frame()
-        
-        print(f"   Class analysis complete: {self.name}")
 
     def create_method(self, method_ast: ast.FunctionDef) -> FunctionNode:
         """Create and hook a new method from AST node."""
@@ -159,7 +156,7 @@ class ClassNode(TreeNode):
     
     def create_multiple_target_attribute_violation(self, target_names: List[str], assignment_context: str):
         """
-        Create MultipleTargetAttributeAssignment violation ornament.
+        Create MultipleTargetAttributeAssignment violation note.
         
         Called by ClassReconnaissanceVisitor when encountering attribute
         assignments with multiple targets that cannot be properly represented
@@ -170,10 +167,10 @@ class ClassNode(TreeNode):
             assignment_context: Context description ("class-level" or "instance-level")
         
         Returns:
-            The created MultipleTargetAttributeAssignment
+            The created MultipleTargetAttributeAssignment note
         """
         violation = MultipleTargetAttributeAssignment(self)
-        self.add_violation(violation)
+        self.add_note(violation)
         return violation
     
     def dot(self, name: str) -> Optional['BaseNode']:

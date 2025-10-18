@@ -33,8 +33,7 @@ from .navigation import NavigationMixin
 from ..reconnaissance.discovery import ProjectStructure, DiscoveredModule, DiscoveredPackage
 
 if TYPE_CHECKING:
-    from ..analysis.base_note import BaseNote
-    from ..violations import CodeStandardViolation
+    from ..notes import Note
 
 
 class BaseNode(NavigationMixin):
@@ -65,8 +64,7 @@ class BaseNode(NavigationMixin):
             
         self.source_data = source_data
         self.parent = parent
-        self._notes: List['BaseNote'] = []  # Analysis artifacts attached to this node
-        self._violations: List['CodeStandardViolation'] = []
+        self._notes: List['Note'] = []  # All notes (violations, results, warnings, etc.) attached to this node
     
     def analyze(self, parent_scope: Optional[Dict[str, str]] = None):
         """
@@ -96,12 +94,12 @@ class BaseNode(NavigationMixin):
         """
         raise NotImplementedError(f"{type(self).__name__} must implement analyze()")
     
-    def get_notes(self, note_type: Optional[type] = None) -> List['BaseNote']:
+    def get_notes(self, note_type: Optional[type] = None) -> List['Note']:
         """
-        Query analysis notes attached to this node.
+        Query notes attached to this node.
         
         Args:
-            note_type: Optional note class to filter by (e.g., TypeNote).
+            note_type: Optional note class to filter by (e.g., TypeInference).
                       If None, returns all notes.
         
         Returns:
@@ -110,6 +108,23 @@ class BaseNode(NavigationMixin):
         if note_type is None:
             return self._notes
         return [note for note in self._notes if isinstance(note, note_type)]
+    
+    def add_note(self, note: 'Note') -> 'Note':
+        """
+        Attach a note to this node.
+        
+        Notes are lightweight ornamental objects that record information
+        discovered during analysis, including violations, warnings, successful
+        discoveries, and Atlas limitations.
+        
+        Args:
+            note: The note object to attach
+            
+        Returns:
+            The stored note (for fluent chaining)
+        """
+        self._notes.append(note)
+        return note
     
     @property
     def line_number(self) -> int:
@@ -206,7 +221,7 @@ class BaseNode(NavigationMixin):
             # Look for collection/child attributes (start with _ but not __)
             if (attr_name.startswith('_') and 
                 not attr_name.startswith('__') and
-                attr_name not in {'_create_children', '_notes', '_violations'} and
+                attr_name not in {'_create_children', '_notes'} and
                 attr_name != 'parent'):
                 
                 attr_value = getattr(self, attr_name, None)
@@ -225,23 +240,6 @@ class BaseNode(NavigationMixin):
                 elif attr_value is not None and hasattr(attr_value, 'name'):
                     if attr_value.name == name:
                         return attr_value
-
-    def add_violation(self, violation: 'CodeStandardViolation') -> 'CodeStandardViolation':
-        """
-        Store a violation ornament on this node.
-        
-        Violations are simple labels that hang off nodes to indicate code
-        standard issues. This universal storage allows any node type to
-        track violations discovered during reconnaissance or analysis.
-        
-        Args:
-            violation: The violation ornament to store
-            
-        Returns:
-            The stored violation (for fluent chaining)
-        """
-        self._violations.append(violation)
-        return violation
 
     def _create_children(self):
         """
@@ -350,7 +348,7 @@ class BaseNode(NavigationMixin):
             "Project(sample_files).Package(models).Module(user).StateContainer().State(User)"
         
         Returns:
-            str: Complete FQN including ContainerNodes with type information
+            str: Complete FQN including all container nodes
         """
         return self._build_fqn(extended=True, include_containers=True)
     
@@ -362,9 +360,9 @@ class BaseNode(NavigationMixin):
         with different formatting and filtering options.
         
         Args:
-            extended: If True, include node types (e.g., "Class(User)")
-            include_containers: If True, include ContainerNodes in path
-        
+            extended: If True, include node type prefixes like "Class(User)"
+            include_containers: If True, include ContainerNodes in the path
+            
         Returns:
             str: Formatted FQN based on options
         """
@@ -551,16 +549,15 @@ class ContainerNode(BaseNode):
             
         Raises:
             ValueError: If parent is None
-            TypeError: If parent is not a BaseNode or source_data is not ast.AST
+            TypeError: If parent is not a BaseNode or source_data is not an AST node
         """
         if parent is None:
             raise ValueError("ContainerNode requires valid parent (cannot be None)")
         if not isinstance(parent, BaseNode):
             raise TypeError(f"ContainerNode parent must be BaseNode instance, got {type(parent)}")
         if not isinstance(source_data, ast.AST):
-            raise TypeError(f"ContainerNode requires ast.AST as source_data, got {type(source_data)}")
+            raise TypeError(f"ContainerNode source_data must be ast.AST node, got {type(source_data)}")
         
         # Parent is required and validated above
         super().__init__(source_data, parent=parent)
-        
         self._create_children()

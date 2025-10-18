@@ -2,6 +2,7 @@
 
 import ast
 from .base_analysis_visitor import BaseAnalysisVisitor
+from ...notes import BaseClassResolution
 
 
 class ClassAnalysisVisitor(BaseAnalysisVisitor):
@@ -78,6 +79,8 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
         
         This runs during Analysis Phase initialization, so subsequent
         navigation operations can use the resolved FQNs via .values().
+        
+        Creates BaseClassResolution notes for each successfully resolved base class.
         """
         for base_name in self.node.base_classes:
             base_fqn = self.scope.lookup(base_name)
@@ -91,7 +94,10 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
                 # CHANGED: Dict assignment instead of list append
                 # This is naturally idempotent - multi-pass safe!
                 self.node.base_class_fqns[base_name] = base_fqn
-                print(f"      Resolved base class: {base_name} → {base_fqn}")
+                
+                # Create BaseClassResolution note
+                note = BaseClassResolution(parent=self.node, base_name=base_name, base_fqn=base_fqn)
+                self.node.add_note(note)
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """
@@ -125,15 +131,15 @@ class ClassAnalysisVisitor(BaseAnalysisVisitor):
         Args:
             node: ast.AsyncFunctionDef for async method definition
         """
-        # First: Call super() to add method to scope
+        # First: Call super() to add async method to scope
         super().visit_AsyncFunctionDef(node)
         
-        # Second: Cascade to method's analyze() if it exists
+        # Second: Cascade to method's analyze()
         method_node = self.node.get_method(node.name)
         if not method_node:
-            raise ValueError(f"FunctionNode for async method '{node.name}' not found in tree")
+            raise ValueError(f"Async FunctionNode for method '{node.name}' not found in tree")
         method_node.analyze(parent_scope=self.scope)
-    
+        
     def visit_ClassDef(self, node: ast.ClassDef):
         """
         Visit nested class definitions and cascade to node.analyze().

@@ -12,6 +12,13 @@ from ..expression_traversal.operations import Operation, GetName, Dot, CallFunct
 from ..scope import Scope
 from ...nodes import ClassNode
 
+from ...notes import (
+    ScopeAddition,
+    TypeInference,
+    TypeInferenceFailure,
+    IncorrectTypeAnnotation
+)
+
 BUILTIN_CONSTRUCTORS = {
     'list', 'dict', 'set', 'tuple', 'frozenset',
     'str', 'int', 'float', 'bool', 'bytes', 'bytearray',
@@ -783,7 +790,13 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         if hasattr(node, 'value') and node.value:
             inferred_type = self._infer_type(node.value)
             if inferred_type:
-                print(f"   Inferred from value: {var_name} = {inferred_type}")
+                note = TypeInference(
+                    parent=self.node,
+                    variable_name=var_name,
+                    inferred_type=inferred_type,
+                    line_number=node.lineno
+                )
+                self.node.add_note(note)
         
         # Determine which type to use in scope
         type_for_scope = None
@@ -792,10 +805,13 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             # Both annotation and inferred type available - compare them
             if annotation_fqn != inferred_type:
                 # Mismatch! Create violation
-                from ...violations import IncorrectTypeAnnotation
-                violation = IncorrectTypeAnnotation(self.node)
-                # TODO: Attach violation to node (needs violation infrastructure)
-                print(f"   VIOLATION: Annotation '{annotation_fqn}' doesn't match inferred '{inferred_type}' (line {node.lineno})")
+                note = IncorrectTypeAnnotation(
+                    parent=self.node,
+                    annotation=annotation_fqn,
+                    inferred=inferred_type,
+                    line_number=node.lineno
+                )
+                self.node.add_note(note)
             
             # Use inferred type (ground truth is runtime behavior)
             type_for_scope = inferred_type
@@ -811,9 +827,20 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         # Add to scope if we have a type
         if type_for_scope:
             self.scope.add(var_name, type_for_scope)
-            print(f"   Added to scope: {var_name} = {type_for_scope} (line {node.lineno})")
+            note = TypeInference(
+                parent=self.node,
+                variable_name=var_name,
+                inferred_type=type_for_scope,
+                line_number=node.lineno
+            )
+            self.node.add_note(note)
         else:
-            print(f"   Could not determine type for: {var_name} (line {node.lineno})")
+            note = TypeInferenceFailure(
+                parent=self.node,
+                variable_name=var_name,
+                line_number=node.lineno
+            )
+            self.node.add_note(note)
         
         self.generic_visit(node)
     
@@ -847,7 +874,13 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
             # Examples: 'import json' → scope['json'] = 'json'
             #           'import os.path' → scope['os'] = 'os'
             self.scope.add(name, alias.name)
-            print(f"   Import: {name} → {alias.name}")
+            note = ScopeAddition(
+                parent=self.node,
+                entity_name=name,
+                entity_fqn=alias.name,
+                entity_type="import"
+            )
+            self.node.add_note(note)
         
         self.generic_visit(node)
     
@@ -900,7 +933,13 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
                 fqn = alias.name
             
             self.scope.add(name, fqn)
-            print(f"   ImportFrom: {name} → {fqn}")
+            note = ScopeAddition(
+                parent=self.node,
+                entity_name=name,
+                entity_fqn=fqn,
+                entity_type="import"
+            )
+            self.node.add_note(note)
         
         self.generic_visit(node)
     
@@ -960,7 +999,13 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         class_fqn = f"{self.node.fqn}.{class_name}"
         
         self.scope.add(class_name, class_fqn)
-        print(f"   ClassDef: {class_name} → {class_fqn}")
+        note = ScopeAddition(
+            parent=self.node,
+            entity_name=class_name,
+            entity_fqn=class_fqn,
+            entity_type="class"
+        )
+        self.node.add_note(note)
         
         # Don't traverse into class body by default
         # Subclasses can override this behavior
@@ -1003,7 +1048,13 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         func_fqn = f"{self.node.fqn}.{func_name}"
         
         self.scope.add(func_name, func_fqn)
-        print(f"   FunctionDef: {func_name} → {func_fqn}")
+        note = ScopeAddition(
+            parent=self.node,
+            entity_name=func_name,
+            entity_fqn=func_fqn,
+            entity_type="function"
+        )
+        self.node.add_note(note)
         
         # Don't traverse into function body by default
         # Subclasses can override this behavior
@@ -1037,7 +1088,13 @@ class BaseAnalysisVisitor(ast.NodeVisitor):
         func_fqn = f"{self.node.fqn}.{func_name}"
         
         self.scope.add(func_name, func_fqn)
-        print(f"   AsyncFunctionDef: {func_name} → {func_fqn}")
+        note = ScopeAddition(
+            parent=self.node,
+            entity_name=func_name,
+            entity_fqn=func_fqn,
+            entity_type="function"
+        )
+        self.node.add_note(note)
         
         # Don't traverse into function body by default
         # Subclasses can override this behavior

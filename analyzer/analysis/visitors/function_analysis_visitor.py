@@ -2,6 +2,7 @@
 
 import ast
 from .base_analysis_visitor import BaseAnalysisVisitor
+from ...notes import ParameterDiscovery
 
 
 class FunctionAnalysisVisitor(BaseAnalysisVisitor):
@@ -59,6 +60,8 @@ class FunctionAnalysisVisitor(BaseAnalysisVisitor):
         This ensures parameters are available for type inference within the function.
         For now, parameters are added with None type (no inference yet).
         
+        Creates ParameterDiscovery notes for each parameter discovered.
+        
         Future enhancement: Infer parameter types from annotations.
         """
         for param in self.node.list_arguments():
@@ -66,7 +69,10 @@ class FunctionAnalysisVisitor(BaseAnalysisVisitor):
             # For now, we don't infer the type (would require annotation handling)
             # Just mark that the parameter exists
             self.scope.add(param.name, None)
-            print(f"   Parameter: {param.name} (type unknown)")
+            
+            # Create ParameterDiscovery note
+            note = ParameterDiscovery(parent=self.node, parameter_name=param.name)
+            self.node.add_note(note)
     
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """
